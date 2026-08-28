@@ -53,13 +53,18 @@ async def pull_model_stream(model: str):
     target_model = model.strip()
 
     async def event_generator():
+        # Immediate connection ping
+        yield f"data: {json.dumps({'status': f'Connecting to Ollama to pull {target_model}...', 'completed': 0, 'total': 100})}\n\n"
         payload = {"name": target_model, "stream": True}
         try:
             async with httpx.AsyncClient(timeout=1800.0) as client:
                 async with client.stream("POST", "http://localhost:11434/api/pull", json=payload) as response:
+                    if response.status_code != 200:
+                        yield f"data: {json.dumps({'status': f'Ollama error status {response.status_code}'})}\n\n"
+                        return
                     async for line in response.aiter_lines():
-                        if line:
-                            yield f"data: {line}\n\n"
+                        if line and line.strip():
+                            yield f"data: {line.strip()}\n\n"
         except Exception as e:
             err_data = json.dumps({"status": "error", "error": str(e)})
             yield f"data: {err_data}\n\n"
@@ -70,7 +75,8 @@ async def pull_model_stream(model: str):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
+            "X-Accel-Buffering": "no",
+            "Content-Type": "text/event-stream"
         }
     )
 

@@ -754,7 +754,7 @@
               <div>
                 ${m.is_installed 
                   ? `<button class="btn-download-model installed">✓ Installed</button>`
-                  : `<button class="btn-download-model" onclick="downloadModel('${m.tag}')">⬇ Download</button>`
+                  : `<button class="btn-download-model" onclick="downloadModel('${m.tag}', this)">⬇ Download</button>`
                 }
               </div>
             </div>
@@ -763,11 +763,18 @@
       } catch (err) {}
     }
 
-    window.downloadModel = function(modelTag) {
+    window.downloadModel = function(modelTag, btnEl) {
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.style.background = '#ffe814';
+        btnEl.style.color = '#000';
+        btnEl.innerText = '⏳ Starting...';
+      }
+
       dlBanner.style.display = 'block';
       dlStatusText.innerText = `Connecting to Ollama for ${modelTag}...`;
       dlPercentText.innerText = `0%`;
-      dlBarFill.style.width = `0%`;
+      dlBarFill.style.width = `2%`;
 
       const evtSource = new EventSource(`/api/models/pull/stream?model=${encodeURIComponent(modelTag)}`);
       evtSource.onmessage = (event) => {
@@ -775,28 +782,42 @@
           const data = JSON.parse(event.data);
           if (data.status) {
             dlStatusText.innerText = `${modelTag}: ${data.status}`;
+            if (btnEl && !data.completed) {
+              btnEl.innerText = `⏳ ${data.status.slice(0, 14)}...`;
+            }
           }
           if (data.total && data.completed) {
             const pct = Math.round((data.completed / data.total) * 100);
             dlPercentText.innerText = `${pct}% (${(data.completed/1024/1024).toFixed(1)} MB / ${(data.total/1024/1024).toFixed(1)} MB)`;
-            dlBarFill.style.width = `${pct}%`;
+            dlBarFill.style.width = `${Math.max(pct, 5)}%`;
+            if (btnEl) {
+              btnEl.innerText = `⏳ ${pct}%`;
+            }
           }
           if (data.status === 'success') {
-            dlStatusText.innerText = `Successfully Installed ${modelTag}!`;
+            dlStatusText.innerText = `✅ Successfully Installed ${modelTag}!`;
             dlBarFill.style.width = `100%`;
+            if (btnEl) {
+              btnEl.className = 'btn-download-model installed';
+              btnEl.innerText = '✓ Installed';
+              btnEl.style.background = 'var(--green)';
+            }
             evtSource.close();
             setTimeout(() => {
               loadModels();
               loadHubCatalog();
-            }, 1000);
+            }, 1200);
           }
         } catch (e) {}
       };
-      evtSource.onerror = () => {
+
+      evtSource.onerror = (err) => {
+        console.log("SSE stream closed or finished:", err);
         evtSource.close();
-        dlStatusText.innerText = `Download completed or finished in background.`;
-        loadModels();
-        loadHubCatalog();
+        setTimeout(() => {
+          loadModels();
+          loadHubCatalog();
+        }, 1500);
       };
     };
 
