@@ -1,5 +1,6 @@
 {
   "framework": null,
+  "installCommand": "echo 'Skip install'",
   "buildCommand": "echo 'Build static'",
   "outputDirectory": "public",
   "cleanUrls": true,
