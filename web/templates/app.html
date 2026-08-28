@@ -360,7 +360,7 @@
           modelSelect.innerHTML = data.text_models.map(m => `<option value="${m}" ${m.includes('3b') ? 'selected' : ''}>${m}</option>`).join('');
         }
         if (data.vision_models && data.vision_models.length > 0) {
-          visionSelect.innerHTML = data.vision_models.map(m => `<option value="${m}" ${m.includes('vision') ? 'selected' : ''}>${m}</option>`).join('');
+          visionSelect.innerHTML = data.vision_models.map(m => `<option value="${m}" ${m.includes('moondream') ? 'selected' : ''}>${m}</option>`).join('');
         }
       } catch (err) {}
     }

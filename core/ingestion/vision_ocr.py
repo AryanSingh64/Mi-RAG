@@ -20,10 +20,30 @@ class VisionImageParser(BaseDocumentParser):
         self.ollama_url = ollama_url
         self.vision_model = vision_model
 
+    def _resolve_vision_model(self) -> str:
+        """Finds the best available matching vision model tag in local Ollama."""
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                res = client.get(f"{self.ollama_url}/api/tags")
+                if res.status_code == 200:
+                    models = [m.get("name") for m in res.json().get("models", [])]
+                    if self.vision_model in models:
+                        return self.vision_model
+                    if f"{self.vision_model}:latest" in models:
+                        return f"{self.vision_model}:latest"
+                    for m in models:
+                        if "moondream" in m.lower():
+                            return m
+                    for m in models:
+                        if "vision" in m.lower() or "llava" in m.lower():
+                            return m
+        except Exception:
+            pass
+        return self.vision_model
+
     def _prepare_image(self, image_path: Path) -> tuple[np.ndarray, str]:
         """Loads image, handles transparency with clean white background, and returns RGB numpy array and base64 string."""
         with Image.open(image_path) as img:
-            # Handle alpha transparency by converting to white background
             if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
                 rgba = img.convert("RGBA")
                 bg = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
@@ -32,10 +52,8 @@ class VisionImageParser(BaseDocumentParser):
             else:
                 rgb_img = img.convert("RGB")
 
-            # Convert to numpy array for RapidOCR
             np_img = np.array(rgb_img)
 
-            # Convert to base64 for Ollama Vision
             buffered = io.BytesIO()
             rgb_img.save(buffered, format="JPEG", quality=95)
             b64_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
@@ -50,31 +68,40 @@ class VisionImageParser(BaseDocumentParser):
                 return ""
             lines = [item[1].strip() for item in result if item[1].strip()]
             return "\n".join(lines)
-        except Exception:
+        except Exception as e:
+            print(f"[*] OCR extraction note: {e}")
             return ""
 
     def _extract_via_ollama_vision(self, b64_image: str) -> Optional[str]:
         """Generates detailed semantic description of image contents using Ollama Vision."""
+        resolved_model = self._resolve_vision_model()
+        print(f"[*] Processing image with Vision Model: {resolved_model}")
+
+        prompt = (
+            "Deep visual inspection: "
+            "1. Transcribe ALL visible text, words, logos, abbreviations, numbers, and labels exactly as written. "
+            "2. Describe the visual layout, typography, font style (e.g. cursive, block, 3D, chrome), color palette, and background. "
+            "3. Explain what this image, logo, chart, or document represents."
+        )
+
+        payload = {
+            "model": resolved_model,
+            "prompt": prompt,
+            "images": [b64_image],
+            "stream": False
+        }
+
         try:
-            prompt = (
-                "Deep visual inspection: "
-                "1. Transcribe ALL visible text, words, logos, abbreviations, numbers, and labels exactly as written. "
-                "2. Describe the visual layout, typography, font style (e.g. cursive, block, 3D, chrome), color palette, and background. "
-                "3. Explain what this image, logo, chart, or document represents."
-            )
-
-            payload = {
-                "model": self.vision_model,
-                "prompt": prompt,
-                "images": [b64_image],
-                "stream": False
-            }
-
-            with httpx.Client(timeout=60.0) as client:
+            with httpx.Client(timeout=120.0) as client:
                 res = client.post(f"{self.ollama_url}/api/generate", json=payload)
                 if res.status_code == 200:
-                    return res.json().get("response", "").strip()
-        except Exception:
+                    description = res.json().get("response", "").strip()
+                    print(f"[*] Vision description generated ({len(description)} chars)")
+                    return description
+                else:
+                    print(f"[!] Vision model returned status {res.status_code}: {res.text}")
+        except Exception as e:
+            print(f"[!] Vision model call error: {e}")
             return None
         return None
 
@@ -85,20 +112,24 @@ class VisionImageParser(BaseDocumentParser):
 
         np_img, b64_image = self._prepare_image(file_path)
 
-        # 1. Run Vision Model to get semantic visual description
+        # 1. Run Vision Model
         vision_description = self._extract_via_ollama_vision(b64_image)
 
-        # 2. Run OCR to extract exact text
+        # 2. Run OCR
         ocr_text = self._extract_via_ocr(np_img)
 
-        # 3. Combine both with explicit document header
+        # 3. Format structured content with strict labels
         filename = file_path.name
-        sections = [f"[Image / Graphic Document: {filename}]"]
+        sections = [f"Source File Name: {filename}"]
 
         if ocr_text:
-            sections.append(f"[Extracted Text / OCR]\n{ocr_text}")
+            sections.append(f"[Exact OCR Extracted Text]\n{ocr_text}")
+
         if vision_description:
-            sections.append(f"[Visual Description, Colors & Layout]\n{vision_description}")
+            sections.append(f"[Visual Description, Logo Content, Colors & Fonts]\n{vision_description}")
+
+        if not ocr_text and not vision_description:
+            sections.append("[Visual Content]\nNo readable text or visual description could be generated for this image.")
 
         full_content = "\n\n".join(sections)
 

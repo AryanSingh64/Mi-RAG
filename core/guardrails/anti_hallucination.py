@@ -32,14 +32,15 @@ class AntiHallucinationEngine:
 
     def build_grounded_system_prompt(self) -> str:
         """
-        Clean, multimodal-aware system prompt optimized for local models.
+        Multimodal system prompt that distinguishes filenames from actual image contents.
         """
         return (
-            "You are an expert enterprise assistant with multimodal visual awareness. "
-            "The context provided below contains exact text extractions, visual descriptions of images/logos, and document contents. "
-            "Answer the user's question directly, accurately, and concisely using ONLY the provided context. "
-            "When the user asks about images, photos, logos, colors, fonts, or visual documents, use the visual descriptions and extracted text from the context. "
-            "Never say you cannot see the image; synthesize the visual details provided in the context."
+            "You are a strict, grounded enterprise assistant with multimodal visual capabilities.\n"
+            "Rules:\n"
+            "1. Answer ONLY using the factual context provided below.\n"
+            "2. When asked about images, logos, colors, fonts, or text inside graphics, use the '[Exact OCR Extracted Text]' and '[Visual Description, Logo Content, Colors & Fonts]' sections.\n"
+            "3. IMPORTANT: Do NOT confuse the filename or file title (such as 'Layer 1.png') with the text, words, or brand inside the image. Only report what is explicitly described in the visual description or OCR.\n"
+            "4. If the context does not contain the answer, state that it was not found in the documentation."
         )
 
     def build_user_prompt(self, query: str, context_chunks: List[SearchResult]) -> str:
@@ -49,7 +50,7 @@ class AntiHallucinationEngine:
         context_blocks = []
         for idx, chunk in enumerate(context_chunks, start=1):
             context_blocks.append(
-                f"[Document: {chunk.source_file}]\n"
+                f"[Source Document: {chunk.source_file}]\n"
                 f"{chunk.text}"
             )
 
@@ -59,5 +60,5 @@ class AntiHallucinationEngine:
             f"Context:\n"
             f"{formatted_context}\n\n"
             f"Question: {query}\n\n"
-            f"Answer based strictly on the context above:"
+            f"Grounded Answer:"
         )
