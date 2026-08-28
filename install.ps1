@@ -37,7 +37,6 @@ $targetDir = "$HOME\Mi-RAG"
 if (Test-Path "$targetDir\run_factory.py") {
     Write-Host -NoNewline " [*] Checking for updates... " -ForegroundColor Cyan
     Set-Location $targetDir
-    # Non-blocking offline-safe update check
     try {
         $gitOutput = git pull --quiet 2>&1
         Write-Host "[ UP TO DATE ]" -ForegroundColor Green
@@ -45,7 +44,6 @@ if (Test-Path "$targetDir\run_factory.py") {
         Write-Host "[ OFFLINE MODE ]" -ForegroundColor Yellow
     }
 } elseif (Test-Path ".\run_factory.py") {
-    # If running from cloned local directory
     $targetDir = (Get-Location).Path
     Write-Host " [*] Running from local repository at $targetDir" -ForegroundColor Cyan
 } else {
@@ -59,7 +57,7 @@ if (Test-Path "$targetDir\run_factory.py") {
     Write-Host "[ CLONED ]" -ForegroundColor Green
 }
 
-# 4. Virtual Environment & Dependencies Check (Offline-Safe)
+# 4. Virtual Environment & Accelerated Parallel Dependencies Check
 if (-not (Test-Path "$targetDir\.venv\Scripts\python.exe")) {
     Write-Host -NoNewline " [*] Creating virtual environment (.venv)... " -ForegroundColor Cyan
     python -m venv "$targetDir\.venv"
@@ -86,7 +84,16 @@ if ($hasUvicorn -ne "OK") {
     Write-Host " [OK] All dependencies installed successfully!" -ForegroundColor Green
 }
 
-# 5. Launch Banner
+# 5. Launch Banner & Automatic Port Freeing
+try {
+    $connections = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue
+    foreach ($conn in $connections) {
+        if ($conn.OwningProcess -and $conn.OwningProcess -ne $PID) {
+            Stop-Process -Id $conn.OwningProcess -Force -ErrorAction SilentlyContinue
+        }
+    }
+} catch {}
+
 Write-Host ""
 Write-Host " +---------------------------------------------------------+" -ForegroundColor Red
 Write-Host " |  Mi:RAG Studio is launching on http://localhost:8000    |" -ForegroundColor Yellow
@@ -94,6 +101,6 @@ Write-Host " |  100% Private  |  Zero API Costs  |  Hardware Accelerated|" -Fore
 Write-Host " +---------------------------------------------------------+" -ForegroundColor Red
 Write-Host ""
 
-# 6. Direct Native Launch via Python (Zero Batch Dependencies)
+# 6. Direct Native Launch via Python
 Set-Location $targetDir
 & "$targetDir\.venv\Scripts\python.exe" "$targetDir\run_factory.py"
