@@ -21,7 +21,7 @@ class AntiHallucinationEngine:
     and enforces citation-backed responses.
     """
 
-    def __init__(self, min_similarity_threshold: float = 0.20):
+    def __init__(self, min_similarity_threshold: float = 0.05):
         self.min_similarity_threshold = min_similarity_threshold
 
     def filter_relevant_chunks(self, search_results: List[SearchResult]) -> List[SearchResult]:
@@ -32,11 +32,14 @@ class AntiHallucinationEngine:
 
     def build_grounded_system_prompt(self) -> str:
         """
-        Clean, direct system prompt optimized for fast local models.
+        Clean, multimodal-aware system prompt optimized for local models.
         """
         return (
-            "You are a precise enterprise assistant. "
-            "Read the provided context and answer the user's question directly and concisely using only facts from the context."
+            "You are an expert enterprise assistant with multimodal visual awareness. "
+            "The context provided below contains exact text extractions, visual descriptions of images/logos, and document contents. "
+            "Answer the user's question directly, accurately, and concisely using ONLY the provided context. "
+            "When the user asks about images, photos, logos, colors, fonts, or visual documents, use the visual descriptions and extracted text from the context. "
+            "Never say you cannot see the image; synthesize the visual details provided in the context."
         )
 
     def build_user_prompt(self, query: str, context_chunks: List[SearchResult]) -> str:
@@ -56,5 +59,5 @@ class AntiHallucinationEngine:
             f"Context:\n"
             f"{formatted_context}\n\n"
             f"Question: {query}\n\n"
-            f"Answer based only on the context:"
+            f"Answer based strictly on the context above:"
         )

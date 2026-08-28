@@ -1,5 +1,13 @@
+import sys
 from typing import List
 from sentence_transformers import SentenceTransformer
+
+# Windows console encoding fix
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 
 class LocalEmbedder:
@@ -10,7 +18,7 @@ class LocalEmbedder:
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         self.model_name = model_name
-        print(f"📦 Loading embedding model: {model_name} (runs on CPU/local)...")
+        print(f"[*] Loading embedding model: {model_name} (CPU/local)...")
         self.model = SentenceTransformer(model_name)
 
     def embed_text(self, text: str) -> List[float]:

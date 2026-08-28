@@ -24,7 +24,7 @@ class RAGPipeline:
         ollama_url: str = "http://localhost:11434",
         chunk_size: int = 400,
         chunk_overlap: int = 60,
-        min_similarity_threshold: float = 0.18
+        min_similarity_threshold: float = 0.08
     ):
         self.vision_model = vision_model
         self.parser_factory = DocumentParserFactory(vision_model=self.vision_model)
@@ -50,7 +50,7 @@ class RAGPipeline:
         self.vector_store.add_chunks(chunks)
         return len(chunks)
 
-    def query(self, user_question: str, top_k: int = 4) -> GroundedAnswer:
+    def query(self, user_question: str, top_k: int = 6) -> GroundedAnswer:
         """
         Executes a query with spelling auto-correction, query expansion, and anti-hallucination.
         """
@@ -64,20 +64,23 @@ class RAGPipeline:
                 citations=[]
             )
 
-        # 2. Fix typos & expand query (e.g. "what is hiis mame" -> "What is his name?")
+        # 2. Fix typos & expand query
         cleaned_question, search_query = self.rewriter.clean_and_expand_query(
             user_question,
             model_name=self.current_model
         )
 
-        # 3. Retrieve semantic matches using the corrected search query
+        # 3. Multi-strategy retrieval (corrected query + original query)
         raw_results = self.vector_store.query(search_query, top_k=top_k)
+        if search_query != user_question:
+            direct_results = self.vector_store.query(user_question, top_k=top_k)
+            # Merge and deduplicate by text/source
+            seen = {r.text: r for r in raw_results}
+            for dr in direct_results:
+                if dr.text not in seen:
+                    raw_results.append(dr)
 
-        # 4. Fallback search with raw query if needed
-        if not raw_results and search_query != user_question:
-            raw_results = self.vector_store.query(user_question, top_k=top_k)
-
-        # 5. Filter relevant chunks
+        # 4. Filter relevant chunks using guardrails
         relevant_chunks = self.guardrails.filter_relevant_chunks(raw_results)
 
         if not relevant_chunks:
