@@ -43,17 +43,10 @@ app.include_router(api_router, prefix="/api")
 
 
 @app.get("/", response_class=HTMLResponse)
-def index():
-    html_path = Path("./web/templates/index.html")
-    if html_path.exists():
-        return html_path.read_text(encoding="utf-8")
-    return "<h1>Mi:RAG is running!</h1>"
-
-
 @app.get("/app", response_class=HTMLResponse)
 @app.get("/studio", response_class=HTMLResponse)
 def app_studio():
-    html_path = Path("./web/templates/app.html")
+    html_path = ROOT_DIR / "web" / "templates" / "app.html"
     if html_path.exists():
         return html_path.read_text(encoding="utf-8")
     return "<h1>Mi:RAG Studio is loading...</h1>"
