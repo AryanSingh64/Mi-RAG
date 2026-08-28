@@ -3,84 +3,73 @@
 #  Repository: https://github.com/AryanSingh64/Mi-RAG
 # ==============================================================================
 
-$Host.UI.RawUI.WindowTitle = "Mi:RAG — Autonomous Multimodal RAG Engine"
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$Host.UI.RawUI.WindowTitle = "Mi:RAG - Autonomous Multimodal RAG Engine"
 Clear-Host
 
-# ANSI Color Codes
-$esc = [char]27
-$cReset  = "$esc[0m"
-$cBold   = "$esc[1m"
-$cPink   = "$esc[38;2;255;45;135m"
-$cYellow = "$esc[38;2;255;232;20m"
-$cGreen  = "$esc[38;2;43;226;108m"
-$cCyan   = "$esc[38;2;0;210;255m"
-$cDim    = "$esc[38;2;120;120;140m"
-
-# 1. ASCII Art Logo inspired by Mi:RAG Logo
+# 1. High-Impact Bold Red Pure ASCII Logo (Universal Compatibility)
 Write-Host ""
-Write-Host "$cPink   ███╗   ███╗██╗██╗   ██╗██████╗  █████╗  ██████╗ $cReset"
-Write-Host "$cPink   ████╗ ████║██║██║   ██║██╔══██╗██╔══██╗██╔════╝ $cReset"
-Write-Host "$cYellow   ██╔████╔██║██║██║   ██║██████╔╝███████║██║  ███╗$cReset"
-Write-Host "$cYellow   ██║╚██╔╝██║██║██║   ██║██╔══██╗██╔══██║██║   ██║$cReset"
-Write-Host "$cCyan   ██║ ╚═╝ ██║██║╚██████╔╝██║  ██║██║  ██║╚██████╔╝$cReset"
-Write-Host "$cCyan   ╚═╝     ╚═╝╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ $cReset"
-Write-Host "$cDim   ------------------------------------------------------------$cReset"
-Write-Host "$cBold$cYellow   [ Mission RAG ]$cReset — Autonomous Multimodal RAG-in-a-Box Engine"
-Write-Host "$cDim   ------------------------------------------------------------$cReset"
+Write-Host "  __  __ _       ____      _    ____  " -ForegroundColor Red
+Write-Host " |  \/  (_)     |  _ \    / \  / ___| " -ForegroundColor Red
+Write-Host " | |\/| | |  _  | |_) |  / _ \| |  _  " -ForegroundColor Red
+Write-Host " | |  | | | (_) |  _ <  / ___ \ |_| | " -ForegroundColor Red
+Write-Host " |_|  |_|_|     |_| \_\/_/   \_\____| " -ForegroundColor Red
+Write-Host ""
+Write-Host " ===========================================================" -ForegroundColor DarkGray
+Write-Host "   [ MISSION RAG ] - Autonomous Multimodal RAG Engine       " -ForegroundColor Yellow
+Write-Host " ===========================================================" -ForegroundColor DarkGray
 Write-Host ""
 
-function Start-StepAnimation($message) {
-    Write-Host -NoNewline "$cCyan[ ⚡ ] $cReset$message "
-    Start-Sleep -Milliseconds 250
-    Write-Host "$cGreen[ OK ]$cReset"
+function Print-Step($msg) {
+    Write-Host -NoNewline " [*] $msg " -ForegroundColor Cyan
+    Start-Sleep -Milliseconds 200
+    Write-Host "[ OK ]" -ForegroundColor Green
 }
 
 # 2. Prerequisites Verification
-Start-StepAnimation "Checking Python 3.10+ installation..."
+Print-Step "Checking Python 3.10+ installation..."
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
-    Write-Host "$cPink[ ✕ ] Python not detected! Please install Python 3.10+ from python.org$cReset" -ForegroundColor Red
+    Write-Host " [!] Python not detected! Please install Python 3.10+ from python.org" -ForegroundColor Red
     Exit 1
 }
 
-Start-StepAnimation "Verifying Git version control..."
+Print-Step "Verifying Git version control..."
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Write-Host "$cPink[ ✕ ] Git not detected! Please install Git from git-scm.com$cReset" -ForegroundColor Red
+    Write-Host " [!] Git not detected! Please install Git from git-scm.com" -ForegroundColor Red
     Exit 1
 }
 
 # 3. Clone or Update Repository
 $targetDir = "$HOME\Mi-RAG"
 if (Test-Path $targetDir) {
-    Write-Host -NoNewline "$cCyan[ ⚡ ] Updating local Mi:RAG repository... $cReset"
+    Write-Host -NoNewline " [*] Updating local Mi:RAG repository... " -ForegroundColor Cyan
     Set-Location $targetDir
     git pull --quiet
-    Write-Host "$cGreen[ UP TO DATE ]$cReset"
+    Write-Host "[ UP TO DATE ]" -ForegroundColor Green
 } else {
-    Write-Host -NoNewline "$cCyan[ ⚡ ] Cloning repository to $targetDir... $cReset"
+    Write-Host -NoNewline " [*] Cloning repository to $targetDir... " -ForegroundColor Cyan
     git clone --quiet https://github.com/AryanSingh64/Mi-RAG.git $targetDir
     Set-Location $targetDir
-    Write-Host "$cGreen[ CLONED ]$cReset"
+    Write-Host "[ CLONED ]" -ForegroundColor Green
 }
 
 # 4. Virtual Environment & Dependencies Check
 if (-not (Test-Path "$targetDir\.venv")) {
-    Write-Host -NoNewline "$cCyan[ ⚡ ] Initializing isolated virtual environment (.venv)... $cReset"
+    Write-Host -NoNewline " [*] Initializing isolated virtual environment (.venv)... " -ForegroundColor Cyan
     python -m venv .venv
-    Write-Host "$cGreen[ CREATED ]$cReset"
+    Write-Host "[ CREATED ]" -ForegroundColor Green
     
-    Write-Host "$cCyan[ ⚡ ] Installing lightweight factory dependencies (one-time setup)...$cReset"
+    Write-Host " [*] Installing lightweight factory dependencies (one-time setup)..." -ForegroundColor Cyan
     & "$targetDir\.venv\Scripts\pip" install --quiet --upgrade pip
     & "$targetDir\.venv\Scripts\pip" install --quiet -r requirements.txt
-    Write-Host "$cGreen[ ✓ ] All dependencies installed successfully!$cReset"
+    Write-Host " [OK] All dependencies installed successfully!" -ForegroundColor Green
 }
 
 # 5. Launch Banner
 Write-Host ""
-Write-Host "$cPink ╔═══════════════════════════════════════════════════════════════════╗$cReset"
-Write-Host "$cPink ║$cBold$cYellow   Mi:RAG Studio is launching on http://localhost:8000           $cPink║$cReset"
-Write-Host "$cPink ║$cGreen   ✓ 100% Private  •  ✓ Zero API Costs  •  ✓ RTX Accelerated     $cPink║$cReset"
-Write-Host "$cPink ╚═══════════════════════════════════════════════════════════════════╝$cReset"
+Write-Host " +---------------------------------------------------------+" -ForegroundColor Red
+Write-Host " |  Mi:RAG Studio is launching on http://localhost:8000    |" -ForegroundColor Yellow
+Write-Host " |  100% Private  |  Zero API Costs  |  Hardware Accelerated|" -ForegroundColor White
+Write-Host " +---------------------------------------------------------+" -ForegroundColor Red
 Write-Host ""
 
 # 6. Start Web Factory
