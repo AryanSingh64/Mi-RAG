@@ -3,7 +3,15 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from PIL import Image
-import pymupdf as fitz
+
+try:
+    import pymupdf as fitz
+except ImportError:
+    try:
+        import fitz
+    except ImportError:
+        fitz = None
+
 from rapidocr_onnxruntime import RapidOCR
 from core.ingestion.base import BaseDocumentParser, ParsedDocument
 
@@ -19,7 +27,7 @@ class DiagramDetector:
     CAPTION_REGEX = re.compile(r"(fig(?:ure)?\.?\s*\d+|diagram\s*\d+|table\s*\d+|algorithm\s*\d+|architecture)", re.IGNORECASE)
 
     @classmethod
-    def detect_diagram_regions(cls, page: fitz.Page) -> List[Tuple[fitz.Rect, str, str]]:
+    def detect_diagram_regions(cls, page: Any) -> List[Tuple[Any, str, str]]:
         """
         Analyzes page drawings, images, and text blocks to return a list of:
         (cropped_bbox, caption_text, diagram_type)
@@ -143,6 +151,29 @@ class PdfDocumentParser(BaseDocumentParser):
         file_path = Path(file_path)
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
+
+        if fitz is None:
+            # Safe Fallback to pypdf if pymupdf is not yet installed in venv
+            from pypdf import PdfReader
+            reader = PdfReader(str(file_path))
+            total_pages = len(reader.pages)
+            pages_text = []
+            for page_num, page in enumerate(reader.pages, start=1):
+                native_text = (page.extract_text() or "").strip()
+                pages_text.append(f"[Page {page_num}]\n{native_text}")
+            full_text = "\n\n".join(pages_text)
+            return ParsedDocument(
+                filename=file_path.name,
+                file_path=str(file_path.resolve()),
+                file_type="pdf",
+                text_content=full_text,
+                pages=pages_text,
+                metadata={
+                    "total_pages": total_pages,
+                    "char_count": len(full_text),
+                    "diagram_count": 0
+                }
+            )
 
         clean_stem = "".join(c if c.isalnum() else "_" for c in file_path.stem)
         doc = fitz.open(str(file_path))
