@@ -6,13 +6,13 @@ import httpx
 class OllamaClient:
     """
     Client for interacting with local Ollama instance using the native Chat API
-    with full RTX GPU offload and 12-thread acceleration.
+    with full RTX GPU offload, thread acceleration, and automatic fallback on 500 errors.
     """
 
     def __init__(
         self,
         base_url: str = "http://localhost:11434",
-        default_model: str = "llama3.2:1b",
+        default_model: str = "llama3.2:3b",
         num_threads: Optional[int] = None
     ):
         self.base_url = base_url.rstrip("/")
@@ -39,7 +39,7 @@ class OllamaClient:
         temperature: float = 0.1
     ) -> str:
         """
-        Sends chat messages to Ollama `/api/chat` endpoint with full GPU acceleration.
+        Sends chat messages to Ollama `/api/chat` endpoint with automatic fallback if a model crashes.
         """
         selected_model = model or self.default_model
 
@@ -60,7 +60,29 @@ class OllamaClient:
             }
         }
 
-        with httpx.Client(timeout=120.0) as client:
-            res = client.post(f"{self.base_url}/api/chat", json=payload)
-            res.raise_for_status()
-            return res.json().get("message", {}).get("content", "").strip()
+        try:
+            with httpx.Client(timeout=120.0) as client:
+                res = client.post(f"{self.base_url}/api/chat", json=payload)
+                if res.status_code == 200:
+                    return res.json().get("message", {}).get("content", "").strip()
+
+                err_text = res.text
+                print(f"[!] Ollama model {selected_model} returned {res.status_code}. Attempting fallback...")
+
+                # Auto-fallback to reliable text models
+                for fallback_model in ["llama3.2:3b", "llama3.2:1b", "llama3.2"]:
+                    if fallback_model != selected_model:
+                        try:
+                            payload["model"] = fallback_model
+                            res_fb = client.post(f"{self.base_url}/api/chat", json=payload)
+                            if res_fb.status_code == 200:
+                                print(f"[OK] Fallback to {fallback_model} succeeded.")
+                                return res_fb.json().get("message", {}).get("content", "").strip()
+                        except Exception:
+                            pass
+
+                raise RuntimeError(f"Ollama error: {err_text}")
+        except Exception as e:
+            if "Ollama error:" in str(e):
+                raise e
+            raise RuntimeError(f"Ollama connection error: {str(e)}")
