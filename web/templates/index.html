@@ -422,34 +422,58 @@
       box-shadow: var(--shadow-neo-lg);
     }
 
-    /* Mobile Desktop Callout Card */
+    /* Neo-Brutalist Mobile Desktop Callout Card */
     .mobile-desktop-card {
       display: none;
-      background: #111827;
+      background: #ffffff;
       border: var(--border-thick);
       border-radius: 12px;
-      box-shadow: var(--shadow-neo-lg);
-      padding: 1.5rem;
-      margin: 2rem auto 1rem;
-      max-width: 600px;
-      color: #ffffff;
+      box-shadow: 6px 6px 0px #000000;
+      padding: 1.35rem 1.4rem;
+      margin: 1.75rem auto 1rem;
+      max-width: 100%;
+      color: #000000;
       text-align: left;
+    }
+    .mobile-desktop-card-badge {
+      display: inline-block;
+      background: var(--pink);
+      color: #ffffff;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 0.72rem;
+      letter-spacing: 0.5px;
+      padding: 0.25rem 0.65rem;
+      border-radius: 4px;
+      border: 1.5px solid #000000;
+      box-shadow: 2px 2px 0px #000000;
+      margin-bottom: 0.65rem;
     }
     .mobile-desktop-card-title {
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 900;
-      font-size: 1.05rem;
-      color: var(--yellow);
-      margin-bottom: 0.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      font-size: 1.15rem;
+      color: #000000;
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.5px;
     }
     .mobile-desktop-card-desc {
       font-size: 0.88rem;
-      line-height: 1.55;
-      color: #cbd5e1;
-      margin-bottom: 1.25rem;
+      font-weight: 600;
+      line-height: 1.5;
+      color: #1e293b;
+      margin-bottom: 0.85rem;
+    }
+    .mobile-step-box {
+      background: var(--yellow);
+      border: 2px solid #000000;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 0.82rem;
+      color: #000000;
+      line-height: 1.6;
     }
 
     /* Custom Neo-Brutalist Toast Modal */
@@ -874,7 +898,7 @@
 
   <!-- Mobile / Tablet Notification Bar -->
   <div class="mobile-device-alert">
-    <span>💡 Running on Mobile/Tablet? <strong>Open on Desktop (Windows/Mac/Linux)</strong> to execute the offline AI factory.</span>
+    <span>Running on Mobile/Tablet? <strong>Open on Desktop (Windows/Mac/Linux)</strong> to execute the offline AI factory.</span>
   </div>
 
   <!-- Contextual Figma-Style Cursor (Desktop) -->
@@ -898,17 +922,17 @@
       <nav class="nav-pill-container">
         <a href="#capabilities" class="nav-item-link" data-cursor="Capabilities">Capabilities</a>
         <a href="#about" class="nav-item-link" data-cursor="About Mission">About</a>
-        <a href="https://github.com/AryanSingh64/Mi-RAG" target="_blank" class="nav-item-link" data-cursor="Star on GitHub ★">GitHub</a>
+        <a href="https://github.com/AryanSingh64/Mi-RAG" target="_blank" class="nav-item-link" data-cursor="Star on GitHub">GitHub</a>
       </nav>
 
-      <button class="btn-header-cta" id="nav-btn-copy" data-cursor="Copy PowerShell Command ⚡">
+      <button class="btn-header-cta" id="nav-btn-copy" data-cursor="Copy PowerShell Command">
         COPY CLI LAUNCH
       </button>
     </header>
 
     <div class="hero-main">
       <div class="hero-badge-pill">
-        <span>⚡ Zero-Budget Local Multimodal RAG</span>
+        <span>ZERO-BUDGET LOCAL MULTIMODAL RAG</span>
       </div>
 
       <h1 class="hero-title-bold" data-cursor="Mi:RAG Engine">
@@ -931,10 +955,10 @@
       </div>
 
       <div class="hero-action-buttons">
-        <button class="btn-hero-primary desktop-only-btn" id="btn-hero-copy" data-cursor="Copy Command to Clipboard ⚡">
+        <button class="btn-hero-primary desktop-only-btn" id="btn-hero-copy" data-cursor="Copy Command to Clipboard">
           <span>COPY CLI LAUNCH</span>
         </button>
-        <a href="/studio" class="btn-hero-primary mobile-only-btn" style="display: none;" data-cursor="Open Web Studio ↗">
+        <a href="/studio" class="btn-hero-primary mobile-only-btn" style="display: none;" data-cursor="Open Web Studio">
           <span>OPEN WEB STUDIO</span>
         </a>
         <a href="#capabilities" class="btn-hero-secondary" data-cursor="View Capabilities">
@@ -944,16 +968,15 @@
 
       <!-- Mobile/Tablet Helper Card -->
       <div class="mobile-desktop-card">
-        <div class="mobile-desktop-card-title">
-          <span>💻 Open on Desktop PC / Laptop</span>
-        </div>
+        <div class="mobile-desktop-card-badge">OFFLINE DESKTOP ENGINE</div>
+        <div class="mobile-desktop-card-title">Run Locally on PC or Mac</div>
         <p class="mobile-desktop-card-desc">
-          Mi:RAG runs offline Ollama AI models and local GPU vector indexing on your PC/Mac. To run your local knowledge engine:
+          Mi:RAG indexes your private documents using local Ollama models and on-device ChromaDB vector acceleration.
         </p>
-        <div style="font-family: 'Space Grotesk', sans-serif; font-size: 0.82rem; color: #f8fafc; line-height: 1.6;">
-          1. Open this link on your Desktop computer.<br>
-          2. Run the quick launch script in PowerShell / Terminal.<br>
-          3. Your offline AI factory opens at <strong>http://localhost:8000</strong>.
+        <div class="mobile-step-box">
+          1. Open <strong>mirag.me</strong> on your Desktop computer.<br>
+          2. Run the one-line installer in PowerShell or Terminal.<br>
+          3. Your offline AI factory opens at <strong>localhost:8000</strong>.
         </div>
       </div>
     </div>
