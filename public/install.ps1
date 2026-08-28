@@ -4,6 +4,7 @@
 # ==============================================================================
 
 $Host.UI.RawUI.WindowTitle = "Mi:RAG — Autonomous Multimodal RAG Engine"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Clear-Host
 
 # ANSI Color Codes
