@@ -120,8 +120,12 @@ class VisionImageParser(BaseDocumentParser):
                 res = client.post(f"{self.ollama_url}/api/generate", json=payload)
                 if res.status_code == 200:
                     description = res.json().get("response", "").strip()
-                    print(f"[OK] {resolved_model} produced description ({len(description)} chars)")
-                    return description
+                    if len(description) > 5:
+                        print(f"[OK] {resolved_model} produced description ({len(description)} chars)")
+                        return description
+                    else:
+                        print(f"[*] {resolved_model} produced no text. Using OCR extraction.")
+                        return None
                 else:
                     try:
                         err_msg = res.json().get("error", res.text)
