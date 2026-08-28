@@ -27,10 +27,8 @@
       padding: 0;
     }
 
-    @media (min-width: 901px) and (hover: hover) {
-      * {
-        cursor: none !important;
-      }
+    button, a, input, select, textarea {
+      cursor: pointer;
     }
 
     /* Neo-Brutalist Text Selection */
@@ -901,14 +899,6 @@
     <span>Running on Mobile/Tablet? <strong>Open on Desktop (Windows/Mac/Linux)</strong> to execute the offline AI factory.</span>
   </div>
 
-  <!-- Contextual Figma-Style Cursor (Desktop) -->
-  <div id="figma-cursor">
-    <svg class="cursor-pointer-svg" viewBox="0 0 24 24">
-      <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.54.35-.85L6.35 2.85a.5.5 0 0 0-.85.36z"/>
-    </svg>
-    <div class="cursor-tag" id="cursor-label">Mi:RAG</div>
-  </div>
-
   <!-- Hero Section -->
   <section class="hero-container">
     <img src="/static/assets/03_chrome_shape.png" class="floating-shape-left" alt="3D Shape" data-cursor="3D Accent">
@@ -1075,42 +1065,8 @@
     </div>
   </footer>
 
-  <!-- Dynamic Contextual Figma Cursor & Robust Copy Handlers -->
+  <!-- Robust Clipboard Copy Handlers -->
   <script>
-    const figmaCursor = document.getElementById('figma-cursor');
-    const cursorLabel = document.getElementById('cursor-label');
-    let mouseX = 0, mouseY = 0, cursorX = 0, cursorY = 0;
-
-    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 900);
-
-    if (!isTouchDevice && figmaCursor) {
-      window.addEventListener('mousemove', (e) => {
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-      });
-
-      function animateCursor() {
-        cursorX += (mouseX - cursorX) * 0.25;
-        cursorY += (mouseY - cursorY) * 0.25;
-        figmaCursor.style.transform = `translate(${cursorX}px, ${cursorY}px)`;
-        requestAnimationFrame(animateCursor);
-      }
-      animateCursor();
-
-      document.querySelectorAll('[data-cursor]').forEach(el => {
-        el.addEventListener('mouseenter', () => {
-          const text = el.getAttribute('data-cursor');
-          if (text && cursorLabel) {
-            cursorLabel.innerText = text;
-            cursorLabel.classList.add('active');
-          }
-        });
-        el.addEventListener('mouseleave', () => {
-          if (cursorLabel) cursorLabel.classList.remove('active');
-        });
-      });
-    }
-
     // Robust Clipboard Copy Function with Mobile/Browser Fallbacks
     const copyToast = document.getElementById('copy-toast');
     const toastCloseBtn = document.getElementById('toast-close-btn');

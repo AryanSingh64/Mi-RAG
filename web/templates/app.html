@@ -18,7 +18,8 @@
       --shadow-lg: 8px 8px 0px #000;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; cursor: none !important; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    button, a, input, select, textarea, .drop-zone { cursor: pointer; }
     
     ::selection {
       background: var(--yellow);
@@ -38,26 +39,6 @@
       display: flex;
       flex-direction: column;
     }
-
-    /* Custom Figma Cursor */
-    #figma-cursor {
-      position: fixed;
-      top: 0; left: 0;
-      pointer-events: none;
-      z-index: 99999;
-      transform: translate(-2px, -2px);
-      transition: transform 0.04s linear;
-      display: flex;
-      flex-direction: column;
-    }
-    .cursor-pointer-svg { width: 22px; height: 22px; fill: var(--pink); filter: drop-shadow(1px 2px 0px #000); }
-    .cursor-tag {
-      background: var(--pink);
-      color: #fff;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.72rem;
-      font-weight: 700;
-      padding: 0.2rem 0.5rem;
       border-radius: 4px;
       border: 1.5px solid #000;
       box-shadow: 2px 2px 0px #000;
@@ -556,13 +537,6 @@
   </style>
 </head>
 <body>
-
-  <div id="figma-cursor">
-    <svg class="cursor-pointer-svg" viewBox="0 0 24 24">
-      <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.54.35-.85L6.35 2.85a.5.5 0 0 0-.85.36z"/>
-    </svg>
-    <div class="cursor-tag">Aryan [Mi:RAG Studio]</div>
-  </div>
 
   <header>
     <div style="display: flex; align-items: center; gap: 1rem;">
