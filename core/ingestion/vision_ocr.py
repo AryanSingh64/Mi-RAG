@@ -80,7 +80,7 @@ class VisionImageParser(BaseDocumentParser):
             return ""
 
     def _extract_from_single_vision_model(self, model_name: str, b64_image: str) -> Optional[str]:
-        """Queries a single vision model with a deep visual prompt."""
+        """Queries a single vision model with a deep visual prompt and persistent VRAM caching."""
         resolved_model = self._resolve_vision_model(model_name)
         print(f"[*] Querying Vision Model: {resolved_model}...")
 
@@ -95,7 +95,13 @@ class VisionImageParser(BaseDocumentParser):
             "model": resolved_model,
             "prompt": prompt,
             "images": [b64_image],
-            "stream": False
+            "stream": False,
+            "keep_alive": "30m",
+            "options": {
+                "num_gpu": 99,
+                "num_thread": os.cpu_count() or 12,
+                "temperature": 0.1
+            }
         }
 
         try:
@@ -121,12 +127,27 @@ class VisionImageParser(BaseDocumentParser):
         return None
 
     def _extract_all_vision_descriptions(self, b64_image: str) -> List[tuple[str, str]]:
-        """Runs all selected vision models and returns a list of (model_name, description)."""
+        """Runs all selected vision models in parallel for minimum latency."""
+        if not self.vision_models:
+            return []
+
         results = []
-        for model in self.vision_models:
+        import concurrent.futures
+
+        def _worker(model):
             desc = self._extract_from_single_vision_model(model, b64_image)
-            if desc:
-                results.append((model, desc))
+            return (model, desc) if desc else None
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(self.vision_models))) as executor:
+            futures = [executor.submit(_worker, m) for m in self.vision_models]
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    res = future.result()
+                    if res:
+                        results.append(res)
+                except Exception as e:
+                    print(f"[!] Parallel vision worker error: {e}")
+
         return results
 
     def parse(self, file_path: Path) -> ParsedDocument:

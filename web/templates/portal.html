@@ -2,117 +2,84 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Mi:RAG — Interactive Grounded Playground</title>
+  <title>Mi:RAG — Knowledge Playground</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800;900&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   
   <style>
     :root {
-      --bg: #090c15;
-      --pink: #ff2d87;
-      --yellow: #ffe814;
-      --green: #2be26c;
-      --card-bg: #111625;
-      --border: 2px solid #000;
-      --shadow: 3px 3px 0px #000;
-      --shadow-lg: 6px 6px 0px #000;
+      --bg: #090d16;
+      --card-bg: #111827;
+      --card-inner: #1a2234;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-glow: rgba(99, 102, 241, 0.25);
+      --border: #232d42;
       --text: #f8fafc;
       --text-muted: #94a3b8;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; cursor: none !important; }
-
-    ::selection {
-      background: var(--yellow);
-      color: #000000;
-    }
-    ::-moz-selection {
-      background: var(--yellow);
-      color: #000000;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
 
     body {
-      background: #090c15 url('/static/assets/skytextured.jpg') no-repeat center center fixed;
-      background-size: cover;
+      background: var(--bg);
       color: var(--text);
       height: 100vh;
       display: flex;
       flex-direction: column;
-      font-family: 'Plus Jakarta Sans', sans-serif;
       overflow: hidden;
     }
 
-    /* Custom Figma Cursor */
-    #figma-cursor {
-      position: fixed;
-      top: 0; left: 0;
-      pointer-events: none;
-      z-index: 99999;
-      transform: translate(-2px, -2px);
-      transition: transform 0.04s linear;
-      display: flex;
-      flex-direction: column;
-    }
-    .cursor-pointer-svg { width: 22px; height: 22px; fill: var(--pink); filter: drop-shadow(1px 2px 0px #000); }
-    .cursor-tag {
-      background: var(--pink);
-      color: #fff;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.72rem;
-      font-weight: 700;
-      padding: 0.2rem 0.5rem;
-      border-radius: 4px;
-      border: 1.5px solid #000;
-      box-shadow: 2px 2px 0px #000;
-      margin-left: 14px;
-      margin-top: -4px;
-      white-space: nowrap;
-    }
-
+    /* Clean Navbar */
     header {
       padding: 0.85rem 2rem;
-      background: rgba(255, 255, 255, 0.95);
-      color: #000;
-      border-bottom: var(--border);
-      box-shadow: var(--shadow);
+      background: rgba(17, 24, 39, 0.95);
+      border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
       align-items: center;
       height: 65px;
       flex-shrink: 0;
+      backdrop-filter: blur(10px);
       z-index: 10;
     }
-    .header-left { display: flex; align-items: center; gap: 1.25rem; }
-    .portal-logo-img { height: 38px; object-fit: contain; }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+    .portal-logo-img { height: 34px; object-fit: contain; }
     .session-badge {
-      background: #000;
-      color: var(--yellow);
+      background: var(--card-inner);
+      color: var(--text-muted);
       padding: 0.3rem 0.75rem;
       border-radius: 6px;
       font-size: 0.8rem;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 800;
-      border: 1px solid #000;
-      box-shadow: 1.5px 1.5px 0px #000;
+      font-family: 'JetBrains Mono', monospace;
+      border: 1px solid var(--border);
     }
     
     .timer-badge {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      background: #ffe814;
-      border: var(--border);
-      color: #000;
-      padding: 0.4rem 0.9rem;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #fbbf24;
+      padding: 0.35rem 0.85rem;
       border-radius: 999px;
-      font-size: 0.85rem;
-      font-weight: 800;
+      font-size: 0.82rem;
+      font-weight: 700;
       font-family: 'Space Grotesk', sans-serif;
-      box-shadow: 2px 2px 0px #000;
     }
-    .pulse-dot { width: 8px; height: 8px; background: var(--pink); border-radius: 50%; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .pulse-dot {
+      width: 7px; height: 7px; background: var(--warning); border-radius: 50%;
+      box-shadow: 0 0 6px var(--warning);
+    }
 
     .app-container {
       flex: 1;
@@ -127,9 +94,8 @@
       display: flex;
       flex-direction: column;
       height: 100%;
-      background: rgba(9, 12, 21, 0.88);
-      border-right: var(--border);
-      backdrop-filter: blur(10px);
+      background: var(--bg);
+      border-right: 1px solid var(--border);
       overflow: hidden;
     }
     .chat-messages {
@@ -146,40 +112,43 @@
       max-width: 85%;
       padding: 1.15rem 1.4rem;
       border-radius: 12px;
-      line-height: 1.6;
+      line-height: 1.65;
       font-size: 0.95rem;
-      border: var(--border);
-      box-shadow: var(--shadow);
     }
     .user-msg {
-      background: var(--pink);
+      background: var(--accent);
       color: #fff;
-      font-weight: 700;
+      font-weight: 600;
       align-self: flex-end;
-      box-shadow: 3px 3px 0px #000;
+      box-shadow: 0 4px 14px var(--accent-glow);
     }
     .bot-msg {
-      background: #151b2e;
+      background: var(--card-bg);
       color: #f8fafc;
       align-self: flex-start;
-      border: 2px solid #232d4b;
-      box-shadow: 4px 4px 0px #000;
+      border: 1px solid var(--border);
     }
     
     .grounded-badge {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
-      font-size: 0.78rem;
+      font-size: 0.75rem;
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 800;
-      color: #000;
-      background: var(--green);
-      border: 1.5px solid #000;
       padding: 0.2rem 0.6rem;
       border-radius: 4px;
-      box-shadow: 1.5px 1.5px 0px #000;
       margin-bottom: 0.65rem;
+      letter-spacing: 0.3px;
+    }
+    .badge-match {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge-no-evidence {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
     }
 
     .msg-content {
@@ -188,92 +157,90 @@
     }
     .msg-content p { margin-bottom: 0.5rem; }
     .msg-content p:last-child { margin-bottom: 0; }
-    .msg-content strong { color: var(--yellow); }
+    .msg-content strong { color: #fff; }
     .msg-content code {
       font-family: 'JetBrains Mono', monospace;
-      background: #090c15;
+      background: var(--card-inner);
       padding: 0.15rem 0.4rem;
       border-radius: 4px;
       font-size: 0.85rem;
-      border: 1px solid #334155;
+      color: #a5b4fc;
+      border: 1px solid var(--border);
     }
 
     .citations {
       margin-top: 0.85rem;
       padding-top: 0.75rem;
-      border-top: 1px dashed rgba(255, 255, 255, 0.15);
+      border-top: 1px solid var(--border);
       font-size: 0.8rem;
     }
     .citations-title {
       font-family: 'Space Grotesk', sans-serif;
-      font-weight: 800;
-      color: var(--yellow);
+      font-weight: 700;
+      color: var(--text-muted);
       margin-bottom: 0.35rem;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.5px;
     }
     .citation-tag {
       display: inline-block;
-      background: #090c15;
+      background: var(--card-inner);
       color: #cbd5e1;
-      border: 1.5px solid #000;
+      border: 1px solid var(--border);
       padding: 0.25rem 0.6rem;
       border-radius: 4px;
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.76rem;
+      font-size: 0.75rem;
       font-weight: 700;
       margin-right: 0.4rem;
       margin-top: 0.3rem;
-      box-shadow: 1.5px 1.5px 0px #000;
     }
 
     .chat-input-container {
       padding: 1.25rem 2rem;
-      background: rgba(17, 22, 37, 0.95);
-      border-top: var(--border);
+      background: var(--card-bg);
+      border-top: 1px solid var(--border);
       flex-shrink: 0;
     }
     .input-form { display: flex; gap: 0.75rem; }
     input[type="text"] {
       flex: 1;
-      background: #090c15;
-      border: var(--border);
+      background: var(--card-inner);
+      border: 1px solid var(--border);
       color: #fff;
       padding: 0.85rem 1.25rem;
       border-radius: 8px;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 600;
       font-size: 0.95rem;
-      box-shadow: 2px 2px 0px #000;
       outline: none;
+      transition: border 0.15s ease;
     }
     input[type="text"]:focus {
-      border-color: var(--pink);
-      box-shadow: 4px 4px 0px #000;
+      border-color: var(--accent);
     }
     .btn-send {
-      background: var(--yellow);
-      color: #000;
-      border: var(--border);
+      background: var(--accent);
+      color: #fff;
+      border: none;
       padding: 0.85rem 1.75rem;
       border-radius: 8px;
       font-family: 'Space Grotesk', sans-serif;
-      font-weight: 900;
+      font-weight: 800;
       font-size: 0.95rem;
-      box-shadow: 3px 3px 0px #000;
       text-transform: uppercase;
-      transition: all 0.1s ease;
+      cursor: pointer;
+      transition: all 0.15s ease;
     }
     .btn-send:hover {
-      transform: translate(-1px, -1px);
-      box-shadow: 5px 5px 0px #000;
-      background: #fde047;
+      background: var(--accent-hover);
+      box-shadow: 0 4px 14px var(--accent-glow);
     }
 
     /* Sidebar */
     .sidebar {
-      background: rgba(13, 17, 30, 0.96);
+      background: var(--card-bg);
       padding: 1.75rem;
       display: flex;
       flex-direction: column;
@@ -282,75 +249,58 @@
       height: 100%;
     }
     .panel-card {
-      background: #182035;
-      border: var(--border);
-      box-shadow: var(--shadow);
-      border-radius: 10px;
+      background: var(--card-inner);
+      border: 1px solid var(--border);
+      border-radius: 12px;
       padding: 1.25rem;
     }
     .panel-title {
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.95rem;
-      font-weight: 900;
+      font-size: 0.9rem;
+      font-weight: 800;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #fff;
       margin-bottom: 0.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
     }
     .file-pill {
-      background: #090c15;
-      border: 1px solid #334155;
+      background: var(--bg);
+      border: 1px solid var(--border);
       padding: 0.45rem 0.75rem;
       border-radius: 6px;
       font-family: 'Space Grotesk', sans-serif;
       font-size: 0.82rem;
       font-weight: 700;
       margin-bottom: 0.4rem;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
+      color: var(--text-muted);
     }
 
     .btn-download-zip {
-      background: var(--pink);
+      background: var(--accent);
       color: #fff;
       text-decoration: none;
       padding: 0.85rem;
       border-radius: 8px;
       font-family: 'Space Grotesk', sans-serif;
-      font-weight: 900;
-      font-size: 0.9rem;
+      font-weight: 800;
+      font-size: 0.85rem;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
       text-align: center;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      border: var(--border);
-      box-shadow: 3px 3px 0px #000;
-      transition: all 0.1s ease;
+      display: block;
+      transition: all 0.15s ease;
     }
     .btn-download-zip:hover {
-      transform: translate(-2px, -2px);
-      box-shadow: 5px 5px 0px #000;
-      background: #e00067;
+      background: var(--accent-hover);
+      box-shadow: 0 4px 14px var(--accent-glow);
     }
   </style>
 </head>
 <body>
 
-  <!-- Figma-Style Cursor -->
-  <div id="figma-cursor">
-    <svg class="cursor-pointer-svg" viewBox="0 0 24 24">
-      <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.54.35-.85L6.35 2.85a.5.5 0 0 0-.85.36z"/>
-    </svg>
-    <div class="cursor-tag">Aryan [Mi:RAG Playground]</div>
-  </div>
-
   <header>
     <div class="header-left">
-      <a href="/"><img src="/static/assets/logo.png" class="portal-logo-img" alt="Mi:RAG"></a>
+      <img src="/static/assets/logo.png" class="portal-logo-img" alt="Mi:RAG">
       <div class="session-badge" id="session-badge">Session: loading...</div>
     </div>
     <div class="timer-badge">
@@ -364,9 +314,9 @@
     <div class="chat-section">
       <div class="chat-messages" id="chat-box">
         <div class="msg bot-msg">
-          <div class="grounded-badge">🛡️ Anti-Hallucination Guardrails Active</div>
+          <div class="grounded-badge badge-match">Active Guardrails</div>
           <div class="msg-content">
-            Hello! This is your customized, private RAG playground. You can test questions against your indexed documents with full source citations below.
+            Hello. This is your private RAG playground. Ask questions against your indexed documents with full source citations.
           </div>
         </div>
       </div>
@@ -381,27 +331,27 @@
     <!-- Sidebar -->
     <div class="sidebar">
       <div class="panel-card">
-        <div class="panel-title">📦 Standalone RAG Package</div>
+        <div class="panel-title">Standalone Package</div>
         <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1rem; line-height: 1.5;">
           Download your turnkey production bundle containing the pre-indexed vector DB, server, and launch scripts.
         </p>
         <a href="#" id="download-zip-btn" class="btn-download-zip">
-          <span>⬇️ Download Standalone ZIP</span>
+          Download Standalone ZIP
         </a>
       </div>
 
       <div class="panel-card">
-        <div class="panel-title">📄 Indexed Documents</div>
+        <div class="panel-title">Indexed Documents</div>
         <div id="indexed-files-container" style="color: var(--text-muted); font-size: 0.85rem;">
           Loading documents...
         </div>
       </div>
 
       <div class="panel-card">
-        <div class="panel-title">🚀 How to Run Locally</div>
-        <div style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.6; font-family: 'Space Grotesk', sans-serif;">
+        <div class="panel-title">Run Instructions</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.6;">
           1. Extract the downloaded ZIP<br>
-          2. Double-click <strong>run.bat</strong> (Windows) or <strong>run.sh</strong> (Mac/Linux)<br>
+          2. Run <strong>run.bat</strong> (Windows) or <strong>run.sh</strong> (Linux)<br>
           3. Open <strong>http://localhost:8000</strong>
         </div>
       </div>
@@ -428,7 +378,7 @@
         const filesContainer = document.getElementById('indexed-files-container');
         if (data.indexed_files && data.indexed_files.length > 0) {
           filesContainer.innerHTML = data.indexed_files.map(f => `
-            <div class="file-pill"><span>📄</span><span>${f}</span></div>
+            <div class="file-pill"><span>${f}</span></div>
           `).join('');
         }
       } catch (err) {
@@ -440,7 +390,7 @@
     function startTimer() {
       setInterval(() => {
         if (timeRemaining <= 0) {
-          document.getElementById('countdown-timer').innerText = "SESSION EXPIRED";
+          document.getElementById('countdown-timer').innerText = "EXPIRED";
           return;
         }
         timeRemaining--;
@@ -457,14 +407,12 @@
     const userInput = document.getElementById('user-input');
     const chatBox = document.getElementById('chat-box');
 
-    // Simple markdown formatting helper
     function formatMarkdown(text) {
-      let formatted = text
+      return text
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
         .replace(/`([^`]+)`/g, '<code>$1</code>')
         .replace(/\n/g, '<br>');
-      return formatted;
     }
 
     chatForm.addEventListener('submit', async (e) => {
@@ -477,7 +425,7 @@
       chatBox.scrollTop = chatBox.scrollHeight;
 
       const botMsgId = 'bot-' + Date.now();
-      chatBox.innerHTML += `<div class="msg bot-msg" id="${botMsgId}"><div class="grounded-badge" style="background:var(--yellow);">⚡ Retrieving & Synthesizing...</div><div class="msg-content">Searching knowledge base...</div></div>`;
+      chatBox.innerHTML += `<div class="msg bot-msg" id="${botMsgId}"><div class="grounded-badge badge-match">Retrieving...</div><div class="msg-content">Searching knowledge base...</div></div>`;
       chatBox.scrollTop = chatBox.scrollHeight;
 
       try {
@@ -489,33 +437,21 @@
         const data = await res.json();
         
         let badgeHtml = data.is_grounded 
-          ? `<div class="grounded-badge">🛡️ Grounded Match (${Math.round(data.confidence_score * 100)}% Confidence)</div>`
-          : `<div class="grounded-badge" style="color:#000; background:#fca5a5;">⚠️ No Evidence Found</div>`;
+          ? `<div class="grounded-badge badge-match">Grounded Match (${Math.round(data.confidence_score * 100)}% Confidence)</div>`
+          : `<div class="grounded-badge badge-no-evidence">No Evidence Found</div>`;
 
         let citationsHtml = '';
         if (data.citations && data.citations.length > 0) {
-          citationsHtml = '<div class="citations"><div class="citations-title"><span>📄</span><span>Source Evidence:</span></div>' + 
+          citationsHtml = '<div class="citations"><div class="citations-title">Source Evidence:</div>' + 
             data.citations.map(c => `<span class="citation-tag">${c.source_file} (${Math.round(c.score * 100)}%)</span>`).join('') + '</div>';
         }
 
         document.getElementById(botMsgId).innerHTML = badgeHtml + `<div class="msg-content">${formatMarkdown(data.answer)}</div>` + citationsHtml;
       } catch (err) {
-        document.getElementById(botMsgId).innerHTML = `<div class="grounded-badge" style="background:#fca5a5;">⚠️ Connection Error</div><div class="msg-content">${err.message}</div>`;
+        document.getElementById(botMsgId).innerHTML = `<div class="grounded-badge badge-no-evidence">Connection Error</div><div class="msg-content">${err.message}</div>`;
       }
       chatBox.scrollTop = chatBox.scrollHeight;
     });
-
-    // Figma Cursor Tracking
-    const figmaCursor = document.getElementById('figma-cursor');
-    let mouseX = 0, mouseY = 0, cursorX = 0, cursorY = 0;
-    window.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
-    function animateCursor() {
-      cursorX += (mouseX - cursorX) * 0.25;
-      cursorY += (mouseY - cursorY) * 0.25;
-      figmaCursor.style.transform = `translate(${cursorX}px, ${cursorY}px)`;
-      requestAnimationFrame(animateCursor);
-    }
-    animateCursor();
   </script>
 </body>
 </html>

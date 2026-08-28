@@ -52,6 +52,7 @@ class OllamaClient:
             "model": selected_model,
             "messages": messages,
             "stream": False,
+            "keep_alive": "30m",
             "options": {
                 "temperature": temperature,
                 "num_thread": self.num_threads,
