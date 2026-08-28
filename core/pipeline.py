@@ -141,19 +141,31 @@ class RAGPipeline:
         import re
 
         for c in relevant_chunks:
-            # Check for [Image URL: ...] in text
+            # Check metadata first
+            meta_url = c.metadata.get("image_url", "").strip() if isinstance(c.metadata, dict) else ""
+            urls_to_check = [meta_url] if meta_url else []
+
+            # Also check for [Image URL: ...] in text
             found_urls = re.findall(r"\[Image URL:\s*(.*?)\]", c.text)
-            for url in found_urls:
-                url_clean = url.strip()
+            urls_to_check.extend([u.strip() for u in found_urls if u.strip()])
+
+            for url_clean in urls_to_check:
                 if url_clean and url_clean not in seen_urls:
                     seen_urls.add(url_clean)
                     filename = Path(url_clean).name
+                    page_num = c.metadata.get("page_number", "") if isinstance(c.metadata, dict) else ""
+                    caption = f"{c.source_file}" + (f" (Page {page_num})" if page_num else "")
                     matched_images.append({
                         "url": url_clean,
                         "filename": filename,
-                        "source_file": c.source_file,
+                        "source_file": caption,
                         "relevance": round(c.score * 100, 1)
                     })
+
+        if matched_images:
+            print(f"[*] ATTACHED VISUAL DIAGRAMS ({len(matched_images)}):")
+            for img in matched_images:
+                print(f"    - {img['source_file']} -> {img['url']}")
 
         return GroundedAnswer(
             answer=llm_response,

@@ -57,7 +57,19 @@ class ChromaVectorStore:
 
         texts = [chunk.text for chunk in chunks]
         ids = [chunk.chunk_id for chunk in chunks]
-        metadatas = [chunk.metadata for chunk in chunks]
+        
+        # Sanitize metadata for ChromaDB (only allows str, int, float, bool)
+        clean_metadatas = []
+        for chunk in chunks:
+            clean_meta = {}
+            for k, v in chunk.metadata.items():
+                if isinstance(v, (str, int, float, bool)):
+                    clean_meta[k] = v
+                elif isinstance(v, list):
+                    clean_meta[k] = ", ".join(str(item) for item in v)
+                elif v is not None:
+                    clean_meta[k] = str(v)
+            clean_metadatas.append(clean_meta)
 
         # Generate vectors using local embedder
         embeddings = self.embedder.embed_batch(texts)
@@ -67,7 +79,7 @@ class ChromaVectorStore:
             ids=ids,
             embeddings=embeddings,
             documents=texts,
-            metadatas=metadatas
+            metadatas=clean_metadatas
         )
 
     def query(self, query_text: str, top_k: int = 4) -> List[SearchResult]:

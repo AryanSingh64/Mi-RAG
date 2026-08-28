@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 from core.ingestion.base import ParsedDocument
@@ -6,7 +7,8 @@ from core.ingestion.base import ParsedDocument
 @dataclass
 class DocumentChunk:
     """
-    Represents an atomic, searchable piece of text ready for vector embedding.
+    Represents an atomic, searchable piece of text ready for vector embedding
+    with multimodal visual metadata linking.
     """
     chunk_id: str
     text: str
@@ -17,7 +19,8 @@ class DocumentChunk:
 class RecursiveChunker:
     """
     Production-grade recursive text chunker.
-    Splits text hierarchically: Paragraphs -> Sentences -> Words with overlap.
+    Splits text hierarchically: Pages -> Paragraphs -> Sentences -> Words with overlap
+    while retaining page numbers and visual diagram image anchors.
     """
 
     def __init__(self, chunk_size: int = 500, chunk_overlap: int = 100):
@@ -97,29 +100,72 @@ class RecursiveChunker:
 
     def chunk_document(self, parsed_doc: ParsedDocument) -> List[DocumentChunk]:
         """
-        Splits a ParsedDocument into a list of tagged DocumentChunks.
+        Splits a ParsedDocument into tagged DocumentChunks with page-level visual metadata.
         """
-        raw_chunks = self._split_text(parsed_doc.text_content, self.separators)
         document_chunks = []
+        chunk_counter = 1
 
-        for idx, text_chunk in enumerate(raw_chunks, start=1):
-            chunk_metadata = {
-                "source_file": parsed_doc.filename,
-                "file_type": parsed_doc.file_type,
-                "chunk_index": idx,
-                "total_chunks": len(raw_chunks),
-                **parsed_doc.metadata
-            }
-            
-            chunk_id = f"{parsed_doc.filename}_chunk_{idx}"
-            
-            document_chunks.append(
-                DocumentChunk(
-                    chunk_id=chunk_id,
-                    text=text_chunk,
-                    source_file=parsed_doc.filename,
-                    metadata=chunk_metadata
+        # Check if standalone image document
+        doc_img_urls = re.findall(r"\[Image URL:\s*(.*?)\]", parsed_doc.text_content)
+        default_img_url = doc_img_urls[0].strip() if doc_img_urls else ""
+
+        # If multi-page document is available, chunk page by page for precise visual anchoring
+        if parsed_doc.pages and len(parsed_doc.pages) > 0:
+            for page_idx, page_text in enumerate(parsed_doc.pages, start=1):
+                if not page_text.strip():
+                    continue
+
+                # Find image URL specific to this page
+                page_img_matches = re.findall(r"\[Image URL:\s*(.*?)\]", page_text)
+                page_img_url = page_img_matches[0].strip() if page_img_matches else default_img_url
+
+                raw_splits = self._split_text(page_text, self.separators)
+                for split_text in raw_splits:
+                    if not split_text.strip():
+                        continue
+
+                    chunk_metadata = {
+                        "source_file": parsed_doc.filename,
+                        "file_type": parsed_doc.file_type,
+                        "page_number": page_idx,
+                        "chunk_index": chunk_counter,
+                        "image_url": page_img_url,
+                        "has_image": bool(page_img_url)
+                    }
+
+                    document_chunks.append(
+                        DocumentChunk(
+                            chunk_id=f"{parsed_doc.filename}_p{page_idx}_c{chunk_counter}",
+                            text=split_text.strip(),
+                            source_file=parsed_doc.filename,
+                            metadata=chunk_metadata
+                        )
+                    )
+                    chunk_counter += 1
+
+        else:
+            # Single-stream text document
+            raw_chunks = self._split_text(parsed_doc.text_content, self.separators)
+            for idx, text_chunk in enumerate(raw_chunks, start=1):
+                if not text_chunk.strip():
+                    continue
+
+                chunk_metadata = {
+                    "source_file": parsed_doc.filename,
+                    "file_type": parsed_doc.file_type,
+                    "chunk_index": idx,
+                    "total_chunks": len(raw_chunks),
+                    "image_url": default_img_url,
+                    "has_image": bool(default_img_url)
+                }
+
+                document_chunks.append(
+                    DocumentChunk(
+                        chunk_id=f"{parsed_doc.filename}_chunk_{idx}",
+                        text=text_chunk.strip(),
+                        source_file=parsed_doc.filename,
+                        metadata=chunk_metadata
+                    )
                 )
-            )
 
         return document_chunks
