@@ -17,9 +17,9 @@ htmlcov/
 
 # Local Vector DB, Data & Stored Sessions
 chroma_db/
-sessions/
-storage/
-export/
+/sessions/
+/storage/
+/export/
 data/
 *.zip
 *.tar.gz

@@ -52,7 +52,7 @@ if (Test-Path $targetDir) {
     Write-Host "[ CLONED ]" -ForegroundColor Green
 }
 
-# 4. Virtual Environment & Dependencies Check
+# 4. Virtual Environment & Accelerated Parallel Dependencies Check
 if (-not (Test-Path "$targetDir\.venv\Scripts\python.exe")) {
     Write-Host -NoNewline " [*] Creating virtual environment (.venv)... " -ForegroundColor Cyan
     python -m venv "$targetDir\.venv"
@@ -62,10 +62,21 @@ if (-not (Test-Path "$targetDir\.venv\Scripts\python.exe")) {
 # Verify packages exist in .venv
 $hasUvicorn = & "$targetDir\.venv\Scripts\python.exe" -c "import uvicorn, fastapi; print('OK')" 2>$null
 if ($hasUvicorn -ne "OK") {
-    Write-Host " [*] Installing dependencies into .venv (one-time setup)..." -ForegroundColor Cyan
-    & "$targetDir\.venv\Scripts\pip.exe" install --upgrade pip
-    & "$targetDir\.venv\Scripts\pip.exe" install -r "$targetDir\requirements.txt"
-    Write-Host " [OK] Dependencies installed successfully!" -ForegroundColor Green
+    Write-Host ""
+    Write-Host " [*] Accelerating installer with parallel package engine (uv)..." -ForegroundColor Cyan
+    & "$targetDir\.venv\Scripts\python.exe" -m pip install --quiet uv
+    
+    Write-Host " [*] Installing packages with parallel streaming & live progress:" -ForegroundColor Yellow
+    Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
+    
+    if (Test-Path "$targetDir\.venv\Scripts\uv.exe") {
+        & "$targetDir\.venv\Scripts\uv.exe" pip install -r "$targetDir\requirements.txt"
+    } else {
+        & "$targetDir\.venv\Scripts\python.exe" -m pip install --progress-bar on -r "$targetDir\requirements.txt"
+    }
+    
+    Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host " [OK] All dependencies installed successfully!" -ForegroundColor Green
 }
 
 # 5. Launch Banner
@@ -76,10 +87,6 @@ Write-Host " |  100% Private  |  Zero API Costs  |  Hardware Accelerated|" -Fore
 Write-Host " +---------------------------------------------------------+" -ForegroundColor Red
 Write-Host ""
 
-# 6. Start Web Factory
+# 6. Direct Native Launch via Python (Zero Batch Dependencies)
 Set-Location $targetDir
-if (Test-Path "$targetDir\run_factory.bat") {
-    & "$targetDir\run_factory.bat"
-} else {
-    & "$targetDir\.venv\Scripts\python.exe" "$targetDir\run_factory.py"
-}
+& "$targetDir\.venv\Scripts\python.exe" "$targetDir\run_factory.py"
