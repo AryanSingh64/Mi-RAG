@@ -782,73 +782,83 @@
     }
 
     /* Mobile & Tablet Responsive Engine */
-    @media (max-width: 900px) {
+    @media (max-width: 768px) {
       #figma-cursor { display: none !important; }
       .mobile-device-alert { display: block; }
       .mobile-desktop-card { display: block; }
       .floating-shape-left, .floating-shape-right { display: none; }
       
       header {
-        padding: 1.25rem 1.5rem;
-        flex-direction: row;
-        gap: 1rem;
-      }
-      .brand-logo-img { height: 42px; }
-      .nav-pill-container { display: none; }
-      .btn-header-cta { font-size: 0.8rem; padding: 0.5rem 1rem; }
-
-      .hero-main {
-        margin: 2.5rem auto 2.5rem;
-        padding: 0 1.25rem;
-      }
-      .hero-title-bold {
-        font-size: clamp(2.1rem, 8vw, 3.2rem);
-        letter-spacing: -1px;
-      }
-      .hero-description {
-        font-size: 1rem;
-        margin-bottom: 1.75rem;
-      }
-
-      .cli-command-box {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.75rem;
-        padding: 1rem;
-      }
-      .cli-text-group {
-        font-size: 0.82rem;
+        padding: 1.25rem 1rem;
         justify-content: center;
       }
-      .btn-quick-copy {
-        width: 100%;
-        padding: 0.75rem;
-        text-align: center;
+      .brand-logo-img { height: 44px; margin: 0 auto; }
+      .nav-pill-container { display: none; }
+      .btn-header-cta { display: none !important; }
+
+      .hero-main {
+        margin: 1.5rem auto 2rem;
+        padding: 0 1.25rem;
+      }
+      .hero-badge-pill {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.85rem;
+        margin-bottom: 1.25rem;
+      }
+      .hero-title-bold {
+        font-size: clamp(2rem, 9vw, 2.75rem);
+        letter-spacing: -1px;
+        line-height: 1.1;
+        margin-bottom: 1.25rem;
+      }
+      .hero-description {
+        font-size: 0.95rem;
+        line-height: 1.55;
+        margin-bottom: 1.5rem;
+        padding: 0 0.5rem;
+      }
+
+      /* Hide CLI copy clutter on phones */
+      .cli-command-box {
+        display: none !important;
+      }
+      .desktop-only-btn {
+        display: none !important;
+      }
+      .mobile-only-btn {
+        display: inline-flex !important;
       }
 
       .hero-action-buttons {
         flex-direction: column;
         width: 100%;
         gap: 0.85rem;
+        margin-top: 0.5rem;
       }
       .btn-hero-primary, .btn-hero-secondary {
         width: 100%;
-        padding: 1rem 1.5rem;
+        padding: 0.95rem 1.5rem;
         font-size: 1rem;
+        border-radius: 12px;
+        box-shadow: 4px 4px 0px #000;
+        text-align: center;
       }
 
       .cards-triptych-grid {
         grid-template-columns: 1fr;
         gap: 1.5rem;
       }
-      .features-section { padding: 3.5rem 1.25rem 4rem; }
+      .features-section { padding: 3rem 1.25rem 3.5rem; }
+      .section-title-large { font-size: 1.85rem; margin-bottom: 2rem; }
 
-      .stretched-footer { padding: 3.5rem 1.5rem 2.5rem; }
-      .footer-grid-wrapper { grid-template-columns: 1fr; gap: 2.5rem; }
+      .stretched-footer { padding: 3rem 1.25rem 2rem; }
+      .footer-grid-wrapper { grid-template-columns: 1fr; gap: 2rem; }
+      .footer-about-heading { font-size: 1.9rem; }
+      .footer-about-text { font-size: 0.85rem; }
       .footer-stamp-circle { display: none; }
       .footer-right-giant-text { justify-content: center; }
       .stretched-title-hero {
-        font-size: clamp(4.5rem, 18vw, 8rem);
+        font-size: clamp(3.5rem, 16vw, 6rem);
         transform: none;
       }
 
@@ -921,11 +931,14 @@
       </div>
 
       <div class="hero-action-buttons">
-        <button class="btn-hero-primary" id="btn-hero-copy" data-cursor="Copy Command to Clipboard ⚡">
+        <button class="btn-hero-primary desktop-only-btn" id="btn-hero-copy" data-cursor="Copy Command to Clipboard ⚡">
           <span>COPY CLI LAUNCH</span>
         </button>
-        <a href="/studio" class="btn-hero-secondary" data-cursor="Open Web Studio ↗">
+        <a href="/studio" class="btn-hero-primary mobile-only-btn" style="display: none;" data-cursor="Open Web Studio ↗">
           <span>OPEN WEB STUDIO</span>
+        </a>
+        <a href="#capabilities" class="btn-hero-secondary" data-cursor="View Capabilities">
+          <span>VIEW ARCHITECTURE</span>
         </a>
       </div>
 
@@ -935,12 +948,12 @@
           <span>💻 Open on Desktop PC / Laptop</span>
         </div>
         <p class="mobile-desktop-card-desc">
-          Mi:RAG uses local Ollama GPU/CPU hardware acceleration and offline ChromaDB storage. To index your private documents and run models offline:
+          Mi:RAG runs offline Ollama AI models and local GPU vector indexing on your PC/Mac. To run your local knowledge engine:
         </p>
         <div style="font-family: 'Space Grotesk', sans-serif; font-size: 0.82rem; color: #f8fafc; line-height: 1.6;">
-          1. Open PowerShell / Terminal on your computer.<br>
-          2. Paste the copied launch command.<br>
-          3. Your private studio opens instantly at <strong>http://localhost:8000</strong>.
+          1. Open this link on your Desktop computer.<br>
+          2. Run the quick launch script in PowerShell / Terminal.<br>
+          3. Your offline AI factory opens at <strong>http://localhost:8000</strong>.
         </div>
       </div>
     </div>
