@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mi:RAG — Autonomous Multimodal RAG Engine</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Space+Grotesk:wght@600;700;800;900&family=Anton&family=Syne:wght@800;900&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg: #090c15;
+      --pink: #ff2d87;
+      --yellow: #ffe814;
+      --green: #2be26c;
+      --cyan: #00d2ff;
+      --purple: #7a3cf4;
+      --border-thick: 2.5px solid #000000;
+      --shadow-neo: 4px 4px 0px #000000;
+      --shadow-neo-lg: 8px 8px 0px #000000;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      cursor: none !important;
+    }
+
+    /* Custom Beautiful Neo-Brutalist Text Selection */
+    ::selection {
+      background: var(--yellow);
+      color: #000000;
+      text-shadow: none;
+    }
+
+    ::-moz-selection {
+      background: var(--yellow);
+      color: #000000;
+      text-shadow: none;
+    }
+
+    .hero-container ::selection,
+    .stretched-footer ::selection {
+      background: var(--pink);
+      color: #ffffff;
+      text-shadow: none;
+    }
+
+    .hero-container ::-moz-selection,
+    .stretched-footer ::-moz-selection {
+      background: var(--pink);
+      color: #ffffff;
+      text-shadow: none;
+    }
+
+    body {
+      background-color: #070a12;
+      background-image: url('/static/assets/skytextured.jpg');
+      background-size: cover;
+      background-position: center top;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      color: #000000;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+    }
+
+    /* Contextual Figma Multi-User Cursor */
+    #figma-cursor {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 99999;
+      transform: translate(-2px, -2px);
+      transition: transform 0.04s linear;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .cursor-pointer-svg {
+      width: 22px;
+      height: 22px;
+      fill: var(--pink);
+      filter: drop-shadow(1px 2px 0px #000);
+    }
+
+    .cursor-tag {
+      background: var(--pink);
+      color: #ffffff;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      border: 1.5px solid #000;
+      box-shadow: 2px 2px 0px #000;
+      margin-left: 14px;
+      margin-top: -4px;
+      white-space: nowrap;
+      user-select: none;
+      opacity: 0;
+      transform: scale(0.7) translateY(4px);
+      transform-origin: top left;
+      transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .cursor-tag.active {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+
+    /* Hero Section */
+    .hero-container {
+      position: relative;
+      min-height: 94vh;
+      width: 100%;
+      background: url('/static/assets/skytextured.jpg') no-repeat center center;
+      background-size: cover;
+      display: flex;
+      flex-direction: column;
+      border-bottom: var(--border-thick);
+      overflow: hidden;
+    }
+
+    .floating-shape-left {
+      position: absolute;
+      top: 22%;
+      left: 4%;
+      width: 130px;
+      height: auto;
+      z-index: 2;
+      animation: floatShape 6s ease-in-out infinite;
+      filter: drop-shadow(0 15px 25px rgba(0,0,0,0.35));
+    }
+
+    .floating-shape-right {
+      position: absolute;
+      top: 25%;
+      right: 5%;
+      width: 145px;
+      height: auto;
+      z-index: 2;
+      animation: floatShapeReverse 7s ease-in-out infinite;
+      filter: drop-shadow(0 15px 25px rgba(0,0,0,0.35));
+    }
+
+    @keyframes floatShape {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-20px) rotate(6deg); }
+    }
+
+    @keyframes floatShapeReverse {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-25px) rotate(-8deg); }
+    }
+
+    /* Header & Navigation */
+    header {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.75rem 3.5rem;
+    }
+
+    .brand-link {
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+    }
+
+    .brand-logo-img {
+      height: 54px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(2px 3px 0px rgba(0,0,0,0.5));
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .brand-logo-img:hover {
+      transform: scale(1.05) rotate(-2deg);
+    }
+
+    .nav-pill-container {
+      background: #ffffff;
+      border: var(--border-thick);
+      border-radius: 999px;
+      padding: 0.35rem 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      box-shadow: var(--shadow-neo);
+    }
+
+    .nav-item-link {
+      color: #000000;
+      text-decoration: none;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.85rem;
+      padding: 0.45rem 1.1rem;
+      border-radius: 999px;
+      border: 2px solid transparent;
+      transition: all 0.15s ease;
+    }
+
+    .nav-item-link:hover {
+      border: 2px solid #000;
+      background: #f1f5f9;
+      box-shadow: 2px 2px 0px #000;
+      transform: translateY(-1px);
+    }
+
+    .btn-header-cta {
+      background: var(--pink);
+      color: #000000;
+      text-decoration: none;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 0.85rem;
+      letter-spacing: 0.5px;
+      padding: 0.65rem 1.4rem;
+      border-radius: 999px;
+      border: var(--border-thick);
+      box-shadow: var(--shadow-neo);
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+
+    .btn-header-cta:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0px #000;
+      background: #ff1077;
+    }
+
+    /* Hero Core Content */
+    .hero-main {
+      position: relative;
+      z-index: 5;
+      text-align: center;
+      max-width: 1050px;
+      margin: 4.5rem auto 3.5rem;
+      padding: 0 1.5rem;
+    }
+
+    .hero-title-bold {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 900;
+      font-size: clamp(2.7rem, 6.8vw, 4.6rem);
+      line-height: 1.05;
+      letter-spacing: -2px;
+      color: var(--yellow);
+      text-shadow: 
+        4px 4px 0px #000000,
+        -2px -2px 0px #000000,
+        2px -2px 0px #000000,
+        -2px 2px 0px #000000,
+        0px 6px 0px #000000;
+      margin-bottom: 1.75rem;
+    }
+
+    .hero-description {
+      color: #ffffff;
+      font-size: clamp(1.1rem, 2vw, 1.3rem);
+      font-weight: 700;
+      max-width: 720px;
+      margin: 0 auto 3rem;
+      line-height: 1.55;
+      text-shadow: 2px 2px 0px #000, 0 2px 8px rgba(0,0,0,0.6);
+    }
+
+    .hero-action-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+    }
+
+    .btn-hero-primary {
+      background: var(--yellow);
+      color: #000000;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 1.15rem;
+      padding: 1.15rem 2.75rem;
+      border-radius: 999px;
+      border: var(--border-thick);
+      box-shadow: var(--shadow-neo);
+      transition: all 0.15s;
+      cursor: pointer;
+    }
+
+    .btn-hero-primary:hover {
+      transform: translate(-3px, -3px);
+      box-shadow: var(--shadow-neo-lg);
+      background: #facc15;
+    }
+
+    .btn-hero-secondary {
+      background: #ffffff;
+      color: #000000;
+      text-decoration: none;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 1.15rem;
+      padding: 1.15rem 2.25rem;
+      border-radius: 999px;
+      border: var(--border-thick);
+      box-shadow: var(--shadow-neo);
+      transition: all 0.15s;
+    }
+
+    .btn-hero-secondary:hover {
+      transform: translate(-3px, -3px);
+      box-shadow: var(--shadow-neo-lg);
+    }
+
+    /* Custom Neo-Brutalist Toast Modal */
+    .neo-toast {
+      position: fixed;
+      bottom: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ffffff;
+      color: #000000;
+      border: var(--border-thick);
+      border-radius: 1rem;
+      padding: 1.5rem 2rem;
+      box-shadow: var(--shadow-neo-lg);
+      z-index: 100000;
+      max-width: 650px;
+      width: 90%;
+      transition: bottom 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .neo-toast.visible {
+      bottom: 2rem;
+    }
+
+    .toast-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .toast-badge {
+      background: var(--green);
+      color: #000;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 0.8rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      border: 1.5px solid #000;
+    }
+
+    .toast-close {
+      font-weight: 900;
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+
+    .toast-code {
+      background: #000000;
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      border: 1.5px solid #000;
+      margin-bottom: 0.65rem;
+      user-select: all;
+      word-break: break-all;
+    }
+
+    .toast-instructions {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #475569;
+    }
+
+    /* Marquee Strip */
+    .marquee-strip {
+      background: var(--yellow);
+      color: #000000;
+      border-top: var(--border-thick);
+      border-bottom: var(--border-thick);
+      padding: 0.85rem 0;
+      overflow: hidden;
+      white-space: nowrap;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 1.15rem;
+      letter-spacing: 1px;
+    }
+
+    .marquee-track {
+      display: inline-block;
+      animation: marqueeRun 22s linear infinite;
+    }
+
+    @keyframes marqueeRun {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    .checkerboard-band {
+      height: 28px;
+      width: 100%;
+      background-image: repeating-linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000), 
+                        repeating-linear-gradient(45deg, #000 25%, #fff 25%, #fff 75%, #000 75%, #000);
+      background-position: 0 0, 10px 10px;
+      background-size: 20px 20px;
+      border-top: var(--border-thick);
+      border-bottom: var(--border-thick);
+    }
+
+    /* Core Features Section */
+    .features-section {
+      background: #ffffff;
+      padding: 6rem 2rem 7rem;
+      border-bottom: var(--border-thick);
+    }
+
+    .features-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    .section-tag-pill {
+      display: inline-block;
+      background: var(--pink);
+      color: #ffffff;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.8rem;
+      padding: 0.35rem 0.85rem;
+      border: 2px solid #000;
+      box-shadow: 2px 2px 0px #000;
+      border-radius: 4px;
+      margin-bottom: 0.75rem;
+    }
+
+    .section-title-large {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: clamp(2rem, 4vw, 3rem);
+      letter-spacing: -1px;
+      margin-bottom: 3.5rem;
+    }
+
+    /* 3-Card Grid Matching Reference Image */
+    .cards-triptych-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+    }
+
+    .neo-card {
+      position: relative;
+      border: var(--border-thick);
+      border-radius: 0.75rem;
+      padding: 2rem 1.75rem 1.75rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: var(--shadow-neo-lg);
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .neo-card:hover {
+      transform: translate(-4px, -4px);
+      box-shadow: 12px 12px 0px #000000;
+    }
+
+    .corner-square-accent {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 12px;
+      height: 12px;
+      background: #000000;
+    }
+
+    .neo-card.card-yellow { background: var(--yellow); }
+    .neo-card.card-green { background: var(--green); }
+    .neo-card.card-pink { background: var(--pink); }
+
+    .card-top-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 1.6rem;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.85rem;
+    }
+
+    .card-body-text {
+      font-size: 0.95rem;
+      font-weight: 600;
+      line-height: 1.5;
+      margin-bottom: 2rem;
+      color: #000000;
+    }
+
+    .card-inner-frame {
+      background: #ffffff;
+      border: var(--border-thick);
+      border-radius: 0.5rem;
+      padding: 1.25rem;
+      box-shadow: 3px 3px 0px #000;
+      margin-bottom: 1.25rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 800;
+    }
+
+    .card-action-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 1.1rem;
+      color: #000000;
+      text-decoration: none;
+      transition: transform 0.15s;
+    }
+
+    .card-action-link:hover {
+      transform: translateX(4px);
+    }
+
+    /* Massive Stretched Typography Footer (Tic-Tac Style) */
+    .stretched-footer {
+      background: #000000;
+      color: #ffffff;
+      border-top: var(--border-thick);
+      padding: 5.5rem 3.5rem 3.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .footer-grid-wrapper {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 3.5rem;
+      align-items: center;
+      position: relative;
+    }
+
+    .footer-left-content {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      z-index: 2;
+    }
+
+    .footer-about-heading {
+      font-family: 'Anton', 'Space Grotesk', sans-serif;
+      font-size: 2.75rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #ffffff;
+      line-height: 1;
+    }
+
+    .footer-about-text {
+      font-size: 0.95rem;
+      line-height: 1.65;
+      color: #cbd5e1;
+      font-weight: 500;
+      max-width: 500px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .btn-footer-copy {
+      align-self: flex-start;
+      background: transparent;
+      color: #ffffff;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      padding: 0.65rem 2rem;
+      border-radius: 999px;
+      border: 2px solid #ffffff;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .btn-footer-copy:hover {
+      background: #ffffff;
+      color: #000000;
+      box-shadow: 0 0 15px rgba(255,255,255,0.4);
+    }
+
+    .footer-stamp-circle {
+      position: absolute;
+      bottom: 20px;
+      left: 45%;
+      transform: translateX(-50%) rotate(-12deg);
+      background: var(--pink);
+      color: #000000;
+      width: 95px;
+      height: 95px;
+      border-radius: 50%;
+      border: 3px solid #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Anton', sans-serif;
+      font-size: 1.1rem;
+      letter-spacing: 1px;
+      box-shadow: 4px 4px 0px #ffffff;
+      z-index: 5;
+    }
+
+    .footer-right-giant-text {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .stretched-title-hero {
+      font-family: 'Anton', 'Syne', sans-serif;
+      font-size: clamp(6.5rem, 16vw, 13.5rem);
+      font-weight: 900;
+      line-height: 0.8;
+      letter-spacing: -2px;
+      color: #ffffff;
+      text-transform: uppercase;
+      transform: scaleY(1.45);
+      transform-origin: center right;
+      user-select: none;
+    }
+
+    .subfooter-credits {
+      max-width: 1200px;
+      margin: 4.5rem auto 0;
+      padding-top: 2rem;
+      border-top: 1px solid #222;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.85rem;
+      color: #64748b;
+      font-weight: 700;
+    }
+
+    .author-badge {
+      color: var(--yellow);
+    }
+
+    @media (max-width: 950px) {
+      .footer-grid-wrapper { grid-template-columns: 1fr; gap: 2.5rem; }
+      .footer-stamp-circle { display: none; }
+      .footer-right-giant-text { justify-content: center; }
+      .cards-triptych-grid { grid-template-columns: 1fr; }
+      header { padding: 1rem 1.5rem; }
+      .nav-pill-container { display: none; }
+      .floating-shape-left, .floating-shape-right { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Contextual Figma-Style Cursor -->
+  <div id="figma-cursor">
+    <svg class="cursor-pointer-svg" viewBox="0 0 24 24">
+      <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.54.35-.85L6.35 2.85a.5.5 0 0 0-.85.36z"/>
+    </svg>
+    <div class="cursor-tag" id="cursor-label">Mi:RAG</div>
+  </div>
+
+  <!-- Hero Section -->
+  <section class="hero-container">
+    <img src="/static/assets/03_chrome_shape.png" class="floating-shape-left" alt="3D Shape" data-cursor="3D Accent">
+    <img src="/static/assets/04_chrome_shape.png" class="floating-shape-right" alt="3D Ribbon" data-cursor="3D Ribbon">
+
+    <header>
+      <a href="/" class="brand-link" data-cursor="Mi:RAG Home">
+        <img src="/static/assets/logo.png" class="brand-logo-img" alt="Mi:RAG Logo">
+      </a>
+
+      <nav class="nav-pill-container">
+        <a href="#capabilities" class="nav-item-link" data-cursor="Capabilities">Capabilities</a>
+        <a href="#about" class="nav-item-link" data-cursor="About Mission">About</a>
+        <a href="https://github.com/AryanSingh64" target="_blank" class="nav-item-link" data-cursor="Star on GitHub ★">GitHub</a>
+      </nav>
+
+      <button class="btn-header-cta" id="nav-btn-copy" data-cursor="Copy PowerShell Command ⚡">
+        COPY CLI LAUNCH
+      </button>
+    </header>
+
+    <div class="hero-main">
+      <h1 class="hero-title-bold" data-cursor="Mi:RAG Engine">
+        Autonomous Multimodal<br>RAG-in-a-Box Factory
+      </h1>
+
+      <p class="hero-description">
+        Turn messy enterprise PDFs, scanned voter forms, and clicked photos into a turnkey, anti-hallucination AI knowledge microservice in seconds.
+      </p>
+
+      <div class="hero-action-buttons">
+        <button class="btn-hero-primary" id="btn-hero-copy" data-cursor="Copy Command to Clipboard ⚡">
+          COPY CLI LAUNCH
+        </button>
+        <a href="#capabilities" class="btn-hero-secondary" data-cursor="View Specs ↓">
+          VIEW ARCHITECTURE
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Custom Neo-Brutalist Copy Notification Toast -->
+  <div id="copy-toast" class="neo-toast">
+    <div class="toast-header">
+      <span class="toast-badge">COPIED TO CLIPBOARD</span>
+      <span class="toast-close" id="toast-close-btn">✕</span>
+    </div>
+    <div class="toast-code">irm https://mirag.me/install | iex</div>
+    <p class="toast-instructions">Paste this command into your PowerShell terminal to launch your local engine.</p>
+  </div>
+
+  <!-- Marquee Ticker Strip -->
+  <div class="marquee-strip">
+    <div class="marquee-track">
+      LOCAL COMPUTE • HARDWARE ACCELERATED • MULTIMODAL VISION OCR • DYNAMIC HYDE EXPANSION • STANDALONE EXPORT • TURNKEY RAG FACTORY • LOCAL COMPUTE • HARDWARE ACCELERATED • MULTIMODAL VISION OCR • DYNAMIC HYDE EXPANSION • STANDALONE EXPORT • TURNKEY RAG FACTORY •
+    </div>
+  </div>
+
+  <div class="checkerboard-band"></div>
+
+  <!-- Core Features / Capabilities Triptych Cards -->
+  <section class="features-section" id="capabilities">
+    <div class="features-inner">
+      <span class="section-tag-pill">ENGINE SPECIFICATIONS</span>
+      <h2 class="section-title-large">Engineered for Zero Fluff and Real Grounding</h2>
+
+      <div class="cards-triptych-grid">
+        <!-- Card 1: Multimodal -->
+        <div class="neo-card card-yellow" data-cursor="Vision OCR Feature">
+          <div class="corner-square-accent"></div>
+          <div>
+            <div class="card-top-title">MULTIMODAL</div>
+            <p class="card-body-text">
+              One-shot deep visual scene extraction. Understands photos, diagrams, flowcharts, and foreign scripts via any local Vision model.
+            </p>
+          </div>
+          <div class="card-inner-frame">RapidOCR + Local Vision LLM</div>
+        </div>
+
+        <!-- Card 2: Guardrails -->
+        <div class="neo-card card-green" data-cursor="Anti-Hallucination Guard">
+          <div class="corner-square-accent"></div>
+          <div>
+            <div class="card-top-title">GUARDRAILS</div>
+            <p class="card-body-text">
+              Strict cosine distance relevance gates and zero-evidence refusal fallbacks ensure the engine never hallucinates out-of-context facts.
+            </p>
+          </div>
+          <div class="card-inner-frame">Cosine Filter + HyDE Expander</div>
+        </div>
+
+        <!-- Card 3: Standalone -->
+        <div class="neo-card card-pink" data-cursor="Turnkey Packaging">
+          <div class="corner-square-accent"></div>
+          <div>
+            <div class="card-top-title">STANDALONE</div>
+            <p class="card-body-text">
+              Export a turnkey production bundle containing pre-indexed vector DB, standalone FastAPI server, web UI, and launch scripts.
+            </p>
+          </div>
+          <div class="card-inner-frame">FastAPI + ChromaDB + Batch</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Massive Stretched Footer (Tic-Tac Style) -->
+  <footer class="stretched-footer" id="about">
+    <div class="footer-stamp-circle" data-cursor="Stamp Badge">MIRAG</div>
+
+    <div class="footer-grid-wrapper">
+      <div class="footer-left-content">
+        <h3 class="footer-about-heading">ABOUT US</h3>
+        <p class="footer-about-text">
+          The creation of the Mi:RAG engine was driven by the need for private, zero-cost, and uncompromising local artificial intelligence. We built a high-performance architecture capable of processing multi-format documents, scanned government forms, and visual media with strict anti-hallucination guardrails and 1-click standalone deployment.
+        </p>
+        <button class="btn-footer-copy" id="footer-btn-copy" data-cursor="Copy PowerShell Command ⚡">COPY CLI LAUNCH</button>
+      </div>
+
+      <div class="footer-right-giant-text">
+        <div class="stretched-title-hero" data-cursor="Mi:RAG Typography">MIRAG</div>
+      </div>
+    </div>
+
+    <div class="subfooter-credits">
+      <div>Mi:RAG — Autonomous Multimodal RAG Engine</div>
+      <div class="author-badge">Built by Aryan Pratap Singh</div>
+    </div>
+  </footer>
+
+  <!-- Dynamic Contextual Figma Cursor & Copy Handlers -->
+  <script>
+    const figmaCursor = document.getElementById('figma-cursor');
+    const cursorLabel = document.getElementById('cursor-label');
+    let mouseX = 0, mouseY = 0, cursorX = 0, cursorY = 0;
+
+    window.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    function animateCursor() {
+      cursorX += (mouseX - cursorX) * 0.25;
+      cursorY += (mouseY - cursorY) * 0.25;
+      figmaCursor.style.transform = `translate(${cursorX}px, ${cursorY}px)`;
+      requestAnimationFrame(animateCursor);
+    }
+    animateCursor();
+
+    // Contextual Hover Tag Logic
+    document.querySelectorAll('[data-cursor]').forEach(el => {
+      el.addEventListener('mouseenter', () => {
+        const text = el.getAttribute('data-cursor');
+        if (text) {
+          cursorLabel.innerText = text;
+          cursorLabel.classList.add('active');
+        }
+      });
+      el.addEventListener('mouseleave', () => {
+        cursorLabel.classList.remove('active');
+      });
+    });
+
+    document.querySelectorAll('a, button, input, select').forEach(el => {
+      if (!el.hasAttribute('data-cursor')) {
+        el.addEventListener('mouseenter', () => {
+          cursorLabel.innerText = 'Click ↗';
+          cursorLabel.classList.add('active');
+        });
+        el.addEventListener('mouseleave', () => {
+          cursorLabel.classList.remove('active');
+        });
+      }
+    });
+
+    // 1-Click Clipboard Copy Logic + Custom Neo-Brutalist Toast
+    const copyToast = document.getElementById('copy-toast');
+    const toastCloseBtn = document.getElementById('toast-close-btn');
+    const commandText = "irm https://mirag.me/install | iex";
+
+    function triggerCopyCommand() {
+      navigator.clipboard.writeText(commandText).then(() => {
+        copyToast.classList.add('visible');
+        setTimeout(() => {
+          copyToast.classList.remove('visible');
+        }, 5000);
+      });
+    }
+
+    document.getElementById('btn-hero-copy').addEventListener('click', triggerCopyCommand);
+    document.getElementById('nav-btn-copy').addEventListener('click', triggerCopyCommand);
+    document.getElementById('footer-btn-copy').addEventListener('click', triggerCopyCommand);
+
+    toastCloseBtn.addEventListener('click', () => {
+      copyToast.classList.remove('visible');
+    });
+  </script>
+</body>
+</html>
