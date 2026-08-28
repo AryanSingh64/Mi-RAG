@@ -21,7 +21,7 @@ Write-Host ""
 
 function Print-Step($msg) {
     Write-Host -NoNewline " [*] $msg " -ForegroundColor Cyan
-    Start-Sleep -Milliseconds 200
+    Start-Sleep -Milliseconds 150
     Write-Host "[ OK ]" -ForegroundColor Green
 }
 
@@ -53,15 +53,19 @@ if (Test-Path $targetDir) {
 }
 
 # 4. Virtual Environment & Dependencies Check
-if (-not (Test-Path "$targetDir\.venv")) {
-    Write-Host -NoNewline " [*] Initializing isolated virtual environment (.venv)... " -ForegroundColor Cyan
-    python -m venv .venv
+if (-not (Test-Path "$targetDir\.venv\Scripts\python.exe")) {
+    Write-Host -NoNewline " [*] Creating virtual environment (.venv)... " -ForegroundColor Cyan
+    python -m venv "$targetDir\.venv"
     Write-Host "[ CREATED ]" -ForegroundColor Green
-    
-    Write-Host " [*] Installing lightweight factory dependencies (one-time setup)..." -ForegroundColor Cyan
-    & "$targetDir\.venv\Scripts\pip" install --quiet --upgrade pip
-    & "$targetDir\.venv\Scripts\pip" install --quiet -r requirements.txt
-    Write-Host " [OK] All dependencies installed successfully!" -ForegroundColor Green
+}
+
+# Verify packages exist in .venv
+$hasUvicorn = & "$targetDir\.venv\Scripts\python.exe" -c "import uvicorn, fastapi; print('OK')" 2>$null
+if ($hasUvicorn -ne "OK") {
+    Write-Host " [*] Installing dependencies into .venv (one-time setup)..." -ForegroundColor Cyan
+    & "$targetDir\.venv\Scripts\pip.exe" install --upgrade pip
+    & "$targetDir\.venv\Scripts\pip.exe" install -r "$targetDir\requirements.txt"
+    Write-Host " [OK] Dependencies installed successfully!" -ForegroundColor Green
 }
 
 # 5. Launch Banner
@@ -73,8 +77,9 @@ Write-Host " +---------------------------------------------------------+" -Foreg
 Write-Host ""
 
 # 6. Start Web Factory
+Set-Location $targetDir
 if (Test-Path "$targetDir\run_factory.bat") {
     & "$targetDir\run_factory.bat"
 } else {
-    & "$targetDir\.venv\Scripts\python" "$targetDir\run_factory.py"
+    & "$targetDir\.venv\Scripts\python.exe" "$targetDir\run_factory.py"
 }
