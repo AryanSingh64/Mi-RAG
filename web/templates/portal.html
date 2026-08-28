@@ -442,6 +442,39 @@
       box-shadow: 5px 5px 0px #000;
       background: #e00067;
     }
+
+    /* Mobile & Tablet Responsiveness */
+    @media (max-width: 900px) {
+      #figma-cursor { display: none !important; }
+      body { overflow: auto; height: auto; min-height: 100vh; }
+      header {
+        padding: 0.85rem 1.25rem;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+      .app-container {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: calc(100vh - 80px);
+      }
+      .chat-section {
+        height: 70vh;
+      }
+      .sidebar {
+        height: auto;
+        border-left: none;
+        border-top: var(--border);
+        padding: 1.25rem;
+      }
+      .modal-content-box {
+        width: 96%;
+        max-width: 96%;
+        padding: 1rem;
+      }
+      .visual-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      }
+    }
   </style>
 </head>
 <body>
