@@ -18,14 +18,15 @@ ollama_client = OllamaClient()
 # Request/Response Schemas
 class CreateSessionRequest(BaseModel):
     model_name: Optional[str] = "llama3.2:3b"
-    vision_model: Optional[str] = "moondream"
+    vision_models: Optional[List[str]] = ["moondream"]
+    vision_model: Optional[str] = None  # Backward compatibility
     embedding_model: Optional[str] = "all-MiniLM-L6-v2"
     ttl_hours: Optional[float] = 3.0
 
 
 class ChatRequest(BaseModel):
     message: str
-    top_k: Optional[int] = 4
+    top_k: Optional[int] = 6
 
 
 
@@ -62,10 +63,16 @@ def get_available_models():
 
 @router.post("/sessions/create")
 def create_session(req: CreateSessionRequest):
-    """Creates a new ephemeral RAG session."""
+    """Creates a new ephemeral RAG session with optional multi-model Vision ensemble."""
+    models_to_use = req.vision_models
+    if not models_to_use and req.vision_model:
+        models_to_use = [req.vision_model]
+    if not models_to_use:
+        models_to_use = ["moondream"]
+
     session = session_manager.create_session(
         model_name=req.model_name or "llama3.2:3b",
-        vision_model=req.vision_model or "moondream",
+        vision_models=models_to_use,
         embedding_model=req.embedding_model or "all-MiniLM-L6-v2",
         ttl_hours=req.ttl_hours or 3.0
     )

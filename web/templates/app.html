@@ -233,10 +233,37 @@
       font-size: 1rem;
       padding: 0.75rem 1.5rem;
       border-radius: 999px;
-      border: var(--border);
-      box-shadow: var(--shadow);
+    .checkbox-chips-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.35rem;
     }
-    .result-link-btn:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
+    .model-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: #fff;
+      border: var(--border);
+      box-shadow: 2px 2px 0px #000;
+      padding: 0.45rem 0.85rem;
+      border-radius: 6px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 0.82rem;
+      user-select: none;
+      transition: all 0.1s ease;
+    }
+    .model-chip:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 3px 3px 0px #000;
+    }
+    .model-chip input[type="checkbox"] {
+      accent-color: #000;
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+    }
 
     @media (max-width: 750px) {
       .controls-grid { grid-template-columns: 1fr; }
@@ -274,11 +301,12 @@
             </select>
           </div>
 
-          <div class="input-group">
-            <label class="label" for="vision-select">Vision OCR Model</label>
-            <select id="vision-select">
-              <option value="llama3.2-vision">llama3.2-vision (Loading...)</option>
-            </select>
+          <div class="input-group" style="grid-column: span 2;">
+            <label class="label">Vision OCR Models (Multi-Model Combined Ensemble)</label>
+            <div class="checkbox-chips-grid" id="vision-checkbox-group">
+              <label class="model-chip"><input type="checkbox" value="moondream" checked> moondream:latest</label>
+              <label class="model-chip"><input type="checkbox" value="llama3.2-vision" checked> llama3.2-vision:latest</label>
+            </div>
           </div>
 
           <div class="input-group">
@@ -345,6 +373,7 @@
     const portalLink = document.getElementById('portal-link');
     const modelSelect = document.getElementById('model-select');
     const visionSelect = document.getElementById('vision-select');
+    const visionCheckboxGroup = document.getElementById('vision-checkbox-group');
     const progressContainer = document.getElementById('progress-container');
     const progressFill = document.getElementById('progress-fill');
     const progressStatus = document.getElementById('progress-status');
@@ -360,7 +389,11 @@
           modelSelect.innerHTML = data.text_models.map(m => `<option value="${m}" ${m.includes('3b') ? 'selected' : ''}>${m}</option>`).join('');
         }
         if (data.vision_models && data.vision_models.length > 0) {
-          visionSelect.innerHTML = data.vision_models.map(m => `<option value="${m}" ${m.includes('moondream') ? 'selected' : ''}>${m}</option>`).join('');
+          visionCheckboxGroup.innerHTML = data.vision_models.map(m => `
+            <label class="model-chip">
+              <input type="checkbox" name="vision_model" value="${m}" checked> ${m}
+            </label>
+          `).join('');
         }
       } catch (err) {}
     }
@@ -404,6 +437,8 @@
         return;
       }
 
+      const checkedVisionModels = Array.from(document.querySelectorAll('#vision-checkbox-group input[type="checkbox"]:checked')).map(cb => cb.value);
+
       buildBtn.disabled = true;
       progressContainer.style.display = 'block';
       resultBox.style.display = 'none';
@@ -415,7 +450,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             model_name: modelSelect.value,
-            vision_model: visionSelect.value,
+            vision_models: checkedVisionModels.length > 0 ? checkedVisionModels : ["moondream"],
             ttl_hours: parseFloat(document.getElementById('ttl-select').value)
           })
         });

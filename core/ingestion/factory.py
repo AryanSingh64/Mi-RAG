@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Optional, Type
+from typing import List, Optional, Union
 from core.ingestion.base import BaseDocumentParser, ParsedDocument
 from core.ingestion.docx_parser import DocxDocumentParser
 from core.ingestion.pdf_parser import PdfDocumentParser
@@ -9,15 +9,15 @@ from core.ingestion.vision_ocr import VisionImageParser
 
 class DocumentParserFactory:
     """
-    Unified factory to parse any supported document type with dynamic Vision model support.
+    Unified factory to parse any supported document type with multi-model Vision ensemble support.
     """
 
-    def __init__(self, vision_model: Optional[str] = "moondream"):
-        self.vision_model = vision_model
+    def __init__(self, vision_models: Optional[Union[List[str], str]] = None):
+        self.vision_models = vision_models or ["moondream"]
         self._text_parser = TextDocumentParser()
         self._docx_parser = DocxDocumentParser()
         self._pdf_parser = PdfDocumentParser()
-        self._image_parser = VisionImageParser(vision_model=self.vision_model or "moondream")
+        self._image_parser = VisionImageParser(vision_models=self.vision_models)
 
     def parse_file(self, file_path: Path | str) -> ParsedDocument:
         """
@@ -35,5 +35,4 @@ class DocumentParserFactory:
         elif ext in [".png", ".jpg", ".jpeg", ".webp", ".bmp"]:
             return self._image_parser.parse(path)
         else:
-            # Fallback: attempt text parsing
             return self._text_parser.parse(path)

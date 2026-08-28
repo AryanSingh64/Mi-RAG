@@ -20,14 +20,14 @@ class RAGPipeline:
         collection_name: str = "knowledge_base",
         embedding_model: str = "all-MiniLM-L6-v2",
         ollama_model: str = "llama3.2:3b",
-        vision_model: str = "moondream",
+        vision_models: Optional[List[str] | str] = None,
         ollama_url: str = "http://localhost:11434",
         chunk_size: int = 400,
         chunk_overlap: int = 60,
         min_similarity_threshold: float = 0.08
     ):
-        self.vision_model = vision_model
-        self.parser_factory = DocumentParserFactory(vision_model=self.vision_model)
+        self.vision_models = vision_models or ["moondream"]
+        self.parser_factory = DocumentParserFactory(vision_models=self.vision_models)
         self.chunker = RecursiveChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
         self.embedder = LocalEmbedder(model_name=embedding_model)
         self.vector_store = ChromaVectorStore(

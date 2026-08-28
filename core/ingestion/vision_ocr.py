@@ -1,7 +1,7 @@
 import base64
 import io
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Union
 import numpy as np
 from PIL import Image
 from rapidocr_onnxruntime import RapidOCR
@@ -11,35 +11,42 @@ from core.ingestion.base import BaseDocumentParser, ParsedDocument
 
 class VisionImageParser(BaseDocumentParser):
     """
-    Multimodal Image Parser.
-    Extracts text using RapidOCR (with alpha channel flattening) AND generates a rich semantic description via Ollama Vision.
+    Multimodal Multi-Model Image Parser.
+    Extracts text using RapidOCR (with alpha channel flattening) AND generates rich semantic descriptions
+    across multiple selected Ollama Vision models (Ensemble Fusion).
     """
 
-    def __init__(self, ollama_url: str = "http://localhost:11434", vision_model: str = "moondream"):
+    def __init__(
+        self,
+        ollama_url: str = "http://localhost:11434",
+        vision_models: Optional[Union[List[str], str]] = None
+    ):
         self.ocr_engine = RapidOCR()
         self.ollama_url = ollama_url
-        self.vision_model = vision_model
+        if isinstance(vision_models, str):
+            self.vision_models = [m.strip() for m in vision_models.split(",") if m.strip()]
+        elif isinstance(vision_models, list) and vision_models:
+            self.vision_models = vision_models
+        else:
+            self.vision_models = ["moondream"]
 
-    def _resolve_vision_model(self) -> str:
-        """Finds the best available matching vision model tag in local Ollama."""
+    def _resolve_vision_model(self, target_model: str) -> str:
+        """Finds the exact matching vision model tag in local Ollama."""
         try:
             with httpx.Client(timeout=5.0) as client:
                 res = client.get(f"{self.ollama_url}/api/tags")
                 if res.status_code == 200:
                     models = [m.get("name") for m in res.json().get("models", [])]
-                    if self.vision_model in models:
-                        return self.vision_model
-                    if f"{self.vision_model}:latest" in models:
-                        return f"{self.vision_model}:latest"
+                    if target_model in models:
+                        return target_model
+                    if f"{target_model}:latest" in models:
+                        return f"{target_model}:latest"
                     for m in models:
-                        if "moondream" in m.lower():
-                            return m
-                    for m in models:
-                        if "vision" in m.lower() or "llava" in m.lower():
+                        if target_model.lower() in m.lower():
                             return m
         except Exception:
             pass
-        return self.vision_model
+        return target_model
 
     def _prepare_image(self, image_path: Path) -> tuple[np.ndarray, str]:
         """Loads image, handles transparency with clean white background, and returns RGB numpy array and base64 string."""
@@ -72,10 +79,10 @@ class VisionImageParser(BaseDocumentParser):
             print(f"[*] OCR extraction note: {e}")
             return ""
 
-    def _extract_via_ollama_vision(self, b64_image: str) -> Optional[str]:
-        """Generates detailed semantic description of image contents using Ollama Vision."""
-        resolved_model = self._resolve_vision_model()
-        print(f"[*] Processing image with Vision Model: {resolved_model}")
+    def _extract_from_single_vision_model(self, model_name: str, b64_image: str) -> Optional[str]:
+        """Queries a single vision model with a deep visual prompt."""
+        resolved_model = self._resolve_vision_model(model_name)
+        print(f"[*] Querying Vision Model: {resolved_model}...")
 
         prompt = (
             "Deep visual inspection: "
@@ -92,18 +99,27 @@ class VisionImageParser(BaseDocumentParser):
         }
 
         try:
-            with httpx.Client(timeout=120.0) as client:
+            with httpx.Client(timeout=180.0) as client:
                 res = client.post(f"{self.ollama_url}/api/generate", json=payload)
                 if res.status_code == 200:
                     description = res.json().get("response", "").strip()
-                    print(f"[*] Vision description generated ({len(description)} chars)")
+                    print(f"[OK] {resolved_model} produced description ({len(description)} chars)")
                     return description
                 else:
-                    print(f"[!] Vision model returned status {res.status_code}: {res.text}")
+                    print(f"[!] {resolved_model} returned status {res.status_code}")
         except Exception as e:
-            print(f"[!] Vision model call error: {e}")
+            print(f"[!] {resolved_model} error: {e}")
             return None
         return None
+
+    def _extract_all_vision_descriptions(self, b64_image: str) -> List[tuple[str, str]]:
+        """Runs all selected vision models and returns a list of (model_name, description)."""
+        results = []
+        for model in self.vision_models:
+            desc = self._extract_from_single_vision_model(model, b64_image)
+            if desc:
+                results.append((model, desc))
+        return results
 
     def parse(self, file_path: Path) -> ParsedDocument:
         file_path = Path(file_path)
@@ -112,23 +128,23 @@ class VisionImageParser(BaseDocumentParser):
 
         np_img, b64_image = self._prepare_image(file_path)
 
-        # 1. Run Vision Model
-        vision_description = self._extract_via_ollama_vision(b64_image)
+        # 1. Run all selected Vision Models
+        vision_results = self._extract_all_vision_descriptions(b64_image)
 
         # 2. Run OCR
         ocr_text = self._extract_via_ocr(np_img)
 
-        # 3. Format structured content with strict labels
+        # 3. Format combined ensemble sections
         filename = file_path.name
         sections = [f"Source File Name: {filename}"]
 
         if ocr_text:
             sections.append(f"[Exact OCR Extracted Text]\n{ocr_text}")
 
-        if vision_description:
-            sections.append(f"[Visual Description, Logo Content, Colors & Fonts]\n{vision_description}")
+        for model_name, desc in vision_results:
+            sections.append(f"[Vision Model Analysis ({model_name})]\n{desc}")
 
-        if not ocr_text and not vision_description:
+        if not ocr_text and not vision_results:
             sections.append("[Visual Content]\nNo readable text or visual description could be generated for this image.")
 
         full_content = "\n\n".join(sections)
@@ -143,7 +159,7 @@ class VisionImageParser(BaseDocumentParser):
             text_content=full_content,
             metadata={
                 "dimensions": f"{width}x{height}",
-                "has_vision_description": bool(vision_description),
+                "vision_models_used": [m for m, _ in vision_results],
                 "has_ocr_text": bool(ocr_text),
                 "char_count": len(full_content)
             }

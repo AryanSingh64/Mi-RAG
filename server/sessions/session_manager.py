@@ -46,8 +46,8 @@ class SessionManager:
 
     def create_session(
         self,
-        model_name: str = "llama3.2:1b",
-        vision_model: str = "moondream",
+        model_name: str = "llama3.2:3b",
+        vision_models: Optional[List[str] | str] = None,
         embedding_model: str = "all-MiniLM-L6-v2",
         ttl_hours: Optional[float] = None
     ) -> RAGSession:
@@ -70,7 +70,7 @@ class SessionManager:
             collection_name=f"coll_{session_id}",
             embedding_model=embedding_model,
             ollama_model=model_name,
-            vision_model=vision_model
+            vision_models=vision_models or ["moondream"]
         )
 
         session = RAGSession(
