@@ -1,0 +1,46 @@
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local Vector DB & Stored Sessions
+chroma_db/
+sessions/
+storage/
+export/
+*.zip
+*.tar.gz
+*.db
+*.sqlite3
+
+# Logs & Temporary Files
+*.log
+scratch/
+tmp/
+temp/
+
+# IDE & OS Specific
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment Variables
+.env
+.env.local
+.env.*.local

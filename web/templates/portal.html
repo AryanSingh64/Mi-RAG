@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ephemeral RAG Portal | Live Playground & Export</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07090e;
+      --card: rgba(18, 24, 38, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent: #3b82f6;
+      --accent-gradient: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      --accent-glow: rgba(59, 130, 246, 0.25);
+      --text: #f9fafb;
+      --text-muted: #94a3b8;
+      --border: #1e293b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --yellow: #fde047;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; cursor: none !important; }
+    
+    ::selection {
+      background: var(--yellow);
+      color: #000000;
+    }
+    ::-moz-selection {
+      background: var(--yellow);
+      color: #000000;
+    }
+
+    body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    #figma-cursor {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 99999;
+      transform: translate(-2px, -2px);
+      transition: transform 0.04s linear;
+      display: flex;
+      flex-direction: column;
+    }
+    .cursor-pointer-svg { width: 22px; height: 22px; fill: #ff2d87; filter: drop-shadow(1px 2px 0px #000); }
+    .cursor-tag { background: #ff2d87; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 4px; border: 1.5px solid #000; box-shadow: 2px 2px 0px #000; margin-left: 12px; margin-top: -3px; }
+
+    header {
+      padding: 0.85rem 2rem;
+      background: var(--card);
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 65px;
+      flex-shrink: 0;
+    }
+    .header-left { display: flex; align-items: center; gap: 1.25rem; }
+    .portal-logo-img { height: 36px; object-fit: contain; }
+    .session-badge { background: #1e293b; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.8rem; color: #94a3b8; font-family: monospace; }
+    
+    .timer-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+      padding: 0.4rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .pulse-dot { width: 8px; height: 8px; background: var(--danger); border-radius: 50%; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .app-container {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      height: calc(100vh - 65px);
+      overflow: hidden;
+    }
+
+    /* Chat Section with guaranteed scrolling */
+    .chat-section {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      scroll-behavior: smooth;
+    }
+    
+    .msg { max-width: 85%; padding: 1rem 1.35rem; border-radius: 0.85rem; line-height: 1.6; font-size: 0.95rem; }
+    .user-msg { background: var(--accent); color: #fff; align-self: flex-end; }
+    .bot-msg { background: var(--card); border: 1px solid var(--card-border); align-self: flex-start; }
+    
+    .grounded-badge { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 600; color: #10b981; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); padding: 0.15rem 0.5rem; border-radius: 4px; margin-bottom: 0.5rem; }
+    .citations { margin-top: 0.85rem; padding-top: 0.75rem; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--text-muted); }
+    .citation-tag { display: inline-block; background: #0f172a; border: 1px solid var(--border); padding: 0.25rem 0.5rem; border-radius: 4px; margin-right: 0.4rem; margin-top: 0.3rem; }
+
+    .chat-input-container { padding: 1.25rem 2rem; background: var(--card); border-top: 1px solid var(--card-border); flex-shrink: 0; }
+    .input-form { display: flex; gap: 0.75rem; }
+    input[type="text"] {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 0.85rem 1.25rem;
+      border-radius: 0.65rem;
+      outline: none;
+      font-size: 0.95rem;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+    .btn-send {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.85rem 1.5rem;
+      border-radius: 0.65rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: rgba(11, 15, 25, 0.95);
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      overflow-y: auto;
+      height: 100%;
+    }
+    .panel-card { background: var(--card); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.25rem; }
+    .panel-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .file-pill { background: #0f172a; border: 1px solid var(--border); padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 0.4rem; }
+
+    .btn-download-zip {
+      background: var(--accent-gradient);
+      color: #fff;
+      text-decoration: none;
+      padding: 0.85rem;
+      border-radius: 0.75rem;
+      font-weight: 700;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      box-shadow: 0 10px 25px var(--accent-glow);
+    }
+  </style>
+</head>
+<body>
+  <!-- Figma-Style Cursor -->
+  <div id="figma-cursor">
+    <svg class="cursor-pointer-svg" viewBox="0 0 24 24">
+      <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.54.35-.85L6.35 2.85a.5.5 0 0 0-.85.36z"/>
+    </svg>
+    <div class="cursor-tag">Aryan [Mi:RAG Admin]</div>
+  </div>
+
+  <header>
+    <div class="header-left">
+      <a href="/"><img src="/static/logo and bg/logo.png" class="portal-logo-img" alt="Mi:RAG"></a>
+      <div class="session-badge" id="session-badge">Session: loading...</div>
+    </div>
+    <div class="timer-badge">
+      <div class="pulse-dot"></div>
+      <span id="countdown-timer">Expires in: --:--:--</span>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <!-- Chat Section -->
+    <div class="chat-section">
+      <div class="chat-messages" id="chat-box">
+        <div class="msg bot-msg">
+          <div class="grounded-badge">🛡️ Anti-Hallucination Guardrails Active</div>
+          <div>Hello! This is your customized, private RAG playground. You can test questions against your indexed documents with full source citations below.</div>
+        </div>
+      </div>
+      <div class="chat-input-container">
+        <form class="input-form" id="chat-form">
+          <input type="text" id="user-input" placeholder="Ask a question about your uploaded documents..." required autocomplete="off">
+          <button type="submit" class="btn-send">Send</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="panel-card">
+        <div class="panel-title">📦 Standalone RAG Package</div>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">
+          Download your turnkey production bundle containing the pre-indexed vector DB, server, and launch scripts.
+        </p>
+        <a href="#" id="download-zip-btn" class="btn-download-zip">
+          <span>⬇️ Download Standalone ZIP</span>
+        </a>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-title">📄 Indexed Documents</div>
+        <div id="indexed-files-container" style="color: var(--text-muted); font-size: 0.85rem;">
+          Loading documents...
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-title">🚀 How to Run Locally</div>
+        <div style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.6;">
+          1. Extract the downloaded ZIP<br>
+          2. Double-click <b>run.bat</b> (Windows) or <b>run.sh</b> (Mac/Linux)<br>
+          3. Open <b>http://localhost:8000</b>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const pathParts = window.location.pathname.split('/');
+    const sessionId = pathParts[pathParts.length - 1];
+
+    document.getElementById('session-badge').innerText = `Session: ${sessionId}`;
+    document.getElementById('download-zip-btn').href = `/api/sessions/${sessionId}/export`;
+
+    let timeRemaining = 0;
+
+    async function loadSession() {
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}`);
+        if (!res.ok) throw new Error("Session expired");
+        const data = await res.json();
+        timeRemaining = data.time_remaining_seconds;
+        startTimer();
+
+        const filesContainer = document.getElementById('indexed-files-container');
+        if (data.indexed_files && data.indexed_files.length > 0) {
+          filesContainer.innerHTML = data.indexed_files.map(f => `
+            <div class="file-pill"><span>📄 ${f}</span></div>
+          `).join('');
+        }
+      } catch (err) {
+        alert("Session is invalid or has expired!");
+        window.location.href = '/';
+      }
+    }
+
+    function startTimer() {
+      setInterval(() => {
+        if (timeRemaining <= 0) {
+          document.getElementById('countdown-timer').innerText = "SESSION EXPIRED";
+          return;
+        }
+        timeRemaining--;
+        const hrs = String(Math.floor(timeRemaining / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((timeRemaining % 3600) / 60)).padStart(2, '0');
+        const secs = String(timeRemaining % 60).padStart(2, '0');
+        document.getElementById('countdown-timer').innerText = `Expires in: ${hrs}:${mins}:${secs}`;
+      }, 1000);
+    }
+
+    loadSession();
+
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+    const chatBox = document.getElementById('chat-box');
+
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const query = userInput.value.trim();
+      if (!query) return;
+
+      chatBox.innerHTML += `<div class="msg user-msg">${query}</div>`;
+      userInput.value = '';
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      const botMsgId = 'bot-' + Date.now();
+      chatBox.innerHTML += `<div class="msg bot-msg" id="${botMsgId}">Thinking...</div>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: query, top_k: 3 })
+        });
+        const data = await res.json();
+        
+        let badgeHtml = data.is_grounded 
+          ? `<div class="grounded-badge">🛡️ Grounded Match (${Math.round(data.confidence_score * 100)}% Confidence)</div>`
+          : `<div class="grounded-badge" style="color:#ef4444; background:rgba(239,68,68,0.1);">⚠️ No Evidence Found</div>`;
+
+        let citationsHtml = '';
+        if (data.citations && data.citations.length > 0) {
+          citationsHtml = '<div class="citations"><b>Source Evidence:</b><br>' + 
+            data.citations.map(c => `<span class="citation-tag">📄 ${c.source_file} (${c.relevance}%)</span>`).join('') + '</div>';
+        }
+
+        document.getElementById(botMsgId).innerHTML = badgeHtml + `<div>${data.answer.replace(/\n/g, '<br>')}</div>` + citationsHtml;
+      } catch (err) {
+        document.getElementById(botMsgId).innerText = "Error: " + err.message;
+      }
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    // Figma Cursor Tracking
+    const figmaCursor = document.getElementById('figma-cursor');
+    let mouseX = 0, mouseY = 0, cursorX = 0, cursorY = 0;
+    window.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+    function animateCursor() {
+      cursorX += (mouseX - cursorX) * 0.25;
+      cursorY += (mouseY - cursorY) * 0.25;
+      figmaCursor.style.transform = `translate(${cursorX}px, ${cursorY}px)`;
+      requestAnimationFrame(animateCursor);
+    }
+    animateCursor();
+  </script>
+</body>
+</html>

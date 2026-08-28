@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mi:RAG Studio — Build Knowledge Base</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800;900&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg: #090c15;
+      --pink: #ff2d87;
+      --yellow: #ffe814;
+      --green: #2be26c;
+      --border: 2.5px solid #000;
+      --shadow: 4px 4px 0px #000;
+      --shadow-lg: 8px 8px 0px #000;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; cursor: none !important; }
+    
+    ::selection {
+      background: var(--yellow);
+      color: #000000;
+    }
+    ::-moz-selection {
+      background: var(--yellow);
+      color: #000000;
+    }
+    
+    body {
+      background: #090c15 url('/static/assets/skytextured.jpg') no-repeat center center fixed;
+      background-size: cover;
+      min-height: 100vh;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: #000;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Custom Figma Cursor */
+    #figma-cursor {
+      position: fixed;
+      top: 0; left: 0;
+      pointer-events: none;
+      z-index: 99999;
+      transform: translate(-2px, -2px);
+      transition: transform 0.04s linear;
+      display: flex;
+      flex-direction: column;
+    }
+    .cursor-pointer-svg { width: 22px; height: 22px; fill: var(--pink); filter: drop-shadow(1px 2px 0px #000); }
+    .cursor-tag {
+      background: var(--pink);
+      color: #fff;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      border: 1.5px solid #000;
+      box-shadow: 2px 2px 0px #000;
+      margin-left: 14px;
+      margin-top: -4px;
+      white-space: nowrap;
+    }
+
+    header {
+      padding: 1.25rem 2.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.9);
+      border-bottom: var(--border);
+      box-shadow: var(--shadow);
+    }
+    .logo-img { height: 40px; object-fit: contain; }
+    .nav-btn-back {
+      background: #fff;
+      color: #000;
+      text-decoration: none;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.85rem;
+      padding: 0.5rem 1.2rem;
+      border-radius: 999px;
+      border: var(--border);
+      box-shadow: var(--shadow);
+    }
+    .nav-btn-back:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px #000; }
+
+    main {
+      flex: 1;
+      max-width: 860px;
+      margin: 2.5rem auto 4rem;
+      width: 92%;
+    }
+
+    .studio-card {
+      background: #ffffff;
+      border: var(--border);
+      border-radius: 1.25rem;
+      padding: 2.5rem;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .studio-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: var(--border);
+      padding-bottom: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    .studio-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 900;
+    }
+    .status-badge {
+      background: var(--green);
+      color: #000;
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+      border: 2px solid #000;
+      box-shadow: 2px 2px 0px #000;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.25rem;
+      margin-bottom: 1.75rem;
+    }
+    .input-group { display: flex; flex-direction: column; gap: 0.4rem; }
+    .label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    select {
+      background: #f8fafc;
+      border: var(--border);
+      border-radius: 0.65rem;
+      padding: 0.75rem 0.9rem;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700;
+      font-size: 0.85rem;
+      outline: none;
+      box-shadow: var(--shadow);
+    }
+
+    .dropzone {
+      border: 2.5px dashed #000;
+      background: #fefce8;
+      border-radius: 1rem;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      transition: all 0.15s;
+    }
+    .dropzone:hover, .dropzone.dragover { background: #fef08a; transform: scale(1.01); }
+    .drop-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.15rem; font-weight: 800; margin-bottom: 0.35rem; }
+    .drop-sub { font-size: 0.85rem; font-weight: 600; color: #64748b; }
+
+    .file-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .file-item {
+      background: #f1f5f9;
+      border: 2px solid #000;
+      border-radius: 0.5rem;
+      padding: 0.65rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      box-shadow: 2px 2px 0px #000;
+    }
+    .file-tag { background: #000; color: #fff; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; }
+
+    .btn-build {
+      background: var(--yellow);
+      color: #000;
+      border: var(--border);
+      border-radius: 0.75rem;
+      padding: 1.1rem 2rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 900;
+      width: 100%;
+      box-shadow: var(--shadow);
+      transition: all 0.15s;
+    }
+    .btn-build:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); background: #facc15; }
+    .btn-build:disabled { opacity: 0.6; transform: none; box-shadow: var(--shadow); }
+
+    .progress-box {
+      display: none;
+      margin-top: 1.5rem;
+      background: #000;
+      color: #fff;
+      border-radius: 0.85rem;
+      padding: 1.25rem;
+      border: var(--border);
+    }
+    .progress-header { display: flex; justify-content: space-between; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.6rem; color: var(--yellow); }
+    .progress-bar-bg { width: 100%; height: 12px; background: #222; border-radius: 999px; border: 2px solid #fff; overflow: hidden; }
+    .progress-bar-fill { height: 100%; width: 0%; background: var(--green); transition: width 0.35s ease; }
+
+    .result-box {
+      display: none;
+      margin-top: 1.5rem;
+      background: #dcfce7;
+      border: var(--border);
+      border-radius: 0.85rem;
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .result-link-btn {
+      display: inline-block;
+      margin-top: 1rem;
+      background: #000;
+      color: var(--yellow);
+      text-decoration: none;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 1rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 999px;
+      border: var(--border);
+      box-shadow: var(--shadow);
+    }
+    .result-link-btn:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
+
+    @media (max-width: 750px) {
+      .controls-grid { grid-template-columns: 1fr; }
+      header { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="figma-cursor">
+    <svg class="cursor-pointer-svg" viewBox="0 0 24 24">
+      <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.54.35-.85L6.35 2.85a.5.5 0 0 0-.85.36z"/>
+    </svg>
+    <div class="cursor-tag">Aryan [Mi:RAG Studio]</div>
+  </div>
+
+  <header>
+    <a href="/"><img src="/static/assets/logo.png" class="logo-img" alt="Mi:RAG"></a>
+    <a href="/" class="nav-btn-back">← Back to Overview</a>
+  </header>
+
+  <main>
+    <div class="studio-card">
+      <div class="studio-header">
+        <div class="studio-title">Knowledge Base Studio</div>
+        <div class="status-badge">LOCAL RTX ACCELERATION ACTIVE</div>
+      </div>
+
+      <form id="rag-form">
+        <div class="controls-grid">
+          <div class="input-group">
+            <label class="label" for="model-select">Text LLM Model</label>
+            <select id="model-select">
+              <option value="llama3.2:3b">llama3.2:3b (Loading...)</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label class="label" for="vision-select">Vision OCR Model</label>
+            <select id="vision-select">
+              <option value="llama3.2-vision">llama3.2-vision (Loading...)</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label class="label" for="ttl-select">Session Lifetime</label>
+            <select id="ttl-select">
+              <option value="1">1 Hour</option>
+              <option value="3" selected>3 Hours</option>
+              <option value="6">6 Hours</option>
+              <option value="24">24 Hours</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <div class="drop-title">Drop your documents, PDFs, or photos here</div>
+          <div class="drop-sub">Supports PDF, DOCX, TXT, MD, CSV, PNG, JPG (with RapidOCR + Vision)</div>
+          <input type="file" id="file-input" multiple style="display: none;">
+        </div>
+
+        <div class="file-list" id="file-list"></div>
+
+        <button type="submit" class="btn-build" id="build-btn">
+          GENERATE PRODUCTION RAG PACKAGE
+        </button>
+
+        <div class="progress-box" id="progress-container">
+          <div class="progress-header">
+            <span id="progress-status">Ingesting & Processing...</span>
+            <span id="progress-percent">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progress-fill"></div>
+          </div>
+        </div>
+      </form>
+
+      <div class="result-box" id="result-box">
+        <h3 style="font-family: 'Space Grotesk', sans-serif; font-weight: 900; font-size: 1.25rem; margin-bottom: 0.5rem;">Knowledge Base Built Successfully</h3>
+        <p style="font-weight: 600; font-size: 0.9rem; color: #166534;">Your private ChromaDB vector collection and grounded pipeline are live.</p>
+        <a href="#" id="portal-link" class="result-link-btn" target="_blank">Open Ephemeral Portal & Playground →</a>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Figma Cursor
+    const figmaCursor = document.getElementById('figma-cursor');
+    let mouseX = 0, mouseY = 0, cursorX = 0, cursorY = 0;
+    window.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+    function animateCursor() {
+      cursorX += (mouseX - cursorX) * 0.25;
+      cursorY += (mouseY - cursorY) * 0.25;
+      figmaCursor.style.transform = `translate(${cursorX}px, ${cursorY}px)`;
+      requestAnimationFrame(animateCursor);
+    }
+    animateCursor();
+
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('file-input');
+    const fileList = document.getElementById('file-list');
+    const form = document.getElementById('rag-form');
+    const buildBtn = document.getElementById('build-btn');
+    const resultBox = document.getElementById('result-box');
+    const portalLink = document.getElementById('portal-link');
+    const modelSelect = document.getElementById('model-select');
+    const visionSelect = document.getElementById('vision-select');
+    const progressContainer = document.getElementById('progress-container');
+    const progressFill = document.getElementById('progress-fill');
+    const progressStatus = document.getElementById('progress-status');
+    const progressPercent = document.getElementById('progress-percent');
+
+    let selectedFiles = [];
+
+    async function loadModels() {
+      try {
+        const res = await fetch('/api/models');
+        const data = await res.json();
+        if (data.text_models && data.text_models.length > 0) {
+          modelSelect.innerHTML = data.text_models.map(m => `<option value="${m}" ${m.includes('3b') ? 'selected' : ''}>${m}</option>`).join('');
+        }
+        if (data.vision_models && data.vision_models.length > 0) {
+          visionSelect.innerHTML = data.vision_models.map(m => `<option value="${m}" ${m.includes('vision') ? 'selected' : ''}>${m}</option>`).join('');
+        }
+      } catch (err) {}
+    }
+    loadModels();
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+    function handleFiles(files) {
+      for (let f of files) { selectedFiles.push(f); }
+      renderFileList();
+    }
+
+    function renderFileList() {
+      fileList.innerHTML = selectedFiles.map(f => `
+        <div class="file-item">
+          <span>${f.name} (${(f.size/1024).toFixed(1)} KB)</span>
+          <span class="file-tag">${f.name.split('.').pop().toUpperCase()}</span>
+        </div>
+      `).join('');
+    }
+
+    function updateProgress(percent, text) {
+      progressFill.style.width = percent + '%';
+      progressPercent.innerText = percent + '%';
+      progressStatus.innerText = text;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (selectedFiles.length === 0) {
+        alert("Please select or drop at least one document or image!");
+        return;
+      }
+
+      buildBtn.disabled = true;
+      progressContainer.style.display = 'block';
+      resultBox.style.display = 'none';
+
+      try {
+        updateProgress(15, "Creating Ephemeral Session & Initializing Pipeline...");
+        const sessionRes = await fetch('/api/sessions/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model_name: modelSelect.value,
+            vision_model: visionSelect.value,
+            ttl_hours: parseFloat(document.getElementById('ttl-select').value)
+          })
+        });
+        const session = await sessionRes.json();
+        const sessionId = session.session_id;
+
+        const total = selectedFiles.length;
+        for (let i = 0; i < total; i++) {
+          const file = selectedFiles[i];
+          const pct = 20 + Math.round(((i + 1) / total) * 70);
+          updateProgress(pct, `Extracting, Describing & Indexing ${file.name}...`);
+
+          const fd = new FormData();
+          fd.append('file', file);
+          await fetch(`/api/sessions/${sessionId}/upload`, { method: 'POST', body: fd });
+        }
+
+        updateProgress(100, "Knowledge Base Ready");
+        resultBox.style.display = 'block';
+        portalLink.href = `/portal/${sessionId}`;
+        buildBtn.disabled = false;
+      } catch (err) {
+        alert("Error: " + err.message);
+        buildBtn.disabled = false;
+        progressContainer.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
