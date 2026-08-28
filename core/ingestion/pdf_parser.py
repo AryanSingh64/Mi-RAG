@@ -2,20 +2,28 @@ import io
 from pathlib import Path
 from typing import List, Optional
 from PIL import Image
-from pypdf import PdfReader
-from rapidocr_onnxruntime import RapidOCR
 from core.ingestion.base import BaseDocumentParser, ParsedDocument
+
+try:
+    import pymupdf as fitz
+except ImportError:
+    try:
+        import fitz
+    except ImportError:
+        fitz = None
+
+from rapidocr_onnxruntime import RapidOCR
 
 
 class PdfDocumentParser(BaseDocumentParser):
     """
-    Multimodal Hybrid PDF Parser.
-    Extracts native digital text AND crops/extracts all embedded diagrams, formulas, charts,
-    and images on every page, saving them for visual retrieval and running OCR.
+    State-of-the-Art Multimodal PDF Parser powered by PyMuPDF + RapidOCR.
+    Extracts native digital text, renders every page diagram/figure into crisp visual images,
+    and indexes visual content with 1-click interactive image snippet retrieval.
     """
 
     def __init__(self, output_images_dir: Optional[Path] = None, session_id: Optional[str] = None):
-        self.ocr_engine = None  # Lazy-load OCR engine only when images are found
+        self.ocr_engine = None
         self.output_images_dir = Path(output_images_dir) if output_images_dir else None
         if self.output_images_dir:
             self.output_images_dir.mkdir(parents=True, exist_ok=True)
@@ -31,73 +39,80 @@ class PdfDocumentParser(BaseDocumentParser):
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        reader = PdfReader(str(file_path))
+        clean_stem = "".join(c if c.isalnum() else "_" for c in file_path.stem)
         pages_text = []
         has_images = False
         extracted_image_urls = []
 
-        for page_num, page in enumerate(reader.pages, start=1):
-            page_sections = []
+        if fitz is not None:
+            # High-performance PyMuPDF Engine
+            doc = fitz.open(str(file_path))
+            total_pages = len(doc)
 
-            # 1. Extract Native Text
-            native_text = (page.extract_text() or "").strip()
-            if native_text:
-                page_sections.append(native_text)
+            for page_num, page in enumerate(doc, start=1):
+                page_sections = []
 
-            # 2. Extract and crop embedded images / diagrams from page
-            if len(page.images) > 0:
-                ocr = self._get_ocr()
-                for img_idx, img in enumerate(page.images, start=1):
+                # 1. Extract digital text
+                native_text = (page.get_text() or "").strip()
+
+                # 2. Render page as visual diagram / document image
+                page_img_filename = f"{clean_stem}_page_{page_num}.png"
+                img_url = (
+                    f"/api/sessions/{self.session_id}/images/{page_img_filename}"
+                    if self.session_id
+                    else f"/images/{page_img_filename}"
+                )
+
+                if self.output_images_dir:
+                    target_path = self.output_images_dir / page_img_filename
                     try:
-                        # Clean filename for cropped diagram
-                        clean_stem = "".join(c if c.isalnum() else "_" for c in file_path.stem)
-                        img_filename = f"{clean_stem}_p{page_num}_img{img_idx}.png"
-
-                        img_url = (
-                            f"/api/sessions/{self.session_id}/images/{img_filename}"
-                            if self.session_id
-                            else f"/images/{img_filename}"
-                        )
-
-                        # Save cropped image to session extracted_images directory
-                        if self.output_images_dir:
-                            target_path = self.output_images_dir / img_filename
-                            # Normalize with PIL to ensure valid PNG format
-                            try:
-                                pil_img = Image.open(io.BytesIO(img.data)).convert("RGB")
-                                pil_img.save(target_path, format="PNG")
-                            except Exception:
-                                with open(target_path, "wb") as f:
-                                    f.write(img.data)
-
-                        # Run OCR on image bytes
-                        res, _ = ocr(img.data)
-                        ocr_lines = []
-                        if res:
-                            ocr_lines = [item[1].strip() for item in res if item[1].strip()]
-
-                        has_images = True
+                        pix = page.get_pixmap(dpi=150)
+                        pix.save(str(target_path))
                         extracted_image_urls.append(img_url)
-
-                        diagram_section = [
-                            f"[Visual Embedded Image / Diagram: {img_filename}]",
-                            f"[Image URL: {img_url}]"
-                        ]
-                        if ocr_lines:
-                            diagram_section.append(f"[Diagram / Image Text]:\n" + "\n".join(ocr_lines))
-                        else:
-                            diagram_section.append("[Diagram / Image]: Visual graphic or diagram embedded on page.")
-
-                        page_sections.append("\n".join(diagram_section))
-
+                        has_images = True
                     except Exception as e:
-                        print(f"[*] Note extracting PDF image: {e}")
+                        print(f"[*] Note rendering PDF page image: {e}")
 
-            # Combine page sections
-            full_page_content = "\n\n".join(page_sections)
-            pages_text.append(full_page_content)
+                # 3. If native text is very short (scanned PDF or chart page), run RapidOCR on page pixmap
+                ocr_text = ""
+                if len(native_text) < 100 and self.output_images_dir and (self.output_images_dir / page_img_filename).exists():
+                    ocr = self._get_ocr()
+                    try:
+                        res, _ = ocr(str(self.output_images_dir / page_img_filename))
+                        if res:
+                            lines = [item[1].strip() for item in res if item[1].strip()]
+                            ocr_text = "\n".join(lines)
+                    except Exception:
+                        pass
 
-        full_text = "\n\n".join([f"[Page {i+1}]\n{txt}" for i, txt in enumerate(pages_text) if txt.strip()])
+                # Assemble page content with Image URL anchor
+                page_header = (
+                    f"[Page {page_num} Document & Visual Diagram: {page_img_filename}]\n"
+                    f"[Image URL: {img_url}]"
+                )
+                page_sections.append(page_header)
+
+                if native_text:
+                    page_sections.append(native_text)
+
+                if ocr_text and ocr_text.lower() not in native_text.lower():
+                    page_sections.append(f"[OCR Extracted Visual Text]:\n{ocr_text}")
+
+                full_page_content = "\n\n".join(page_sections)
+                pages_text.append(full_page_content)
+
+            doc.close()
+        else:
+            # Fallback to pypdf
+            from pypdf import PdfReader
+            reader = PdfReader(str(file_path))
+            total_pages = len(reader.pages)
+
+            for page_num, page in enumerate(reader.pages, start=1):
+                native_text = (page.extract_text() or "").strip()
+                pages_text.append(f"[Page {page_num}]\n{native_text}")
+
+        full_text = "\n\n".join(pages_text)
 
         return ParsedDocument(
             filename=file_path.name,
@@ -106,7 +121,7 @@ class PdfDocumentParser(BaseDocumentParser):
             text_content=full_text,
             pages=pages_text,
             metadata={
-                "total_pages": len(reader.pages),
+                "total_pages": total_pages,
                 "char_count": len(full_text),
                 "has_ocr_images": has_images,
                 "image_count": len(extracted_image_urls)
