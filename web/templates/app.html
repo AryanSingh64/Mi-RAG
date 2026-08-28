@@ -532,9 +532,26 @@
     }
     .result-link-btn:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
 
-    @media (max-width: 750px) {
-      .controls-grid { grid-template-columns: 1fr; }
-      header { padding: 1rem; }
+    @media (max-width: 900px) {
+      #figma-cursor { display: none !important; }
+      * { cursor: auto !important; }
+      body { padding: 0.75rem; }
+      header {
+        padding: 0.75rem 1rem;
+        flex-direction: row;
+        gap: 0.5rem;
+      }
+      .logo-img { height: 36px; }
+      .header-badge { font-size: 0.72rem; padding: 0.25rem 0.5rem; }
+      .app-card {
+        padding: 1.25rem 1rem;
+        margin: 0.75rem auto 1.5rem;
+      }
+      .app-title { font-size: 1.5rem; }
+      .controls-grid { grid-template-columns: 1fr; gap: 1rem; }
+      .telemetry-bar { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+      .spec-pill { justify-content: center; }
+      .modal-box { padding: 1.25rem 1rem; width: 95%; }
     }
   </style>
 </head>
