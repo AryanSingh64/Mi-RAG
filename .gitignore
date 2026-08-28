@@ -15,15 +15,17 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Local Vector DB & Stored Sessions
+# Local Vector DB, Data & Stored Sessions
 chroma_db/
 sessions/
 storage/
 export/
+data/
 *.zip
 *.tar.gz
 *.db
 *.sqlite3
+*.bin
 
 # Logs & Temporary Files
 *.log

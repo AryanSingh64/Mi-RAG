@@ -1,21 +1,46 @@
 {
-  "version": 2,
-  "routes": [
+  "buildCommand": null,
+  "outputDirectory": ".",
+  "cleanUrls": true,
+  "rewrites": [
     {
-      "src": "/install",
-      "dest": "/install.ps1",
-      "headers": {
-        "content-type": "text/plain; charset=utf-8",
-        "cache-control": "no-cache, no-store, must-revalidate"
-      }
+      "source": "/install",
+      "destination": "/install.ps1"
     },
     {
-      "src": "/static/(.*)",
-      "dest": "/web/static/$1"
+      "source": "/static/:path*",
+      "destination": "/web/static/:path*"
     },
     {
-      "src": "/(.*)",
-      "dest": "/web/templates/index.html"
+      "source": "/",
+      "destination": "/web/templates/index.html"
+    },
+    {
+      "source": "/app",
+      "destination": "/web/templates/app.html"
+    },
+    {
+      "source": "/studio",
+      "destination": "/web/templates/app.html"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/web/templates/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/install.ps1",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
     }
   ]
 }
