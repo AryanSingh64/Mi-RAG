@@ -83,6 +83,18 @@ class RAGPipeline:
         # 4. Filter relevant chunks using guardrails
         relevant_chunks = self.guardrails.filter_relevant_chunks(raw_results)
 
+        # Print retrieved context live in terminal
+        print("\n" + "="*60)
+        print(f"[*] QUERY: {user_question}")
+        if relevant_chunks:
+            print(f"[*] RETRIEVED CONTEXT ({len(relevant_chunks)} chunks):")
+            for idx, chunk in enumerate(relevant_chunks, 1):
+                preview = chunk.text.replace("\n", " ")[:140]
+                print(f"  [{idx}] {chunk.source_file} (Similarity: {chunk.score*100:.1f}%) -> {preview}...")
+        else:
+            print("[!] No relevant chunks met the similarity threshold.")
+        print("="*60 + "\n")
+
         if not relevant_chunks:
             return GroundedAnswer(
                 answer="I could not find any information about this in the uploaded documentation.",

@@ -494,7 +494,7 @@
         let citationsHtml = '';
         if (data.citations && data.citations.length > 0) {
           citationsHtml = '<div class="citations"><div class="citations-title">Source Evidence:</div>' + 
-            data.citations.map(c => `<span class="citation-tag">${c.source_file} (${Math.round(c.score * 100)}%)</span>`).join('') + '</div>';
+            data.citations.map(c => `<span class="citation-tag">${c.source_file} (${c.relevance || 0}%)</span>`).join('') + '</div>';
         }
 
         document.getElementById(botMsgId).innerHTML = badgeHtml + `<div class="msg-content">${formatMarkdown(data.answer)}</div>` + citationsHtml;

@@ -200,18 +200,24 @@ def chat_with_rag(session_id: str, req: ChatRequest):
         raise HTTPException(status_code=404, detail="Session expired or not found.")
 
     answer = session.pipeline.query(req.message, top_k=req.top_k)
+
+    # Deduplicate citations by source file and keep highest similarity score
+    unique_citations = {}
+    for c in answer.citations:
+        score_val = float(c.score) if c.score is not None else 0.0
+        score_pct = round(score_val * 100, 1)
+        if c.source_file not in unique_citations or score_pct > unique_citations[c.source_file]["relevance"]:
+            unique_citations[c.source_file] = {
+                "source_file": c.source_file,
+                "relevance": score_pct,
+                "text": c.text[:200] + "..." if len(c.text) > 200 else c.text
+            }
+
     return {
         "answer": answer.answer,
         "confidence_score": answer.confidence_score,
         "is_grounded": answer.is_grounded,
-        "citations": [
-            {
-                "source_file": c.source_file,
-                "relevance": round(c.score * 100, 1),
-                "text": c.text[:200] + "..." if len(c.text) > 200 else c.text
-            }
-            for c in answer.citations
-        ]
+        "citations": list(unique_citations.values())
     }
 
 

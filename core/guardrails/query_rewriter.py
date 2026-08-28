@@ -21,32 +21,34 @@ class QueryRewriter:
 
     def clean_and_expand_query(self, user_query: str, model_name: Optional[str] = None) -> Tuple[str, str]:
         """
-        Dynamically generates a hypothetical passage and corrected question using HyDE.
-        Fluidly adapts to resumes, contracts, invoices, medical records, or tech specs.
+        Dynamically generates search expansions for retrieval while strictly preserving the user's intent.
         """
-        system_msg = (
-            "You are a search intelligence engine. "
-            "Given a user's question (which may contain typos or be short), output TWO lines:\n"
-            "Line 1: The corrected, clean English question.\n"
-            "Line 2: A short hypothetical 1-sentence passage from a document that answers this question."
-        )
+        query_clean = user_query.strip()
+        if not query_clean:
+            return user_query, user_query
 
-        user_msg = f"User Question: {user_query}"
+        # If query is short or straightforward, search directly with original query
+        if len(query_clean.split()) <= 4:
+            return query_clean, query_clean
+
+        system_msg = (
+            "You are a search query expander. "
+            "Output ONLY 1 short sentence describing what information in a document would answer the user's question. "
+            "Do NOT include any conversational filler."
+        )
 
         try:
             expanded = self.ollama.chat_response(
-                user_message=user_msg,
+                user_message=f"Question: {query_clean}",
                 system_prompt=system_msg,
                 model=model_name,
                 temperature=0.0
             )
-            lines = [l.strip() for l in expanded.strip().split("\n") if l.strip()]
-            
-            cleaned_question = lines[0].replace("Line 1:", "").replace("Question:", "").strip().strip('"')
-            hypothetical_passage = lines[1].replace("Line 2:", "").replace("Passage:", "").strip().strip('"') if len(lines) > 1 else cleaned_question
+            passage = expanded.strip().replace("\n", " ")
+            if "ready to provide" in passage.lower() or "please ask" in passage.lower() or len(passage) < 5:
+                return query_clean, query_clean
 
-            # search_query combines the question and hypothetical context
-            search_query = f"{cleaned_question} {hypothetical_passage}"
-            return cleaned_question, search_query
+            search_query = f"{query_clean} {passage[:150]}"
+            return query_clean, search_query
         except Exception:
-            return user_query, user_query
+            return query_clean, query_clean
