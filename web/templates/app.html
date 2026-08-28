@@ -2,89 +2,105 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Mi:RAG Studio — Knowledge Base Builder</title>
+  <title>Mi:RAG Studio — Build Knowledge Base</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800;900&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
   
   <style>
     :root {
-      --bg: #090d16;
-      --card-bg: #111827;
-      --card-inner: #1a2234;
-      --accent: #6366f1;
-      --accent-hover: #4f46e5;
-      --accent-glow: rgba(99, 102, 241, 0.25);
-      --border: #232d42;
-      --border-focus: #6366f1;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --success: #10b981;
-      --danger: #ef4444;
-      --warning: #f59e0b;
+      --bg: #090c15;
+      --pink: #ff2d87;
+      --yellow: #ffe814;
+      --green: #2be26c;
+      --border: 2.5px solid #000;
+      --shadow: 4px 4px 0px #000;
+      --shadow-lg: 8px 8px 0px #000;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; cursor: none !important; }
+    
+    ::selection {
+      background: var(--yellow);
+      color: #000000;
+    }
+    ::-moz-selection {
+      background: var(--yellow);
+      color: #000000;
+    }
     
     body {
-      background: var(--bg);
-      color: var(--text);
+      background: #090c15 url('/static/assets/skytextured.jpg') no-repeat center center fixed;
+      background-size: cover;
       min-height: 100vh;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: #000;
       display: flex;
       flex-direction: column;
     }
 
-    /* Clean Navbar */
+    /* Custom Figma Cursor */
+    #figma-cursor {
+      position: fixed;
+      top: 0; left: 0;
+      pointer-events: none;
+      z-index: 99999;
+      transform: translate(-2px, -2px);
+      transition: transform 0.04s linear;
+      display: flex;
+      flex-direction: column;
+    }
+    .cursor-pointer-svg { width: 22px; height: 22px; fill: var(--pink); filter: drop-shadow(1px 2px 0px #000); }
+    .cursor-tag {
+      background: var(--pink);
+      color: #fff;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      border: 1.5px solid #000;
+      box-shadow: 2px 2px 0px #000;
+      margin-left: 14px;
+      margin-top: -4px;
+      white-space: nowrap;
+    }
+
     header {
-      padding: 1rem 2.5rem;
-      background: rgba(17, 24, 39, 0.95);
-      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 2.5rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, 0.92);
+      border-bottom: var(--border);
+      box-shadow: var(--shadow);
     }
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-    .logo-img { height: 36px; object-fit: contain; }
-    .brand-title {
+    .logo-img { height: 40px; object-fit: contain; }
+    .status-pill-head {
+      background: #000;
+      color: var(--yellow);
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.1rem;
       font-weight: 800;
-      letter-spacing: -0.5px;
-      color: #fff;
-    }
-    .header-status {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
       font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      background: var(--card-inner);
-      padding: 0.35rem 0.85rem;
+      padding: 0.4rem 0.9rem;
       border-radius: 999px;
-      border: 1px solid var(--border);
-    }
-    .status-dot {
-      width: 8px; height: 8px; border-radius: 50%; background: var(--success);
-      box-shadow: 0 0 8px var(--success);
+      border: var(--border);
+      box-shadow: var(--shadow);
     }
 
     main {
       flex: 1;
-      max-width: 960px;
+      max-width: 920px;
       margin: 2rem auto 4rem;
       width: 92%;
     }
 
     /* Live Hardware Telemetry Bar */
     .hw-bar {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
+      background: #000;
+      color: #fff;
+      border: var(--border);
+      box-shadow: var(--shadow);
       border-radius: 12px;
       padding: 0.85rem 1.5rem;
       margin-bottom: 1.5rem;
@@ -101,26 +117,27 @@
       font-family: 'Space Grotesk', sans-serif;
       font-size: 0.85rem;
       font-weight: 700;
-      color: var(--text);
     }
-    .hw-val { color: #818cf8; }
+    .hw-dot {
+      width: 10px; height: 10px; border-radius: 50%; background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
     .hw-badge {
-      background: rgba(99, 102, 241, 0.15);
-      color: #a5b4fc;
-      padding: 0.25rem 0.75rem;
-      border-radius: 6px;
+      background: var(--yellow);
+      color: #000;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
       font-size: 0.75rem;
       font-weight: 800;
-      font-family: 'Space Grotesk', sans-serif;
-      border: 1px solid rgba(99, 102, 241, 0.3);
+      border: 1px solid #000;
     }
 
     .studio-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 16px;
+      background: #fff;
+      border: var(--border);
+      box-shadow: var(--shadow-lg);
+      border-radius: 1rem;
       padding: 2.25rem;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
     }
 
     .studio-header {
@@ -129,31 +146,34 @@
       align-items: center;
       margin-bottom: 1.75rem;
       padding-bottom: 1.25rem;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 2px dashed #000;
     }
 
     .studio-title {
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.5rem;
-      font-weight: 800;
+      font-size: 1.75rem;
+      font-weight: 900;
+      text-transform: uppercase;
       letter-spacing: -0.5px;
     }
 
     .btn-open-hub {
-      background: var(--accent);
-      color: #fff;
+      background: #fff;
+      color: #000;
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.82rem;
-      font-weight: 700;
-      padding: 0.45rem 1rem;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.78rem;
+      font-weight: 800;
+      padding: 0.4rem 0.85rem;
+      border-radius: 6px;
+      border: var(--border);
+      box-shadow: var(--shadow);
       cursor: pointer;
-      transition: all 0.15s ease;
+      text-decoration: none;
+      transition: all 0.1s ease;
     }
     .btn-open-hub:hover {
-      background: var(--accent-hover);
-      box-shadow: 0 4px 14px var(--accent-glow);
+      background: var(--yellow);
+      transform: translate(-1px, -1px);
     }
 
     .controls-grid {
@@ -166,33 +186,31 @@
     .input-group {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
+      gap: 0.4rem;
     }
 
     .label {
       font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700;
-      font-size: 0.85rem;
+      font-weight: 800;
+      font-size: 0.88rem;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-muted);
     }
 
     select, input[type="text"] {
       width: 100%;
       padding: 0.75rem 1rem;
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      border: var(--border);
+      border-radius: 0.5rem;
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 700;
       font-size: 0.95rem;
-      background: var(--card-inner);
-      color: #fff;
+      background: #f8fafc;
+      box-shadow: 2px 2px 0px #000;
       outline: none;
-      transition: border 0.15s ease;
     }
     select:focus, input[type="text"]:focus {
-      border-color: var(--border-focus);
+      background: #fff;
+      box-shadow: 4px 4px 0px #000;
     }
 
     .checkbox-chips-grid {
@@ -204,65 +222,202 @@
     .model-chip {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      background: var(--card-inner);
-      border: 1px solid var(--border);
+      gap: 0.45rem;
+      background: #fff;
+      border: var(--border);
+      box-shadow: 2px 2px 0px #000;
       padding: 0.5rem 0.85rem;
-      border-radius: 8px;
+      border-radius: 6px;
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 700;
-      font-size: 0.85rem;
-      color: var(--text);
+      font-size: 0.82rem;
       user-select: none;
-      cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.1s ease;
     }
     .model-chip:hover {
-      border-color: var(--accent);
+      transform: translate(-1px, -1px);
+      box-shadow: 3px 3px 0px #000;
     }
     .model-chip input[type="checkbox"] {
-      accent-color: var(--accent);
+      accent-color: #000;
       width: 16px;
       height: 16px;
       cursor: pointer;
     }
     .chip-badge {
-      font-size: 0.7rem;
-      padding: 0.15rem 0.45rem;
+      font-size: 0.68rem;
+      padding: 0.1rem 0.4rem;
       border-radius: 4px;
       font-weight: 800;
-      font-family: 'Space Grotesk', sans-serif;
+      border: 1px solid #000;
     }
-    .badge-rec { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .badge-warn { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
-    .badge-heavy { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-rec { background: var(--green); color: #000; }
+    .badge-warn { background: var(--yellow); color: #000; }
+    .badge-heavy { background: #fca5a5; color: #000; }
 
-    /* Dropzone */
-    .dropzone {
-      border: 2px dashed var(--border);
+    /* Model Hub Modal */
+    #hub-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .hub-content {
+      background: #fff;
+      border: var(--border);
+      box-shadow: var(--shadow-lg);
       border-radius: 12px;
+      width: 90%;
+      max-width: 720px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .hub-header {
+      padding: 1.25rem 1.5rem;
+      background: #ffe814;
+      border-bottom: var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .hub-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+    .btn-refresh-hub {
+      background: #000;
+      color: var(--yellow);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 800;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      border: var(--border);
+      box-shadow: 1.5px 1.5px 0px #000;
+      cursor: pointer;
+    }
+    .btn-refresh-hub:hover {
+      background: var(--yellow);
+      color: #000;
+    }
+    .hub-close {
+      background: #000;
+      color: #fff;
+      border: var(--border);
+      font-weight: 900;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .hub-body {
+      padding: 1.25rem 1.5rem;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .hub-card {
+      border: var(--border);
+      box-shadow: 2px 2px 0px #000;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      background: #fafafa;
+    }
+    .hub-card-left { flex: 1; }
+    .hub-card-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .hub-card-desc {
+      font-size: 0.8rem;
+      color: #555;
+      margin-top: 0.25rem;
+    }
+    .btn-download-model {
+      background: #000;
+      color: #fff;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 800;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      border: var(--border);
+      box-shadow: 2px 2px 0px #000;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .btn-download-model:hover {
+      background: var(--pink);
+      color: #fff;
+    }
+    .btn-download-model.installed {
+      background: var(--green);
+      color: #000;
+      cursor: default;
+    }
+    .btn-delete-model {
+      background: #fff;
+      color: #ef4444;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 800;
+      padding: 0.45rem 0.85rem;
+      border-radius: 6px;
+      border: 1.5px solid #ef4444;
+      box-shadow: 1.5px 1.5px 0px #000;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .btn-delete-model:hover {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    .dropzone {
+      border: 3px dashed #000;
+      border-radius: 0.75rem;
       padding: 2.5rem 1.5rem;
       text-align: center;
-      background: var(--card-inner);
+      background: #fdfdfd;
       transition: all 0.15s ease;
-      cursor: pointer;
+      box-shadow: 3px 3px 0px #000;
       margin-bottom: 1.5rem;
+      cursor: pointer;
     }
-    .dropzone:hover, .dropzone.dragover {
-      border-color: var(--accent);
-      background: rgba(99, 102, 241, 0.05);
+    .dropzone.dragover {
+      background: var(--yellow);
+      transform: scale(1.01);
     }
     .drop-title {
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 800;
-      font-size: 1.15rem;
+      font-size: 1.2rem;
       margin-bottom: 0.4rem;
-      color: #fff;
     }
     .drop-sub {
       font-size: 0.85rem;
-      color: var(--text-muted);
-      font-weight: 500;
+      color: #555;
+      font-weight: 600;
     }
 
     .file-list {
@@ -275,75 +430,77 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0.65rem 1rem;
-      background: var(--card-inner);
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      padding: 0.6rem 1rem;
+      background: #f1f5f9;
+      border: var(--border);
+      border-radius: 0.5rem;
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 700;
       font-size: 0.85rem;
     }
     .file-tag {
-      background: rgba(99, 102, 241, 0.15);
-      color: #a5b4fc;
+      background: var(--yellow);
       padding: 0.2rem 0.5rem;
       border-radius: 4px;
-      border: 1px solid rgba(99, 102, 241, 0.3);
-      font-size: 0.72rem;
+      border: 1px solid #000;
+      font-size: 0.75rem;
     }
 
     .btn-build {
       width: 100%;
-      background: var(--accent);
+      background: var(--pink);
       color: #fff;
-      border: none;
-      border-radius: 10px;
+      border: var(--border);
+      box-shadow: var(--shadow);
+      border-radius: 0.75rem;
       padding: 1rem;
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.05rem;
-      font-weight: 800;
+      font-size: 1.15rem;
+      font-weight: 900;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.1s ease;
     }
     .btn-build:hover {
-      background: var(--accent-hover);
-      box-shadow: 0 6px 20px var(--accent-glow);
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0px #000;
+      background: #e00067;
     }
     .btn-build:disabled {
-      background: #334155;
+      background: #cbd5e1;
       color: #64748b;
-      cursor: not-allowed;
+      transform: none;
       box-shadow: none;
+      cursor: not-allowed;
     }
 
     .progress-box {
       display: none;
       margin-top: 1.5rem;
-      border: 1px solid var(--border);
-      background: var(--card-inner);
+      border: var(--border);
+      background: #000;
+      color: #fff;
       padding: 1.25rem;
-      border-radius: 10px;
+      border-radius: 0.75rem;
+      box-shadow: var(--shadow);
     }
     .progress-header {
       display: flex;
       justify-content: space-between;
       font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700;
-      font-size: 0.9rem;
+      font-weight: 800;
+      font-size: 0.95rem;
       margin-bottom: 0.75rem;
-      color: var(--text);
     }
     .progress-bar-bg {
-      background: #0b0f19;
-      height: 8px;
+      background: #333;
+      height: 14px;
       border-radius: 999px;
+      border: 2px solid #fff;
       overflow: hidden;
-      border: 1px solid var(--border);
     }
     .progress-bar-fill {
-      background: var(--accent);
+      background: var(--yellow);
       height: 100%;
       width: 0%;
       transition: width 0.2s ease;
@@ -352,164 +509,28 @@
     .result-box {
       display: none;
       margin-top: 1.5rem;
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      background: rgba(16, 185, 129, 0.1);
-      border-radius: 12px;
+      border: var(--border);
+      background: #dcfce7;
+      border-radius: 0.85rem;
       padding: 1.5rem;
+      box-shadow: var(--shadow);
       text-align: center;
-    }
-    .result-title {
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 800;
-      font-size: 1.2rem;
-      color: #34d399;
-      margin-bottom: 0.4rem;
     }
     .result-link-btn {
       display: inline-block;
       margin-top: 1rem;
-      background: var(--success);
-      color: #000;
+      background: #000;
+      color: var(--yellow);
       text-decoration: none;
       font-family: 'Space Grotesk', sans-serif;
-      font-weight: 800;
-      font-size: 0.95rem;
+      font-weight: 900;
+      font-size: 1rem;
       padding: 0.75rem 1.5rem;
-      border-radius: 8px;
-      transition: all 0.15s ease;
+      border-radius: 999px;
+      border: var(--border);
+      box-shadow: var(--shadow);
     }
-    .result-link-btn:hover { background: #059669; color: #fff; }
-
-    /* Model Hub Modal */
-    #hub-modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.75);
-      z-index: 10000;
-      align-items: center;
-      justify-content: center;
-      backdrop-filter: blur(8px);
-    }
-    .hub-content {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      width: 90%;
-      max-width: 740px;
-      max-height: 85vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
-    }
-    .hub-header {
-      padding: 1.25rem 1.75rem;
-      background: var(--card-inner);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .hub-title {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.15rem;
-      font-weight: 800;
-    }
-    .btn-refresh-hub {
-      background: var(--card-bg);
-      color: #fff;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.8rem;
-      font-weight: 700;
-      padding: 0.4rem 0.85rem;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      cursor: pointer;
-    }
-    .btn-refresh-hub:hover {
-      border-color: var(--accent);
-    }
-    .hub-close {
-      background: transparent;
-      color: var(--text-muted);
-      border: none;
-      font-size: 1.5rem;
-      cursor: pointer;
-      padding: 0 0.5rem;
-    }
-    .hub-close:hover { color: #fff; }
-    .hub-body {
-      padding: 1.5rem 1.75rem;
-      overflow-y: auto;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 0.85rem;
-    }
-    .hub-card {
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem 1.25rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
-      background: var(--card-inner);
-    }
-    .hub-card-left { flex: 1; }
-    .hub-card-title {
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 800;
-      font-size: 0.95rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .hub-card-desc {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin-top: 0.25rem;
-    }
-    .btn-download-model {
-      background: var(--accent);
-      color: #fff;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.8rem;
-      font-weight: 700;
-      padding: 0.45rem 0.95rem;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.15s ease;
-    }
-    .btn-download-model:hover {
-      background: var(--accent-hover);
-    }
-    .btn-download-model.installed {
-      background: rgba(16, 185, 129, 0.2);
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.4);
-      cursor: default;
-    }
-    .btn-delete-model {
-      background: rgba(239, 68, 68, 0.15);
-      color: #f87171;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.8rem;
-      font-weight: 700;
-      padding: 0.45rem 0.85rem;
-      border-radius: 6px;
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.15s ease;
-    }
-    .btn-delete-model:hover {
-      background: var(--danger);
-      color: #fff;
-    }
+    .result-link-btn:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
 
     @media (max-width: 750px) {
       .controls-grid { grid-template-columns: 1fr; }
@@ -519,45 +540,48 @@
 </head>
 <body>
 
+  <div id="figma-cursor">
+    <svg class="cursor-pointer-svg" viewBox="0 0 24 24">
+      <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.54.35-.85L6.35 2.85a.5.5 0 0 0-.85.36z"/>
+    </svg>
+    <div class="cursor-tag">Aryan [Mi:RAG Studio]</div>
+  </div>
+
   <header>
-    <div class="header-left">
+    <div style="display: flex; align-items: center; gap: 1rem;">
       <img src="/static/assets/logo.png" class="logo-img" alt="Mi:RAG">
-      <div class="brand-title">Mi:RAG Studio</div>
     </div>
-    <div class="header-status">
-      <div class="status-dot"></div>
-      <span>Offline Engine Active</span>
-    </div>
+    <div class="status-pill-head">OFFLINE ENGINE READY</div>
   </header>
 
   <main>
     <!-- Hardware Telemetry Bar -->
     <div class="hw-bar" id="hw-bar">
       <div class="hw-item">
-        <span>GPU:</span>
-        <span class="hw-val" id="hw-gpu">Detecting...</span>
+        <div class="hw-dot"></div>
+        <span id="hw-gpu">Detecting GPU...</span>
       </div>
       <div class="hw-item">
-        <span>RAM:</span>
-        <span class="hw-val" id="hw-ram">-- GB</span>
+        <span>RAM:</span> <span id="hw-ram" style="color: var(--yellow);">-- GB</span>
       </div>
       <div class="hw-item">
-        <span>Threads:</span>
-        <span class="hw-val" id="hw-cpu">-- Cores</span>
+        <span>CPU:</span> <span id="hw-cpu">-- Threads</span>
       </div>
-      <div class="hw-badge" id="hw-tier">GPU ACCELERATED</div>
+      <div class="hw-badge" id="hw-tier">RTX ACCELERATED</div>
     </div>
 
     <div class="studio-card">
       <div class="studio-header">
-        <div class="studio-title">Build Knowledge Base</div>
-        <button type="button" class="btn-open-hub" id="btn-open-hub">+ Manage Models (Ollama Library)</button>
+        <div class="studio-title">Knowledge Base Studio</div>
+        <button type="button" class="btn-open-hub" id="btn-open-hub">+ Download Models (Ollama Library)</button>
       </div>
 
       <form id="rag-form">
         <div class="controls-grid">
           <div class="input-group">
-            <label class="label" for="model-select">Text LLM Model</label>
+            <div class="label-row">
+              <label class="label" for="model-select">Text LLM Model</label>
+            </div>
             <select id="model-select">
               <option value="llama3.2:3b">llama3.2:3b (Loading...)</option>
             </select>
@@ -574,9 +598,11 @@
           </div>
 
           <div class="input-group" style="grid-column: span 2;">
-            <label class="label">Vision OCR Models (Multi-Model Ensemble)</label>
+            <div class="label-row">
+              <label class="label">Vision OCR Models (Multi-Model Combined Ensemble)</label>
+            </div>
             <div class="checkbox-chips-grid" id="vision-checkbox-group">
-              <label class="model-chip"><input type="checkbox" value="moondream" checked> moondream:latest <span class="chip-badge badge-rec">OPTIMIZED</span></label>
+              <label class="model-chip"><input type="checkbox" value="moondream" checked> moondream:latest <span class="chip-badge badge-rec">PERFECT</span></label>
             </div>
           </div>
         </div>
@@ -590,7 +616,7 @@
         <div class="file-list" id="file-list"></div>
 
         <button type="submit" class="btn-build" id="build-btn">
-          Generate Production RAG Package
+          GENERATE PRODUCTION RAG PACKAGE
         </button>
 
         <div class="progress-box" id="progress-container">
@@ -605,8 +631,8 @@
       </form>
 
       <div class="result-box" id="result-box">
-        <div class="result-title">Knowledge Base Built Successfully</div>
-        <p style="font-size: 0.9rem; color: var(--text-muted);">Your private ChromaDB vector collection and grounded pipeline are live.</p>
+        <h3 style="font-family: 'Space Grotesk', sans-serif; font-weight: 900; font-size: 1.25rem; margin-bottom: 0.5rem;">Knowledge Base Built Successfully</h3>
+        <p style="font-weight: 600; font-size: 0.9rem; color: #166534;">Your private ChromaDB vector collection and grounded pipeline are live.</p>
         <a href="#" id="portal-link" class="result-link-btn" target="_blank">Open Ephemeral Portal & Playground →</a>
       </div>
     </div>
@@ -617,14 +643,14 @@
     <div class="hub-content">
       <div class="hub-header">
         <div class="hub-title">Ollama Model Hub</div>
-        <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
           <button type="button" class="btn-refresh-hub" onclick="refreshCatalog()">Refresh</button>
           <button type="button" class="hub-close" id="btn-close-hub">×</button>
         </div>
       </div>
       <div class="hub-body">
-        <div style="font-size: 0.85rem; color: var(--text-muted);">
-          Models are installed and removed globally from your local Ollama system.
+        <div style="font-size: 0.85rem; font-weight: 700; color: #333;">
+          Models are installed directly into your global Ollama engine for all applications.
         </div>
 
         <div id="hub-models-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
@@ -635,6 +661,18 @@
   </div>
 
   <script>
+    // Figma Cursor
+    const figmaCursor = document.getElementById('figma-cursor');
+    let mouseX = 0, mouseY = 0, cursorX = 0, cursorY = 0;
+    window.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+    function animateCursor() {
+      cursorX += (mouseX - cursorX) * 0.25;
+      cursorY += (mouseY - cursorY) * 0.25;
+      figmaCursor.style.transform = `translate(${cursorX}px, ${cursorY}px)`;
+      requestAnimationFrame(animateCursor);
+    }
+    animateCursor();
+
     const dropzone = document.getElementById('dropzone');
     const fileInput = document.getElementById('file-input');
     const fileList = document.getElementById('file-list');
@@ -658,7 +696,7 @@
           document.getElementById('hw-gpu').innerText = `${specs.gpu} (${specs.vram_gb} GB VRAM)`;
         }
         document.getElementById('hw-ram').innerText = `${specs.ram_gb} GB`;
-        document.getElementById('hw-cpu').innerText = `${specs.cores} Threads`;
+        document.getElementById('hw-cpu').innerText = `${specs.cores} Cores`;
         if (specs.vram_gb >= 4.0) {
           document.getElementById('hw-tier').innerText = `RTX 4GB OPTIMIZED`;
         }
@@ -689,13 +727,13 @@
         const data = await res.json();
         hubModelsList.innerHTML = data.catalog.map(m => {
           const badgeClass = m.compatibility.status === 'recommended' ? 'badge-rec' : (m.compatibility.status === 'compatible' ? 'badge-warn' : 'badge-heavy');
-          const badgeClean = m.compatibility.badge.replace(/[⚡✓🟡⚠️]/g, '').trim();
+          const cleanBadge = m.compatibility.badge.replace(/[⚡✓🟡⚠️]/g, '').trim();
           return `
             <div class="hub-card">
               <div class="hub-card-left">
                 <div class="hub-card-title">
                   <span>${m.display_name}</span>
-                  <span class="chip-badge ${badgeClass}">${badgeClean}</span>
+                  <span class="chip-badge ${badgeClass}">${cleanBadge}</span>
                 </div>
                 <div class="hub-card-desc">${m.description} • <strong>Size:</strong> ${m.size_gb} GB</div>
               </div>
@@ -715,7 +753,8 @@
     window.downloadModel = function(modelTag, btnEl) {
       if (btnEl) {
         btnEl.disabled = true;
-        btnEl.style.background = '#f59e0b';
+        btnEl.style.background = '#ffe814';
+        btnEl.style.color = '#000';
         btnEl.innerText = '1%';
       }
 
@@ -733,7 +772,7 @@
             if (btnEl) {
               btnEl.className = 'btn-download-model installed';
               btnEl.innerText = 'Installed';
-              btnEl.style.background = 'rgba(16, 185, 129, 0.2)';
+              btnEl.style.background = 'var(--green)';
             }
             evtSource.close();
             setTimeout(() => {
@@ -787,7 +826,7 @@
         }
         if (data.vision_models && data.vision_models.length > 0) {
           visionCheckboxGroup.innerHTML = data.vision_models.map(m => `
-            <label class="model-chip">
+            <label class="model-chip recommended">
               <input type="checkbox" name="vision_model" value="${m}" checked> ${m}
               <span class="chip-badge badge-rec">ACCELERATED</span>
             </label>
@@ -859,7 +898,7 @@
         for (let i = 0; i < total; i++) {
           const file = selectedFiles[i];
           const pct = 20 + Math.round(((i + 1) / total) * 70);
-          updateProgress(pct, `Extracting & Indexing ${file.name}...`);
+          updateProgress(pct, `Extracting, Describing & Indexing ${file.name}...`);
 
           const fd = new FormData();
           fd.append('file', file);
