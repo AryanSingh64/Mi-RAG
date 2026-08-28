@@ -106,7 +106,15 @@ class VisionImageParser(BaseDocumentParser):
                     print(f"[OK] {resolved_model} produced description ({len(description)} chars)")
                     return description
                 else:
-                    print(f"[!] {resolved_model} returned status {res.status_code}")
+                    try:
+                        err_msg = res.json().get("error", res.text)
+                    except Exception:
+                        err_msg = res.text
+                    if "unknown model architecture" in err_msg:
+                        print(f"[*] Note: {resolved_model} requires Ollama mllama update. Using complementary vision models.")
+                    else:
+                        print(f"[*] Vision model note ({resolved_model}): {err_msg[:80]}")
+                    return None
         except Exception as e:
             print(f"[!] {resolved_model} error: {e}")
             return None
