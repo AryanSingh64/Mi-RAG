@@ -217,8 +217,42 @@ def chat_with_rag(session_id: str, req: ChatRequest):
         "answer": answer.answer,
         "confidence_score": answer.confidence_score,
         "is_grounded": answer.is_grounded,
-        "citations": list(unique_citations.values())
+        "citations": list(unique_citations.values()),
+        "images": answer.images
     }
+
+
+@router.get("/sessions/{session_id}/images/{filename}")
+def get_session_image(session_id: str, filename: str):
+    """Serves an extracted diagram or image snippet from the session knowledge base."""
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session expired or not found.")
+
+    image_path = session.images_dir / filename
+    if not image_path.exists():
+        # Check in uploads directory as fallback
+        image_path = session.uploads_dir / filename
+
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail=f"Image {filename} not found.")
+
+    # Determine media type
+    suffix = image_path.suffix.lower()
+    media_types = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif"
+    }
+    media_type = media_types.get(suffix, "application/octet-stream")
+
+    return FileResponse(
+        path=str(image_path),
+        media_type=media_type,
+        headers={"Cache-Control": "public, max-age=3600"}
+    )
 
 
 @router.get("/sessions/{session_id}/export")

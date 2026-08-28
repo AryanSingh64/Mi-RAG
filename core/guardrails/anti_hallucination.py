@@ -1,17 +1,18 @@
-from dataclasses import dataclass
-from typing import List, Optional
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 from core.vectorstore.chroma_store import SearchResult
 
 
 @dataclass
 class GroundedAnswer:
     """
-    Container for the final RAG answer with traceability and citations.
+    Container for the final RAG answer with traceability, citations, and visual diagram snippets.
     """
     answer: str
     is_grounded: bool
     confidence_score: float
     citations: List[SearchResult]
+    images: List[Dict[str, Any]] = field(default_factory=list)
     warning: Optional[str] = None
 
 

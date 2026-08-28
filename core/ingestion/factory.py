@@ -9,15 +9,31 @@ from core.ingestion.vision_ocr import VisionImageParser
 
 class DocumentParserFactory:
     """
-    Unified factory to parse any supported document type with multi-model Vision ensemble support.
+    Unified factory to parse any supported document type with multi-model Vision ensemble support
+    and automatic multimodal diagram extraction.
     """
 
-    def __init__(self, vision_models: Optional[Union[List[str], str]] = None):
+    def __init__(
+        self,
+        vision_models: Optional[Union[List[str], str]] = None,
+        output_images_dir: Optional[Path] = None,
+        session_id: Optional[str] = None
+    ):
         self.vision_models = vision_models or ["moondream"]
+        self.output_images_dir = Path(output_images_dir) if output_images_dir else None
+        self.session_id = session_id
+
         self._text_parser = TextDocumentParser()
         self._docx_parser = DocxDocumentParser()
-        self._pdf_parser = PdfDocumentParser()
-        self._image_parser = VisionImageParser(vision_models=self.vision_models)
+        self._pdf_parser = PdfDocumentParser(
+            output_images_dir=self.output_images_dir,
+            session_id=self.session_id
+        )
+        self._image_parser = VisionImageParser(
+            vision_models=self.vision_models,
+            output_images_dir=self.output_images_dir,
+            session_id=self.session_id
+        )
 
     def parse_file(self, file_path: Path | str) -> ParsedDocument:
         """

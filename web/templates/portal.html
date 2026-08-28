@@ -197,6 +197,111 @@
       border: 1px solid #334155;
     }
 
+    /* Interactive Visual Diagram Snippets */
+    .visual-gallery {
+      margin-top: 1rem;
+      padding: 0.85rem;
+      background: #0d1222;
+      border: 2px solid #232d4b;
+      border-radius: 8px;
+    }
+    .visual-gallery-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.82rem;
+      color: var(--yellow);
+      margin-bottom: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .visual-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .visual-card {
+      background: #090c15;
+      border: 2px solid #000;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 2px 2px 0px #000;
+      transition: all 0.15s ease;
+      cursor: pointer;
+      max-width: 220px;
+    }
+    .visual-card:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 4px 4px 0px #000;
+      border-color: var(--yellow);
+    }
+    .visual-card img {
+      width: 100%;
+      height: 130px;
+      object-fit: cover;
+      display: block;
+      background: #fff;
+    }
+    .visual-card-info {
+      padding: 0.4rem 0.6rem;
+      font-size: 0.72rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      color: #cbd5e1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #111827;
+      border-top: 1px solid #1f2937;
+    }
+
+    /* Modal Zoom View */
+    #image-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 99998;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    #image-modal.active { display: flex; }
+    .modal-content-box {
+      max-width: 90vw;
+      max-height: 88vh;
+      background: #111827;
+      border: var(--border);
+      box-shadow: var(--shadow-lg);
+      border-radius: 12px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+    .modal-content-box img {
+      max-width: 85vw;
+      max-height: 75vh;
+      object-fit: contain;
+      border-radius: 8px;
+      border: 1.5px solid #000;
+      background: #fff;
+    }
+    .modal-close-btn {
+      position: absolute;
+      top: 10px; right: 10px;
+      background: var(--pink);
+      color: #fff;
+      border: 2px solid #000;
+      padding: 0.3rem 0.7rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      border-radius: 6px;
+      box-shadow: 2px 2px 0px #000;
+      cursor: pointer;
+    }
+
     .citations {
       margin-top: 0.85rem;
       padding-top: 0.75rem;
@@ -349,6 +454,15 @@
     <div class="cursor-tag">Aryan [Mi:RAG Playground]</div>
   </div>
 
+  <!-- Fullscreen Image Zoom Modal -->
+  <div id="image-modal" onclick="closeImageModal()">
+    <div class="modal-content-box" onclick="event.stopPropagation()">
+      <button class="modal-close-btn" onclick="closeImageModal()">✕ CLOSE</button>
+      <img id="modal-img" src="" alt="Zoomed Diagram">
+      <div id="modal-caption" style="margin-top: 0.75rem; color: #fff; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.85rem;"></div>
+    </div>
+  </div>
+
   <header>
     <div class="header-left">
       <img src="/static/assets/logo.png" class="portal-logo-img" alt="Mi:RAG">
@@ -367,7 +481,7 @@
         <div class="msg bot-msg">
           <div class="grounded-badge">Guardrails Active</div>
           <div class="msg-content">
-            Hello. This is your private RAG playground. You can test questions against your indexed documents with full source citations below.
+            Hello. This is your private multimodal RAG playground. You can test questions against your indexed documents with full source citations and interactive visual diagrams.
           </div>
         </div>
       </div>
@@ -466,6 +580,16 @@
         .replace(/\n/g, '<br>');
     }
 
+    function openImageModal(src, caption) {
+      document.getElementById('modal-img').src = src;
+      document.getElementById('modal-caption').innerText = caption;
+      document.getElementById('image-modal').classList.add('active');
+    }
+
+    function closeImageModal() {
+      document.getElementById('image-modal').classList.remove('active');
+    }
+
     chatForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const query = userInput.value.trim();
@@ -491,13 +615,28 @@
           ? `<div class="grounded-badge">Grounded Match (${Math.round(data.confidence_score * 100)}% Confidence)</div>`
           : `<div class="grounded-badge" style="color:#000; background:#fca5a5;">No Evidence Found</div>`;
 
+        // Render interactive visual image gallery if present
+        let visualGalleryHtml = '';
+        if (data.images && data.images.length > 0) {
+          visualGalleryHtml = '<div class="visual-gallery"><div class="visual-gallery-title">Visual Evidence / Diagrams:</div><div class="visual-grid">' +
+            data.images.map(img => `
+              <div class="visual-card" onclick="openImageModal('${img.url}', 'Extracted from ${img.source_file}')">
+                <img src="${img.url}" alt="${img.filename}" loading="lazy">
+                <div class="visual-card-info">
+                  <span>${img.source_file}</span>
+                  <span style="color:var(--yellow);">${img.relevance}%</span>
+                </div>
+              </div>
+            `).join('') + '</div></div>';
+        }
+
         let citationsHtml = '';
         if (data.citations && data.citations.length > 0) {
           citationsHtml = '<div class="citations"><div class="citations-title">Source Evidence:</div>' + 
             data.citations.map(c => `<span class="citation-tag">${c.source_file} (${c.relevance || 0}%)</span>`).join('') + '</div>';
         }
 
-        document.getElementById(botMsgId).innerHTML = badgeHtml + `<div class="msg-content">${formatMarkdown(data.answer)}</div>` + citationsHtml;
+        document.getElementById(botMsgId).innerHTML = badgeHtml + `<div class="msg-content">${formatMarkdown(data.answer)}</div>` + visualGalleryHtml + citationsHtml;
       } catch (err) {
         document.getElementById(botMsgId).innerHTML = `<div class="grounded-badge" style="background:#fca5a5;">Connection Error</div><div class="msg-content">${err.message}</div>`;
       }

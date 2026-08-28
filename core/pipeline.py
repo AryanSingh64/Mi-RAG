@@ -22,12 +22,20 @@ class RAGPipeline:
         ollama_model: str = "llama3.2:3b",
         vision_models: Optional[List[str] | str] = None,
         ollama_url: str = "http://localhost:11434",
+        extracted_images_dir: Optional[Path | str] = None,
+        session_id: Optional[str] = None,
         chunk_size: int = 400,
         chunk_overlap: int = 60,
         min_similarity_threshold: float = 0.08
     ):
+        self.session_id = session_id
+        self.extracted_images_dir = Path(extracted_images_dir) if extracted_images_dir else None
         self.vision_models = vision_models or ["moondream"]
-        self.parser_factory = DocumentParserFactory(vision_models=self.vision_models)
+        self.parser_factory = DocumentParserFactory(
+            vision_models=self.vision_models,
+            output_images_dir=self.extracted_images_dir,
+            session_id=self.session_id
+        )
         self.chunker = RecursiveChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
         self.embedder = LocalEmbedder(model_name=embedding_model)
         self.vector_store = ChromaVectorStore(
@@ -127,9 +135,30 @@ class RAGPipeline:
 
         avg_confidence = sum(c.score for c in relevant_chunks) / len(relevant_chunks)
 
+        # Extract any embedded image URLs from the retrieved chunks
+        matched_images = []
+        seen_urls = set()
+        import re
+
+        for c in relevant_chunks:
+            # Check for [Image URL: ...] in text
+            found_urls = re.findall(r"\[Image URL:\s*(.*?)\]", c.text)
+            for url in found_urls:
+                url_clean = url.strip()
+                if url_clean and url_clean not in seen_urls:
+                    seen_urls.add(url_clean)
+                    filename = Path(url_clean).name
+                    matched_images.append({
+                        "url": url_clean,
+                        "filename": filename,
+                        "source_file": c.source_file,
+                        "relevance": round(c.score * 100, 1)
+                    })
+
         return GroundedAnswer(
             answer=llm_response,
             is_grounded=True,
             confidence_score=round(avg_confidence, 4),
-            citations=relevant_chunks
+            citations=relevant_chunks,
+            images=matched_images
         )

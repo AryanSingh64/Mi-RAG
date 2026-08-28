@@ -21,10 +21,17 @@ class VisionImageParser(BaseDocumentParser):
     def __init__(
         self,
         ollama_url: str = "http://localhost:11434",
-        vision_models: Optional[Union[List[str], str]] = None
+        vision_models: Optional[Union[List[str], str]] = None,
+        output_images_dir: Optional[Path] = None,
+        session_id: Optional[str] = None
     ):
         self.ocr_engine = RapidOCR()
         self.ollama_url = ollama_url
+        self.output_images_dir = Path(output_images_dir) if output_images_dir else None
+        if self.output_images_dir:
+            self.output_images_dir.mkdir(parents=True, exist_ok=True)
+        self.session_id = session_id
+
         if isinstance(vision_models, str):
             self.vision_models = [m.strip() for m in vision_models.split(",") if m.strip()]
         elif isinstance(vision_models, list) and vision_models:
@@ -180,7 +187,21 @@ class VisionImageParser(BaseDocumentParser):
 
         # 3. Format combined ensemble sections
         filename = file_path.name
-        sections = [f"Source File Name: {filename}"]
+        img_url = f"/api/sessions/{self.session_id}/images/{filename}" if self.session_id else f"/images/{filename}"
+
+        if self.output_images_dir:
+            target_path = self.output_images_dir / filename
+            try:
+                if not target_path.exists():
+                    import shutil
+                    shutil.copy2(file_path, target_path)
+            except Exception as e:
+                print(f"[*] Note copying image to session gallery: {e}")
+
+        sections = [
+            f"Source File Name: {filename}",
+            f"[Image URL: {img_url}]"
+        ]
 
         if ocr_text:
             sections.append(f"[Exact OCR Extracted Text]\n{ocr_text}")

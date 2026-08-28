@@ -20,6 +20,7 @@ class RAGSession:
     session_dir: Path
     db_dir: Path
     uploads_dir: Path
+    images_dir: Path
     pipeline: RAGPipeline
     model_name: str
     indexed_files: List[str] = field(default_factory=list)
@@ -52,7 +53,7 @@ class SessionManager:
         ttl_hours: Optional[float] = None
     ) -> RAGSession:
         """
-        Creates a new isolated session workspace with private vector store.
+        Creates a new isolated session workspace with private vector store and extracted image gallery.
         """
         session_id = uuid.uuid4().hex[:12]  # Short 12-char secure token
         now = time.time()
@@ -61,16 +62,20 @@ class SessionManager:
         session_dir = self.base_dir / session_id
         db_dir = session_dir / "vector_db"
         uploads_dir = session_dir / "uploads"
+        images_dir = session_dir / "extracted_images"
 
         db_dir.mkdir(parents=True, exist_ok=True)
         uploads_dir.mkdir(parents=True, exist_ok=True)
+        images_dir.mkdir(parents=True, exist_ok=True)
 
         pipeline = RAGPipeline(
             persist_directory=db_dir,
             collection_name=f"coll_{session_id}",
             embedding_model=embedding_model,
             ollama_model=model_name,
-            vision_models=vision_models or ["moondream"]
+            vision_models=vision_models or ["moondream"],
+            extracted_images_dir=images_dir,
+            session_id=session_id
         )
 
         session = RAGSession(
@@ -80,6 +85,7 @@ class SessionManager:
             session_dir=session_dir,
             db_dir=db_dir,
             uploads_dir=uploads_dir,
+            images_dir=images_dir,
             pipeline=pipeline,
             model_name=model_name
         )
@@ -103,19 +109,19 @@ class SessionManager:
 
     def delete_session(self, session_id: str):
         """
-        Cleans up and deletes a session's workspace from memory and disk.
+        Removes session and permanently wipes private data from disk.
         """
         session = self.active_sessions.pop(session_id, None)
         if session and session.session_dir.exists():
             try:
-                shutil.rmtree(session.session_dir, ignore_errors=True)
-            except Exception:
-                pass
+                shutil.rmtree(session.session_dir)
+            except Exception as e:
+                print(f"[!] Error deleting session {session_id}: {e}")
 
     def cleanup_expired_sessions(self):
         """
-        Scans and purges all expired sessions.
+        Background cleaner to wipe expired sessions.
         """
-        expired_ids = [s_id for s_id, s in self.active_sessions.items() if s.is_expired]
-        for s_id in expired_ids:
-            self.delete_session(s_id)
+        expired = [sid for sid, s in self.active_sessions.items() if s.is_expired]
+        for sid in expired:
+            self.delete_session(sid)
