@@ -112,6 +112,23 @@ def get_available_models():
     }
 
 
+@router.delete("/models")
+async def delete_model(model: str):
+    """
+    Deletes an installed model from local Ollama to free up disk space and VRAM.
+    """
+    target_model = model.strip()
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            res = await client.request("DELETE", "http://localhost:11434/api/delete", json={"name": target_model})
+            if res.status_code == 200:
+                return {"status": "success", "message": f"Deleted model {target_model}"}
+            else:
+                return {"status": "error", "message": res.text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/sessions/create")
 def create_session(req: CreateSessionRequest):
     """Creates a new ephemeral RAG session with optional multi-model Vision ensemble."""

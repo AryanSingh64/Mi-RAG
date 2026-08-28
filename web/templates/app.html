@@ -381,30 +381,37 @@
       pointer-events: none;
     }
 
-    /* Live Download Banner */
-    #download-progress-banner {
-      display: none;
-      background: #000;
+    .btn-delete-model {
+      background: #fff;
+      color: #ef4444;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 800;
+      padding: 0.45rem 0.85rem;
+      border-radius: 6px;
+      border: 1.5px solid #ef4444;
+      box-shadow: 1.5px 1.5px 0px #000;
+      white-space: nowrap;
+      transition: all 0.1s ease;
+    }
+    .btn-delete-model:hover {
+      background: #ef4444;
       color: #fff;
+    }
+    .btn-refresh-hub {
+      background: #000;
+      color: var(--yellow);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 800;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
       border: var(--border);
-      box-shadow: var(--shadow);
-      border-radius: 8px;
-      padding: 1rem;
-      margin-top: 1rem;
+      box-shadow: 1.5px 1.5px 0px #000;
     }
-    .dl-bar-bg {
-      background: #333;
-      height: 12px;
-      border-radius: 999px;
-      border: 1.5px solid #fff;
-      overflow: hidden;
-      margin-top: 0.5rem;
-    }
-    .dl-bar-fill {
+    .btn-refresh-hub:hover {
       background: var(--yellow);
-      height: 100%;
-      width: 0%;
-      transition: width 0.15s ease;
+      color: #000;
     }
 
     .dropzone {
@@ -647,26 +654,19 @@
     </div>
   </main>
 
-  <!-- 1-Click Ollama Model Hub Modal with Live Download Progress -->
+  <!-- 1-Click Ollama Model Hub Modal -->
   <div id="hub-modal">
     <div class="hub-content">
       <div class="hub-header">
-        <div class="hub-title">Ollama Model Hub & 1-Click Downloader</div>
-        <button type="button" class="hub-close" id="btn-close-hub">×</button>
+        <div class="hub-title">Ollama Model Hub</div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button type="button" class="btn-refresh-hub" id="btn-refresh-hub" onclick="refreshCatalog()">🔄 Refresh</button>
+          <button type="button" class="hub-close" id="btn-close-hub">×</button>
+        </div>
       </div>
       <div class="hub-body">
         <div style="font-size: 0.85rem; font-weight: 700; color: #333;">
-          Models are installed directly into your global Ollama engine for all applications.
-        </div>
-
-        <div id="download-progress-banner">
-          <div style="display: flex; justify-content: space-between; font-weight: 800; font-size: 0.9rem;">
-            <span id="dl-status-text">Downloading Model...</span>
-            <span id="dl-percent-text">0%</span>
-          </div>
-          <div class="dl-bar-bg">
-            <div class="dl-bar-fill" id="dl-bar-fill"></div>
-          </div>
+          Models are installed and removed directly from your global Ollama installation.
         </div>
 
         <div id="hub-models-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
@@ -725,16 +725,17 @@
     const btnOpenHub = document.getElementById('btn-open-hub');
     const btnCloseHub = document.getElementById('btn-close-hub');
     const hubModelsList = document.getElementById('hub-models-list');
-    const dlBanner = document.getElementById('download-progress-banner');
-    const dlStatusText = document.getElementById('dl-status-text');
-    const dlPercentText = document.getElementById('dl-percent-text');
-    const dlBarFill = document.getElementById('dl-bar-fill');
 
     btnOpenHub.addEventListener('click', () => {
       hubModal.style.display = 'flex';
       loadHubCatalog();
     });
     btnCloseHub.addEventListener('click', () => { hubModal.style.display = 'none'; });
+
+    window.refreshCatalog = function() {
+      loadModels();
+      loadHubCatalog();
+    };
 
     async function loadHubCatalog() {
       try {
@@ -751,9 +752,10 @@
                 </div>
                 <div class="hub-card-desc">${m.description} • <strong>Size:</strong> ${m.size_gb} GB</div>
               </div>
-              <div>
+              <div style="display: flex; gap: 0.45rem; align-items: center;">
                 ${m.is_installed 
-                  ? `<button class="btn-download-model installed">✓ Installed</button>`
+                  ? `<button class="btn-download-model installed">✓ Installed</button>
+                     <button class="btn-delete-model" onclick="deleteModel('${m.tag}', this)" title="Delete model from PC">🗑️ Delete</button>`
                   : `<button class="btn-download-model" onclick="downloadModel('${m.tag}', this)">⬇ Download</button>`
                 }
               </div>
@@ -768,35 +770,20 @@
         btnEl.disabled = true;
         btnEl.style.background = '#ffe814';
         btnEl.style.color = '#000';
-        btnEl.innerText = '⏳ Starting...';
+        btnEl.innerText = '⏳ 1%';
       }
-
-      dlBanner.style.display = 'block';
-      dlStatusText.innerText = `Connecting to Ollama for ${modelTag}...`;
-      dlPercentText.innerText = `0%`;
-      dlBarFill.style.width = `2%`;
 
       const evtSource = new EventSource(`/api/models/pull/stream?model=${encodeURIComponent(modelTag)}`);
       evtSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.status) {
-            dlStatusText.innerText = `${modelTag}: ${data.status}`;
-            if (btnEl && !data.completed) {
-              btnEl.innerText = `⏳ ${data.status.slice(0, 14)}...`;
-            }
-          }
           if (data.total && data.completed) {
             const pct = Math.round((data.completed / data.total) * 100);
-            dlPercentText.innerText = `${pct}% (${(data.completed/1024/1024).toFixed(1)} MB / ${(data.total/1024/1024).toFixed(1)} MB)`;
-            dlBarFill.style.width = `${Math.max(pct, 5)}%`;
             if (btnEl) {
               btnEl.innerText = `⏳ ${pct}%`;
             }
           }
           if (data.status === 'success') {
-            dlStatusText.innerText = `✅ Successfully Installed ${modelTag}!`;
-            dlBarFill.style.width = `100%`;
             if (btnEl) {
               btnEl.className = 'btn-download-model installed';
               btnEl.innerText = '✓ Installed';
@@ -806,19 +793,41 @@
             setTimeout(() => {
               loadModels();
               loadHubCatalog();
-            }, 1200);
+            }, 1000);
           }
         } catch (e) {}
       };
 
       evtSource.onerror = (err) => {
-        console.log("SSE stream closed or finished:", err);
         evtSource.close();
         setTimeout(() => {
           loadModels();
           loadHubCatalog();
         }, 1500);
       };
+    };
+
+    window.deleteModel = async function(modelTag, btnEl) {
+      if (!confirm(`Are you sure you want to delete ${modelTag} from your PC?`)) return;
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerText = '🗑️ Deleting...';
+      }
+      try {
+        const res = await fetch(`/api/models?model=${encodeURIComponent(modelTag)}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          setTimeout(() => {
+            loadModels();
+            loadHubCatalog();
+          }, 800);
+        } else {
+          alert("Failed to delete model from Ollama.");
+        }
+      } catch (e) {
+        alert("Error deleting model: " + e.message);
+      }
     };
 
     let selectedFiles = [];
