@@ -2,28 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Ephemeral RAG Portal | Live Playground & Export</title>
+  <title>Mi:RAG — Interactive Grounded Playground</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800;900&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
   <style>
     :root {
-      --bg: #07090e;
-      --card: rgba(18, 24, 38, 0.85);
-      --card-border: rgba(255, 255, 255, 0.08);
-      --accent: #3b82f6;
-      --accent-gradient: linear-gradient(135deg, #3b82f6, #8b5cf6);
-      --accent-glow: rgba(59, 130, 246, 0.25);
-      --text: #f9fafb;
+      --bg: #090c15;
+      --pink: #ff2d87;
+      --yellow: #ffe814;
+      --green: #2be26c;
+      --card-bg: #111625;
+      --border: 2px solid #000;
+      --shadow: 3px 3px 0px #000;
+      --shadow-lg: 6px 6px 0px #000;
+      --text: #f8fafc;
       --text-muted: #94a3b8;
-      --border: #1e293b;
-      --success: #10b981;
-      --danger: #ef4444;
-      --yellow: #fde047;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; cursor: none !important; }
-    
+    * { box-sizing: border-box; margin: 0; padding: 0; cursor: none !important; }
+
     ::selection {
       background: var(--yellow);
       color: #000000;
@@ -33,12 +32,21 @@
       color: #000000;
     }
 
-    body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    body {
+      background: #090c15 url('/static/assets/skytextured.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow: hidden;
+    }
 
+    /* Custom Figma Cursor */
     #figma-cursor {
       position: fixed;
-      top: 0;
-      left: 0;
+      top: 0; left: 0;
       pointer-events: none;
       z-index: 99999;
       transform: translate(-2px, -2px);
@@ -46,36 +54,64 @@
       display: flex;
       flex-direction: column;
     }
-    .cursor-pointer-svg { width: 22px; height: 22px; fill: #ff2d87; filter: drop-shadow(1px 2px 0px #000); }
-    .cursor-tag { background: #ff2d87; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 4px; border: 1.5px solid #000; box-shadow: 2px 2px 0px #000; margin-left: 12px; margin-top: -3px; }
+    .cursor-pointer-svg { width: 22px; height: 22px; fill: var(--pink); filter: drop-shadow(1px 2px 0px #000); }
+    .cursor-tag {
+      background: var(--pink);
+      color: #fff;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      border: 1.5px solid #000;
+      box-shadow: 2px 2px 0px #000;
+      margin-left: 14px;
+      margin-top: -4px;
+      white-space: nowrap;
+    }
 
     header {
       padding: 0.85rem 2rem;
-      background: var(--card);
-      border-bottom: 1px solid var(--card-border);
+      background: rgba(255, 255, 255, 0.95);
+      color: #000;
+      border-bottom: var(--border);
+      box-shadow: var(--shadow);
       display: flex;
       justify-content: space-between;
       align-items: center;
       height: 65px;
       flex-shrink: 0;
+      z-index: 10;
     }
     .header-left { display: flex; align-items: center; gap: 1.25rem; }
-    .portal-logo-img { height: 36px; object-fit: contain; }
-    .session-badge { background: #1e293b; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.8rem; color: #94a3b8; font-family: monospace; }
+    .portal-logo-img { height: 38px; object-fit: contain; }
+    .session-badge {
+      background: #000;
+      color: var(--yellow);
+      padding: 0.3rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      border: 1px solid #000;
+      box-shadow: 1.5px 1.5px 0px #000;
+    }
     
     .timer-badge {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      color: #fca5a5;
+      background: #ffe814;
+      border: var(--border);
+      color: #000;
       padding: 0.4rem 0.9rem;
       border-radius: 999px;
       font-size: 0.85rem;
-      font-weight: 600;
+      font-weight: 800;
+      font-family: 'Space Grotesk', sans-serif;
+      box-shadow: 2px 2px 0px #000;
     }
-    .pulse-dot { width: 8px; height: 8px; background: var(--danger); border-radius: 50%; animation: pulse 1.5s infinite; }
+    .pulse-dot { width: 8px; height: 8px; background: var(--pink); border-radius: 50%; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
     .app-container {
@@ -86,12 +122,14 @@
       overflow: hidden;
     }
 
-    /* Chat Section with guaranteed scrolling */
+    /* Chat Section */
     .chat-section {
       display: flex;
       flex-direction: column;
       height: 100%;
-      border-right: 1px solid var(--border);
+      background: rgba(9, 12, 21, 0.88);
+      border-right: var(--border);
+      backdrop-filter: blur(10px);
       overflow: hidden;
     }
     .chat-messages {
@@ -104,79 +142,215 @@
       scroll-behavior: smooth;
     }
     
-    .msg { max-width: 85%; padding: 1rem 1.35rem; border-radius: 0.85rem; line-height: 1.6; font-size: 0.95rem; }
-    .user-msg { background: var(--accent); color: #fff; align-self: flex-end; }
-    .bot-msg { background: var(--card); border: 1px solid var(--card-border); align-self: flex-start; }
+    .msg {
+      max-width: 85%;
+      padding: 1.15rem 1.4rem;
+      border-radius: 12px;
+      line-height: 1.6;
+      font-size: 0.95rem;
+      border: var(--border);
+      box-shadow: var(--shadow);
+    }
+    .user-msg {
+      background: var(--pink);
+      color: #fff;
+      font-weight: 700;
+      align-self: flex-end;
+      box-shadow: 3px 3px 0px #000;
+    }
+    .bot-msg {
+      background: #151b2e;
+      color: #f8fafc;
+      align-self: flex-start;
+      border: 2px solid #232d4b;
+      box-shadow: 4px 4px 0px #000;
+    }
     
-    .grounded-badge { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 600; color: #10b981; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); padding: 0.15rem 0.5rem; border-radius: 4px; margin-bottom: 0.5rem; }
-    .citations { margin-top: 0.85rem; padding-top: 0.75rem; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--text-muted); }
-    .citation-tag { display: inline-block; background: #0f172a; border: 1px solid var(--border); padding: 0.25rem 0.5rem; border-radius: 4px; margin-right: 0.4rem; margin-top: 0.3rem; }
+    .grounded-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.78rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      color: #000;
+      background: var(--green);
+      border: 1.5px solid #000;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      box-shadow: 1.5px 1.5px 0px #000;
+      margin-bottom: 0.65rem;
+    }
 
-    .chat-input-container { padding: 1.25rem 2rem; background: var(--card); border-top: 1px solid var(--card-border); flex-shrink: 0; }
+    .msg-content {
+      font-size: 0.95rem;
+      line-height: 1.65;
+    }
+    .msg-content p { margin-bottom: 0.5rem; }
+    .msg-content p:last-child { margin-bottom: 0; }
+    .msg-content strong { color: var(--yellow); }
+    .msg-content code {
+      font-family: 'JetBrains Mono', monospace;
+      background: #090c15;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      border: 1px solid #334155;
+    }
+
+    .citations {
+      margin-top: 0.85rem;
+      padding-top: 0.75rem;
+      border-top: 1px dashed rgba(255, 255, 255, 0.15);
+      font-size: 0.8rem;
+    }
+    .citations-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      color: var(--yellow);
+      margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .citation-tag {
+      display: inline-block;
+      background: #090c15;
+      color: #cbd5e1;
+      border: 1.5px solid #000;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.76rem;
+      font-weight: 700;
+      margin-right: 0.4rem;
+      margin-top: 0.3rem;
+      box-shadow: 1.5px 1.5px 0px #000;
+    }
+
+    .chat-input-container {
+      padding: 1.25rem 2rem;
+      background: rgba(17, 22, 37, 0.95);
+      border-top: var(--border);
+      flex-shrink: 0;
+    }
     .input-form { display: flex; gap: 0.75rem; }
     input[type="text"] {
       flex: 1;
-      background: #0f172a;
-      border: 1px solid var(--border);
+      background: #090c15;
+      border: var(--border);
       color: #fff;
       padding: 0.85rem 1.25rem;
-      border-radius: 0.65rem;
-      outline: none;
+      border-radius: 8px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
       font-size: 0.95rem;
+      box-shadow: 2px 2px 0px #000;
+      outline: none;
     }
-    input[type="text"]:focus { border-color: var(--accent); }
+    input[type="text"]:focus {
+      border-color: var(--pink);
+      box-shadow: 4px 4px 0px #000;
+    }
     .btn-send {
-      background: var(--accent);
-      color: white;
-      border: none;
-      padding: 0.85rem 1.5rem;
-      border-radius: 0.65rem;
-      font-weight: 600;
-      cursor: pointer;
+      background: var(--yellow);
+      color: #000;
+      border: var(--border);
+      padding: 0.85rem 1.75rem;
+      border-radius: 8px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 0.95rem;
+      box-shadow: 3px 3px 0px #000;
+      text-transform: uppercase;
+      transition: all 0.1s ease;
+    }
+    .btn-send:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 5px 5px 0px #000;
+      background: #fde047;
     }
 
     /* Sidebar */
     .sidebar {
-      background: rgba(11, 15, 25, 0.95);
-      padding: 2rem;
+      background: rgba(13, 17, 30, 0.96);
+      padding: 1.75rem;
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 1.25rem;
       overflow-y: auto;
       height: 100%;
     }
-    .panel-card { background: var(--card); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.25rem; }
-    .panel-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.5rem; }
-    .file-pill { background: #0f172a; border: 1px solid var(--border); padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 0.4rem; }
+    .panel-card {
+      background: #182035;
+      border: var(--border);
+      box-shadow: var(--shadow);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+    .panel-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .file-pill {
+      background: #090c15;
+      border: 1px solid #334155;
+      padding: 0.45rem 0.75rem;
+      border-radius: 6px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
 
     .btn-download-zip {
-      background: var(--accent-gradient);
+      background: var(--pink);
       color: #fff;
       text-decoration: none;
       padding: 0.85rem;
-      border-radius: 0.75rem;
-      font-weight: 700;
+      border-radius: 8px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 0.9rem;
+      text-transform: uppercase;
       text-align: center;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 0.5rem;
-      box-shadow: 0 10px 25px var(--accent-glow);
+      border: var(--border);
+      box-shadow: 3px 3px 0px #000;
+      transition: all 0.1s ease;
+    }
+    .btn-download-zip:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 5px 5px 0px #000;
+      background: #e00067;
     }
   </style>
 </head>
 <body>
+
   <!-- Figma-Style Cursor -->
   <div id="figma-cursor">
     <svg class="cursor-pointer-svg" viewBox="0 0 24 24">
       <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.54.35-.85L6.35 2.85a.5.5 0 0 0-.85.36z"/>
     </svg>
-    <div class="cursor-tag">Aryan [Mi:RAG Admin]</div>
+    <div class="cursor-tag">Aryan [Mi:RAG Playground]</div>
   </div>
 
   <header>
     <div class="header-left">
-      <a href="/"><img src="/static/logo and bg/logo.png" class="portal-logo-img" alt="Mi:RAG"></a>
+      <a href="/"><img src="/static/assets/logo.png" class="portal-logo-img" alt="Mi:RAG"></a>
       <div class="session-badge" id="session-badge">Session: loading...</div>
     </div>
     <div class="timer-badge">
@@ -191,12 +365,14 @@
       <div class="chat-messages" id="chat-box">
         <div class="msg bot-msg">
           <div class="grounded-badge">🛡️ Anti-Hallucination Guardrails Active</div>
-          <div>Hello! This is your customized, private RAG playground. You can test questions against your indexed documents with full source citations below.</div>
+          <div class="msg-content">
+            Hello! This is your customized, private RAG playground. You can test questions against your indexed documents with full source citations below.
+          </div>
         </div>
       </div>
       <div class="chat-input-container">
         <form class="input-form" id="chat-form">
-          <input type="text" id="user-input" placeholder="Ask a question about your uploaded documents..." required autocomplete="off">
+          <input type="text" id="user-input" placeholder="Ask a question about your uploaded documents or images..." required autocomplete="off">
           <button type="submit" class="btn-send">Send</button>
         </form>
       </div>
@@ -206,7 +382,7 @@
     <div class="sidebar">
       <div class="panel-card">
         <div class="panel-title">📦 Standalone RAG Package</div>
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">
+        <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1rem; line-height: 1.5;">
           Download your turnkey production bundle containing the pre-indexed vector DB, server, and launch scripts.
         </p>
         <a href="#" id="download-zip-btn" class="btn-download-zip">
@@ -223,10 +399,10 @@
 
       <div class="panel-card">
         <div class="panel-title">🚀 How to Run Locally</div>
-        <div style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.6;">
+        <div style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.6; font-family: 'Space Grotesk', sans-serif;">
           1. Extract the downloaded ZIP<br>
-          2. Double-click <b>run.bat</b> (Windows) or <b>run.sh</b> (Mac/Linux)<br>
-          3. Open <b>http://localhost:8000</b>
+          2. Double-click <strong>run.bat</strong> (Windows) or <strong>run.sh</strong> (Mac/Linux)<br>
+          3. Open <strong>http://localhost:8000</strong>
         </div>
       </div>
     </div>
@@ -252,7 +428,7 @@
         const filesContainer = document.getElementById('indexed-files-container');
         if (data.indexed_files && data.indexed_files.length > 0) {
           filesContainer.innerHTML = data.indexed_files.map(f => `
-            <div class="file-pill"><span>📄 ${f}</span></div>
+            <div class="file-pill"><span>📄</span><span>${f}</span></div>
           `).join('');
         }
       } catch (err) {
@@ -281,6 +457,16 @@
     const userInput = document.getElementById('user-input');
     const chatBox = document.getElementById('chat-box');
 
+    // Simple markdown formatting helper
+    function formatMarkdown(text) {
+      let formatted = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\n/g, '<br>');
+      return formatted;
+    }
+
     chatForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const query = userInput.value.trim();
@@ -291,30 +477,30 @@
       chatBox.scrollTop = chatBox.scrollHeight;
 
       const botMsgId = 'bot-' + Date.now();
-      chatBox.innerHTML += `<div class="msg bot-msg" id="${botMsgId}">Thinking...</div>`;
+      chatBox.innerHTML += `<div class="msg bot-msg" id="${botMsgId}"><div class="grounded-badge" style="background:var(--yellow);">⚡ Retrieving & Synthesizing...</div><div class="msg-content">Searching knowledge base...</div></div>`;
       chatBox.scrollTop = chatBox.scrollHeight;
 
       try {
         const res = await fetch(`/api/sessions/${sessionId}/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: query, top_k: 3 })
+          body: JSON.stringify({ message: query, top_k: 6 })
         });
         const data = await res.json();
         
         let badgeHtml = data.is_grounded 
           ? `<div class="grounded-badge">🛡️ Grounded Match (${Math.round(data.confidence_score * 100)}% Confidence)</div>`
-          : `<div class="grounded-badge" style="color:#ef4444; background:rgba(239,68,68,0.1);">⚠️ No Evidence Found</div>`;
+          : `<div class="grounded-badge" style="color:#000; background:#fca5a5;">⚠️ No Evidence Found</div>`;
 
         let citationsHtml = '';
         if (data.citations && data.citations.length > 0) {
-          citationsHtml = '<div class="citations"><b>Source Evidence:</b><br>' + 
-            data.citations.map(c => `<span class="citation-tag">📄 ${c.source_file} (${c.relevance}%)</span>`).join('') + '</div>';
+          citationsHtml = '<div class="citations"><div class="citations-title"><span>📄</span><span>Source Evidence:</span></div>' + 
+            data.citations.map(c => `<span class="citation-tag">${c.source_file} (${Math.round(c.score * 100)}%)</span>`).join('') + '</div>';
         }
 
-        document.getElementById(botMsgId).innerHTML = badgeHtml + `<div>${data.answer.replace(/\n/g, '<br>')}</div>` + citationsHtml;
+        document.getElementById(botMsgId).innerHTML = badgeHtml + `<div class="msg-content">${formatMarkdown(data.answer)}</div>` + citationsHtml;
       } catch (err) {
-        document.getElementById(botMsgId).innerText = "Error: " + err.message;
+        document.getElementById(botMsgId).innerHTML = `<div class="grounded-badge" style="background:#fca5a5;">⚠️ Connection Error</div><div class="msg-content">${err.message}</div>`;
       }
       chatBox.scrollTop = chatBox.scrollHeight;
     });

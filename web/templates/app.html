@@ -71,7 +71,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.92);
       border-bottom: var(--border);
       box-shadow: var(--shadow);
     }
@@ -92,131 +92,436 @@
 
     main {
       flex: 1;
-      max-width: 860px;
-      margin: 2.5rem auto 4rem;
+      max-width: 920px;
+      margin: 2rem auto 4rem;
       width: 92%;
     }
 
-    .studio-card {
-      background: #ffffff;
+    /* Live Hardware Telemetry Bar */
+    .hw-bar {
+      background: #000;
+      color: #fff;
       border: var(--border);
-      border-radius: 1.25rem;
-      padding: 2.5rem;
+      box-shadow: var(--shadow);
+      border-radius: 12px;
+      padding: 0.85rem 1.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .hw-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+    .hw-dot {
+      width: 10px; height: 10px; border-radius: 50%; background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+    .hw-badge {
+      background: var(--yellow);
+      color: #000;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      border: 1px solid #000;
+    }
+
+    .studio-card {
+      background: #fff;
+      border: var(--border);
       box-shadow: var(--shadow-lg);
+      border-radius: 1rem;
+      padding: 2.25rem;
     }
 
     .studio-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: var(--border);
+      margin-bottom: 1.75rem;
       padding-bottom: 1.25rem;
-      margin-bottom: 2rem;
+      border-bottom: 2px dashed #000;
     }
+
     .studio-title {
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.5rem;
+      font-size: 1.75rem;
       font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: -0.5px;
     }
+
     .status-badge {
       background: var(--green);
       color: #000;
-      font-size: 0.75rem;
+      font-family: 'Space Grotesk', sans-serif;
       font-weight: 800;
-      padding: 0.35rem 0.85rem;
+      font-size: 0.75rem;
+      padding: 0.35rem 0.75rem;
       border-radius: 999px;
-      border: 2px solid #000;
+      border: var(--border);
       box-shadow: 2px 2px 0px #000;
     }
 
     .controls-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 1.25rem;
-      margin-bottom: 1.75rem;
-    }
-    .input-group { display: flex; flex-direction: column; gap: 0.4rem; }
-    .label {
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 800;
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    select {
-      background: #f8fafc;
-      border: var(--border);
-      border-radius: 0.65rem;
-      padding: 0.75rem 0.9rem;
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      font-weight: 700;
-      font-size: 0.85rem;
-      outline: none;
-      box-shadow: var(--shadow);
-    }
-
-    .dropzone {
-      border: 2.5px dashed #000;
-      background: #fefce8;
-      border-radius: 1rem;
-      padding: 2.5rem 1.5rem;
-      text-align: center;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
       margin-bottom: 1.5rem;
-      transition: all 0.15s;
     }
-    .dropzone:hover, .dropzone.dragover { background: #fef08a; transform: scale(1.01); }
-    .drop-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.15rem; font-weight: 800; margin-bottom: 0.35rem; }
-    .drop-sub { font-size: 0.85rem; font-weight: 600; color: #64748b; }
 
-    .file-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem; }
-    .file-item {
-      background: #f1f5f9;
-      border: 2px solid #000;
-      border-radius: 0.5rem;
-      padding: 0.65rem 1rem;
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .label-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
+    }
+
+    .label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.88rem;
+      text-transform: uppercase;
+    }
+
+    .btn-open-hub {
+      background: #fff;
+      color: #000;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      border: 1.5px solid #000;
+      box-shadow: 1.5px 1.5px 0px #000;
+      text-decoration: none;
+    }
+    .btn-open-hub:hover {
+      background: var(--yellow);
+    }
+
+    select, input[type="text"] {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: var(--border);
+      border-radius: 0.5rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      background: #f8fafc;
+      box-shadow: 2px 2px 0px #000;
+      outline: none;
+    }
+    select:focus, input[type="text"]:focus {
+      background: #fff;
+      box-shadow: 4px 4px 0px #000;
+    }
+
+    .checkbox-chips-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 0.35rem;
+    }
+    .model-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: #fff;
+      border: var(--border);
+      box-shadow: 2px 2px 0px #000;
+      padding: 0.5rem 0.85rem;
+      border-radius: 6px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 0.82rem;
+      user-select: none;
+      transition: all 0.1s ease;
+    }
+    .model-chip:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 3px 3px 0px #000;
+    }
+    .model-chip.recommended {
+      background: #f0fdf4;
+      border-color: #000;
+    }
+    .model-chip input[type="checkbox"] {
+      accent-color: #000;
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+    .chip-badge {
+      font-size: 0.68rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-weight: 800;
+      border: 1px solid #000;
+    }
+    .badge-rec { background: var(--green); color: #000; }
+    .badge-warn { background: var(--yellow); color: #000; }
+    .badge-heavy { background: #fca5a5; color: #000; }
+
+    /* Downloader Modal / Drawer */
+    #hub-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .hub-content {
+      background: #fff;
+      border: var(--border);
+      box-shadow: var(--shadow-lg);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 720px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .hub-header {
+      padding: 1.25rem 1.5rem;
+      background: #ffe814;
+      border-bottom: var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .hub-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+    .hub-close {
+      background: #000;
+      color: #fff;
+      border: var(--border);
+      font-weight: 900;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .hub-body {
+      padding: 1.25rem 1.5rem;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .hub-card {
+      border: var(--border);
+      box-shadow: 2px 2px 0px #000;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      background: #fafafa;
+    }
+    .hub-card-left {
+      flex: 1;
+    }
+    .hub-card-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .hub-card-desc {
+      font-size: 0.8rem;
+      color: #555;
+      margin-top: 0.25rem;
+    }
+    .btn-download-model {
+      background: #000;
+      color: #fff;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 800;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      border: var(--border);
+      box-shadow: 2px 2px 0px #000;
+      white-space: nowrap;
+    }
+    .btn-download-model:hover {
+      background: var(--pink);
+      color: #fff;
+    }
+    .btn-download-model.installed {
+      background: var(--green);
+      color: #000;
+      pointer-events: none;
+    }
+
+    /* Live Download Banner */
+    #download-progress-banner {
+      display: none;
+      background: #000;
+      color: #fff;
+      border: var(--border);
+      box-shadow: var(--shadow);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+    .dl-bar-bg {
+      background: #333;
+      height: 12px;
+      border-radius: 999px;
+      border: 1.5px solid #fff;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+    .dl-bar-fill {
+      background: var(--yellow);
+      height: 100%;
+      width: 0%;
+      transition: width 0.15s ease;
+    }
+
+    .dropzone {
+      border: 3px dashed #000;
+      border-radius: 0.75rem;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      background: #fdfdfd;
+      transition: all 0.15s ease;
+      box-shadow: 3px 3px 0px #000;
+      margin-bottom: 1.5rem;
+    }
+    .dropzone.dragover {
+      background: var(--yellow);
+      transform: scale(1.01);
+    }
+    .drop-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 1.2rem;
+      margin-bottom: 0.4rem;
+    }
+    .drop-sub {
+      font-size: 0.85rem;
+      color: #555;
+      font-weight: 600;
+    }
+
+    .file-list {
+      margin-bottom: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 1rem;
+      background: #f1f5f9;
+      border: var(--border);
+      border-radius: 0.5rem;
+      font-family: 'Space Grotesk', sans-serif;
       font-weight: 700;
       font-size: 0.85rem;
-      box-shadow: 2px 2px 0px #000;
     }
-    .file-tag { background: #000; color: #fff; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; }
+    .file-tag {
+      background: var(--yellow);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid #000;
+      font-size: 0.75rem;
+    }
 
     .btn-build {
-      background: var(--yellow);
-      color: #000;
-      border: var(--border);
-      border-radius: 0.75rem;
-      padding: 1.1rem 2rem;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.1rem;
-      font-weight: 900;
       width: 100%;
+      background: var(--pink);
+      color: #fff;
+      border: var(--border);
       box-shadow: var(--shadow);
-      transition: all 0.15s;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      transition: all 0.1s ease;
     }
-    .btn-build:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); background: #facc15; }
-    .btn-build:disabled { opacity: 0.6; transform: none; box-shadow: var(--shadow); }
+    .btn-build:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0px #000;
+      background: #e00067;
+    }
+    .btn-build:disabled {
+      background: #cbd5e1;
+      color: #64748b;
+      transform: none;
+      box-shadow: none;
+    }
 
     .progress-box {
       display: none;
       margin-top: 1.5rem;
+      border: var(--border);
       background: #000;
       color: #fff;
-      border-radius: 0.85rem;
       padding: 1.25rem;
-      border: var(--border);
+      border-radius: 0.75rem;
+      box-shadow: var(--shadow);
     }
-    .progress-header { display: flex; justify-content: space-between; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.6rem; color: var(--yellow); }
-    .progress-bar-bg { width: 100%; height: 12px; background: #222; border-radius: 999px; border: 2px solid #fff; overflow: hidden; }
-    .progress-bar-fill { height: 100%; width: 0%; background: var(--green); transition: width 0.35s ease; }
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.95rem;
+      margin-bottom: 0.75rem;
+    }
+    .progress-bar-bg {
+      background: #333;
+      height: 14px;
+      border-radius: 999px;
+      border: 2px solid #fff;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      background: var(--yellow);
+      height: 100%;
+      width: 0%;
+      transition: width 0.2s ease;
+    }
 
     .result-box {
       display: none;
       margin-top: 1.5rem;
-      background: #dcfce7;
       border: var(--border);
+      background: #dcfce7;
       border-radius: 0.85rem;
       padding: 1.5rem;
       box-shadow: var(--shadow);
@@ -233,37 +538,10 @@
       font-size: 1rem;
       padding: 0.75rem 1.5rem;
       border-radius: 999px;
-    .checkbox-chips-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 0.35rem;
-    }
-    .model-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      background: #fff;
       border: var(--border);
-      box-shadow: 2px 2px 0px #000;
-      padding: 0.45rem 0.85rem;
-      border-radius: 6px;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700;
-      font-size: 0.82rem;
-      user-select: none;
-      transition: all 0.1s ease;
+      box-shadow: var(--shadow);
     }
-    .model-chip:hover {
-      transform: translate(-1px, -1px);
-      box-shadow: 3px 3px 0px #000;
-    }
-    .model-chip input[type="checkbox"] {
-      accent-color: #000;
-      width: 15px;
-      height: 15px;
-      cursor: pointer;
-    }
+    .result-link-btn:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
 
     @media (max-width: 750px) {
       .controls-grid { grid-template-columns: 1fr; }
@@ -286,27 +564,36 @@
   </header>
 
   <main>
+    <!-- Hardware Telemetry Bar -->
+    <div class="hw-bar" id="hw-bar">
+      <div class="hw-item">
+        <div class="hw-dot"></div>
+        <span id="hw-gpu">Detecting GPU...</span>
+      </div>
+      <div class="hw-item">
+        <span>RAM:</span> <span id="hw-ram" style="color: var(--yellow);">-- GB</span>
+      </div>
+      <div class="hw-item">
+        <span>CPU:</span> <span id="hw-cpu">-- Threads</span>
+      </div>
+      <div class="hw-badge" id="hw-tier">RTX ACCELERATED</div>
+    </div>
+
     <div class="studio-card">
       <div class="studio-header">
         <div class="studio-title">Knowledge Base Studio</div>
-        <div class="status-badge">LOCAL RTX ACCELERATION ACTIVE</div>
+        <button type="button" class="btn-open-hub" id="btn-open-hub">+ Download Models (Ollama Library)</button>
       </div>
 
       <form id="rag-form">
         <div class="controls-grid">
           <div class="input-group">
-            <label class="label" for="model-select">Text LLM Model</label>
+            <div class="label-row">
+              <label class="label" for="model-select">Text LLM Model</label>
+            </div>
             <select id="model-select">
               <option value="llama3.2:3b">llama3.2:3b (Loading...)</option>
             </select>
-          </div>
-
-          <div class="input-group" style="grid-column: span 2;">
-            <label class="label">Vision OCR Models (Multi-Model Combined Ensemble)</label>
-            <div class="checkbox-chips-grid" id="vision-checkbox-group">
-              <label class="model-chip"><input type="checkbox" value="moondream" checked> moondream:latest</label>
-              <label class="model-chip"><input type="checkbox" value="llama3.2-vision" checked> llama3.2-vision:latest</label>
-            </div>
           </div>
 
           <div class="input-group">
@@ -317,6 +604,15 @@
               <option value="6">6 Hours</option>
               <option value="24">24 Hours</option>
             </select>
+          </div>
+
+          <div class="input-group" style="grid-column: span 2;">
+            <div class="label-row">
+              <label class="label">Vision OCR Models (Multi-Model Combined Ensemble)</label>
+            </div>
+            <div class="checkbox-chips-grid" id="vision-checkbox-group">
+              <label class="model-chip"><input type="checkbox" value="moondream" checked> moondream:latest <span class="chip-badge badge-rec">⚡ PERFECT</span></label>
+            </div>
           </div>
         </div>
 
@@ -351,6 +647,35 @@
     </div>
   </main>
 
+  <!-- 1-Click Ollama Model Hub Modal with Live Download Progress -->
+  <div id="hub-modal">
+    <div class="hub-content">
+      <div class="hub-header">
+        <div class="hub-title">Ollama Model Hub & 1-Click Downloader</div>
+        <button type="button" class="hub-close" id="btn-close-hub">×</button>
+      </div>
+      <div class="hub-body">
+        <div style="font-size: 0.85rem; font-weight: 700; color: #333;">
+          Models are installed directly into your global Ollama engine for all applications.
+        </div>
+
+        <div id="download-progress-banner">
+          <div style="display: flex; justify-content: space-between; font-weight: 800; font-size: 0.9rem;">
+            <span id="dl-status-text">Downloading Model...</span>
+            <span id="dl-percent-text">0%</span>
+          </div>
+          <div class="dl-bar-bg">
+            <div class="dl-bar-fill" id="dl-bar-fill"></div>
+          </div>
+        </div>
+
+        <div id="hub-models-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // Figma Cursor
     const figmaCursor = document.getElementById('figma-cursor');
@@ -372,12 +697,108 @@
     const resultBox = document.getElementById('result-box');
     const portalLink = document.getElementById('portal-link');
     const modelSelect = document.getElementById('model-select');
-    const visionSelect = document.getElementById('vision-select');
     const visionCheckboxGroup = document.getElementById('vision-checkbox-group');
     const progressContainer = document.getElementById('progress-container');
     const progressFill = document.getElementById('progress-fill');
     const progressStatus = document.getElementById('progress-status');
     const progressPercent = document.getElementById('progress-percent');
+
+    // Hardware Specs
+    async function loadSpecs() {
+      try {
+        const res = await fetch('/api/system/specs');
+        const specs = await res.json();
+        if (specs.gpu) {
+          document.getElementById('hw-gpu').innerText = `${specs.gpu} (${specs.vram_gb} GB VRAM)`;
+        }
+        document.getElementById('hw-ram').innerText = `${specs.ram_gb} GB`;
+        document.getElementById('hw-cpu').innerText = `${specs.cores} Cores`;
+        if (specs.vram_gb >= 4.0) {
+          document.getElementById('hw-tier').innerText = `⚡ RTX 4GB OPTIMIZED`;
+        }
+      } catch (err) {}
+    }
+    loadSpecs();
+
+    // Model Hub Logic
+    const hubModal = document.getElementById('hub-modal');
+    const btnOpenHub = document.getElementById('btn-open-hub');
+    const btnCloseHub = document.getElementById('btn-close-hub');
+    const hubModelsList = document.getElementById('hub-models-list');
+    const dlBanner = document.getElementById('download-progress-banner');
+    const dlStatusText = document.getElementById('dl-status-text');
+    const dlPercentText = document.getElementById('dl-percent-text');
+    const dlBarFill = document.getElementById('dl-bar-fill');
+
+    btnOpenHub.addEventListener('click', () => {
+      hubModal.style.display = 'flex';
+      loadHubCatalog();
+    });
+    btnCloseHub.addEventListener('click', () => { hubModal.style.display = 'none'; });
+
+    async function loadHubCatalog() {
+      try {
+        const res = await fetch('/api/models/hub');
+        const data = await res.json();
+        hubModelsList.innerHTML = data.catalog.map(m => {
+          const badgeClass = m.compatibility.status === 'recommended' ? 'badge-rec' : (m.compatibility.status === 'compatible' ? 'badge-warn' : 'badge-heavy');
+          return `
+            <div class="hub-card">
+              <div class="hub-card-left">
+                <div class="hub-card-title">
+                  <span>${m.display_name}</span>
+                  <span class="chip-badge ${badgeClass}">${m.compatibility.badge}</span>
+                </div>
+                <div class="hub-card-desc">${m.description} • <strong>Size:</strong> ${m.size_gb} GB</div>
+              </div>
+              <div>
+                ${m.is_installed 
+                  ? `<button class="btn-download-model installed">✓ Installed</button>`
+                  : `<button class="btn-download-model" onclick="downloadModel('${m.tag}')">⬇ Download</button>`
+                }
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {}
+    }
+
+    window.downloadModel = function(modelTag) {
+      dlBanner.style.display = 'block';
+      dlStatusText.innerText = `Connecting to Ollama for ${modelTag}...`;
+      dlPercentText.innerText = `0%`;
+      dlBarFill.style.width = `0%`;
+
+      const evtSource = new EventSource(`/api/models/pull/stream?model=${encodeURIComponent(modelTag)}`);
+      evtSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.status) {
+            dlStatusText.innerText = `${modelTag}: ${data.status}`;
+          }
+          if (data.total && data.completed) {
+            const pct = Math.round((data.completed / data.total) * 100);
+            dlPercentText.innerText = `${pct}% (${(data.completed/1024/1024).toFixed(1)} MB / ${(data.total/1024/1024).toFixed(1)} MB)`;
+            dlBarFill.style.width = `${pct}%`;
+          }
+          if (data.status === 'success') {
+            dlStatusText.innerText = `Successfully Installed ${modelTag}!`;
+            dlBarFill.style.width = `100%`;
+            evtSource.close();
+            setTimeout(() => {
+              loadModels();
+              loadHubCatalog();
+            }, 1000);
+          }
+        } catch (e) {}
+      };
+      evtSource.onerror = () => {
+        evtSource.close();
+        dlStatusText.innerText = `Download completed or finished in background.`;
+        loadModels();
+        loadHubCatalog();
+      };
+    };
 
     let selectedFiles = [];
 
@@ -390,8 +811,9 @@
         }
         if (data.vision_models && data.vision_models.length > 0) {
           visionCheckboxGroup.innerHTML = data.vision_models.map(m => `
-            <label class="model-chip">
+            <label class="model-chip recommended">
               <input type="checkbox" name="vision_model" value="${m}" checked> ${m}
+              <span class="chip-badge badge-rec">⚡ ACCELERATED</span>
             </label>
           `).join('');
         }
