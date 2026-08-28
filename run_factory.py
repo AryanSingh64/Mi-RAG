@@ -46,8 +46,8 @@ def free_port(port=8000):
 if __name__ == "__main__":
     free_port(8000)
     print("==================================================")
-    print("🚀 Starting Autonomous RAG Factory Web Application...")
-    print("🌐 Open in your browser: http://localhost:8000")
+    print(" [>] Starting Mi:RAG Engine Studio...")
+    print(" [*] Web Interface: http://localhost:8000")
     print("==================================================")
     
     try:
