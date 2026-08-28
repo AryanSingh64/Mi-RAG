@@ -51,7 +51,10 @@ class VisionImageParser(BaseDocumentParser):
         return target_model
 
     def _prepare_image(self, image_path: Path) -> tuple[np.ndarray, str]:
-        """Loads image, handles transparency with clean white background, and returns RGB numpy array and base64 string."""
+        """
+        Loads image, normalizes alpha transparency, keeps native resolution for OCR,
+        and generates an optimized 768px base64 thumbnail for ultra-fast vision LLM processing.
+        """
         with Image.open(image_path) as img:
             if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
                 rgba = img.convert("RGBA")
@@ -61,10 +64,15 @@ class VisionImageParser(BaseDocumentParser):
             else:
                 rgb_img = img.convert("RGB")
 
+            # Native resolution for RapidOCR
             np_img = np.array(rgb_img)
 
+            # High-efficiency thumbnail (max 768px) for vision model speed
+            vis_img = rgb_img.copy()
+            vis_img.thumbnail((768, 768), Image.Resampling.LANCZOS)
+
             buffered = io.BytesIO()
-            rgb_img.save(buffered, format="JPEG", quality=95)
+            vis_img.save(buffered, format="JPEG", quality=85, optimize=True)
             b64_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
             return np_img, b64_str
@@ -82,15 +90,15 @@ class VisionImageParser(BaseDocumentParser):
             return ""
 
     def _extract_from_single_vision_model(self, model_name: str, b64_image: str) -> Optional[str]:
-        """Queries a single vision model with a deep visual prompt and persistent VRAM caching."""
+        """Queries a single vision model with persistent VRAM caching and fast bounded token generation."""
         resolved_model = self._resolve_vision_model(model_name)
         print(f"[*] Querying Vision Model: {resolved_model}...")
 
         prompt = (
-            "Deep visual inspection: "
-            "1. Transcribe ALL visible text, words, logos, abbreviations, numbers, and labels exactly as written. "
-            "2. Describe the visual layout, typography, font style (e.g. cursive, block, 3D, chrome), color palette, and background. "
-            "3. Explain what this image, logo, chart, or document represents."
+            "Analyze this image: "
+            "1. Transcribe all text, numbers, brands, or words exactly as written. "
+            "2. Describe colors, visual layout, and graphic style. "
+            "3. State what this image represents."
         )
 
         payload = {
@@ -102,12 +110,13 @@ class VisionImageParser(BaseDocumentParser):
             "options": {
                 "num_gpu": 99,
                 "num_thread": os.cpu_count() or 12,
+                "num_predict": 250,
                 "temperature": 0.1
             }
         }
 
         try:
-            with httpx.Client(timeout=180.0) as client:
+            with httpx.Client(timeout=240.0) as client:
                 res = client.post(f"{self.ollama_url}/api/generate", json=payload)
                 if res.status_code == 200:
                     description = res.json().get("response", "").strip()
@@ -124,7 +133,7 @@ class VisionImageParser(BaseDocumentParser):
                         print(f"[*] Vision model note ({resolved_model}): {err_msg[:80]}")
                     return None
         except Exception as e:
-            print(f"[!] {resolved_model} error: {e}")
+            print(f"[*] Vision model note ({resolved_model}): {e}")
             return None
         return None
 
