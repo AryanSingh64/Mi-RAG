@@ -52,6 +52,15 @@ def app_studio():
     return "<h1>Mi:RAG Studio is loading...</h1>"
 
 
+@app.get("/docs", response_class=HTMLResponse)
+@app.get("/docs.html", response_class=HTMLResponse)
+def docs_page():
+    html_path = ROOT_DIR / "web" / "templates" / "docs.html"
+    if html_path.exists():
+        return html_path.read_text(encoding="utf-8")
+    return "<h1>Mi:RAG Documentation</h1>"
+
+
 @app.get("/portal/{session_id}", response_class=HTMLResponse)
 def portal(session_id: str):
     html_path = Path("./web/templates/portal.html")

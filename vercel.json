@@ -8,6 +8,10 @@
     {
       "source": "/install",
       "destination": "/install.ps1"
+    },
+    {
+      "source": "/docs",
+      "destination": "/docs.html"
     }
   ],
   "headers": [

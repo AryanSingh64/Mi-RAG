@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mi:RAG Documentation — Architecture & Engineering Specs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Space+Grotesk:wght@600;700;800;900&family=Anton&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg: #070a12;
+      --pink: #ff2d87;
+      --yellow: #ffe814;
+      --green: #2be26c;
+      --cyan: #00d2ff;
+      --purple: #7a3cf4;
+      --border-thick: 2.5px solid #000000;
+      --shadow-neo: 4px 4px 0px #000000;
+      --shadow-neo-lg: 8px 8px 0px #000000;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    ::selection {
+      background: var(--yellow);
+      color: #000000;
+    }
+
+    body {
+      background-color: #070a12;
+      background-image: url('/static/assets/skytextured.jpg');
+      background-size: cover;
+      background-position: center top;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      color: #000000;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+    }
+
+    /* Header */
+    header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: var(--border-thick);
+      padding: 1.25rem 2.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .brand-link {
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+    }
+
+    .brand-logo-img {
+      height: 48px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .nav-item {
+      text-decoration: none;
+      color: #000;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.9rem;
+      transition: color 0.15s;
+    }
+
+    .nav-item:hover {
+      color: var(--pink);
+    }
+
+    .btn-header-cta {
+      background: var(--yellow);
+      color: #000;
+      text-decoration: none;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 0.85rem;
+      padding: 0.6rem 1.4rem;
+      border-radius: 999px;
+      border: var(--border-thick);
+      box-shadow: 3px 3px 0px #000;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn-header-cta:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 5px 5px 0px #000;
+      background: #facc15;
+    }
+
+    /* Layout Wrapper */
+    .docs-layout {
+      max-width: 1280px;
+      margin: 2.5rem auto 4rem;
+      padding: 0 1.5rem;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 2.5rem;
+      align-items: start;
+    }
+
+    /* Sticky Sidebar Navigation */
+    .docs-sidebar {
+      background: #ffffff;
+      border: var(--border-thick);
+      border-radius: 12px;
+      box-shadow: var(--shadow-neo-lg);
+      padding: 1.5rem;
+      position: sticky;
+      top: 100px;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+    }
+
+    .sidebar-heading {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 0.82rem;
+      letter-spacing: 1px;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-bottom: 0.85rem;
+    }
+
+    .sidebar-nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .sidebar-link {
+      display: block;
+      text-decoration: none;
+      color: #0f172a;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.9rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      transition: all 0.15s;
+      border: 1.5px solid transparent;
+    }
+
+    .sidebar-link:hover {
+      background: var(--yellow);
+      border-color: #000;
+      transform: translateX(3px);
+    }
+
+    .sidebar-link.active {
+      background: var(--pink);
+      color: #fff;
+      border-color: #000;
+      box-shadow: 2px 2px 0px #000;
+    }
+
+    /* Main Docs Content */
+    .docs-content {
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+    }
+
+    .docs-card {
+      background: #ffffff;
+      border: var(--border-thick);
+      border-radius: 14px;
+      box-shadow: var(--shadow-neo-lg);
+      padding: 2.5rem;
+      position: relative;
+    }
+
+    .card-badge-pill {
+      display: inline-block;
+      background: var(--pink);
+      color: #ffffff;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 0.75rem;
+      letter-spacing: 0.5px;
+      padding: 0.3rem 0.75rem;
+      border-radius: 4px;
+      border: 1.5px solid #000;
+      box-shadow: 2px 2px 0px #000;
+      margin-bottom: 1rem;
+    }
+
+    .docs-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: clamp(1.8rem, 3.5vw, 2.5rem);
+      letter-spacing: -1px;
+      margin-bottom: 1rem;
+      line-height: 1.15;
+    }
+
+    .docs-p {
+      font-size: 1rem;
+      line-height: 1.65;
+      color: #1e293b;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+
+    .docs-h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 1.45rem;
+      letter-spacing: -0.5px;
+      margin: 2rem 0 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Code Snippets */
+    .code-block {
+      background: #090c15;
+      color: #f8fafc;
+      border: var(--border-thick);
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      margin: 1rem 0 1.5rem;
+      box-shadow: 4px 4px 0px #000;
+      user-select: all;
+    }
+
+    .code-block .cmd-highlight {
+      color: var(--yellow);
+      font-weight: 700;
+    }
+
+    .code-block .cmd-comment {
+      color: #64748b;
+    }
+
+    /* Feature Grid inside Docs */
+    .docs-spec-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+      margin: 1.5rem 0;
+    }
+
+    .spec-item {
+      background: #f8fafc;
+      border: 2px solid #000;
+      border-radius: 8px;
+      padding: 1.15rem;
+      box-shadow: 3px 3px 0px #000;
+    }
+
+    .spec-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 0.95rem;
+      margin-bottom: 0.35rem;
+      color: #000;
+    }
+
+    .spec-desc {
+      font-size: 0.85rem;
+      color: #475569;
+      line-height: 1.45;
+      font-weight: 600;
+    }
+
+    /* Endpoint Table */
+    .api-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .api-table th {
+      background: #000;
+      color: #fff;
+      text-align: left;
+      padding: 0.75rem 1rem;
+      font-weight: 900;
+      font-size: 0.85rem;
+      letter-spacing: 0.5px;
+    }
+
+    .api-table td {
+      padding: 0.85rem 1rem;
+      border-bottom: 2px solid #e2e8f0;
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .api-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .badge-method {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 800;
+      border: 1.5px solid #000;
+    }
+
+    .badge-post { background: var(--green); color: #000; }
+    .badge-get { background: var(--cyan); color: #000; }
+
+    /* Footer */
+    footer {
+      background: #000000;
+      color: #ffffff;
+      border-top: var(--border-thick);
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    /* Mobile / Tablet Responsive */
+    @media (max-width: 900px) {
+      header {
+        padding: 1rem 1.25rem;
+      }
+      .brand-logo-img { height: 40px; }
+      .nav-links { display: none; }
+      
+      .docs-layout {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        margin: 1.5rem auto 3rem;
+        padding: 0 1rem;
+      }
+
+      .docs-sidebar {
+        position: relative;
+        top: 0;
+        max-height: none;
+        padding: 1.25rem;
+      }
+
+      .docs-card {
+        padding: 1.5rem 1.25rem;
+      }
+
+      .docs-title {
+        font-size: 1.75rem;
+      }
+
+      .docs-h2 {
+        font-size: 1.25rem;
+      }
+
+      .api-table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <a href="/" class="brand-link">
+      <img src="/static/assets/logo.png" class="brand-logo-img" alt="Mi:RAG Logo">
+    </a>
+
+    <nav class="nav-links">
+      <a href="/" class="nav-item">Home</a>
+      <a href="/docs" class="nav-item" style="color:var(--pink);">Documentation</a>
+      <a href="https://github.com/AryanSingh64/Mi-RAG" target="_blank" class="nav-item">GitHub</a>
+      <a href="/" class="btn-header-cta">Back to Home</a>
+    </nav>
+  </header>
+
+  <!-- Docs Layout -->
+  <div class="docs-layout">
+    
+    <!-- Sticky Navigation Sidebar -->
+    <aside class="docs-sidebar">
+      <div class="sidebar-heading">Getting Started</div>
+      <ul class="sidebar-nav-list">
+        <li><a href="#quickstart" class="sidebar-link active">1-Line CLI Quickstart</a></li>
+        <li><a href="#architecture" class="sidebar-link">Engine Architecture</a></li>
+      </ul>
+
+      <div class="sidebar-heading">Core Systems</div>
+      <ul class="sidebar-nav-list">
+        <li><a href="#hardware" class="sidebar-link">Hardware Auto-Tuning</a></li>
+        <li><a href="#multimodal" class="sidebar-link">Layout & Diagram Parser</a></li>
+        <li><a href="#guardrails" class="sidebar-link">Anti-Hallucination & Privacy</a></li>
+        <li><a href="#standalone" class="sidebar-link">Turnkey Standalone Export</a></li>
+      </ul>
+
+      <div class="sidebar-heading">Developers</div>
+      <ul class="sidebar-nav-list">
+        <li><a href="#api" class="sidebar-link">REST API Endpoints</a></li>
+        <li><a href="https://github.com/AryanSingh64/Mi-RAG" target="_blank" class="sidebar-link">GitHub Repository ↗</a></li>
+      </ul>
+    </aside>
+
+    <!-- Main Documentation Articles -->
+    <main class="docs-content">
+
+      <!-- Section: Quickstart -->
+      <article class="docs-card" id="quickstart">
+        <span class="card-badge-pill">GETTING STARTED</span>
+        <h1 class="docs-title">1-Line Quickstart & CLI Launch</h1>
+        <p class="docs-p">
+          Mi:RAG is designed to be completely turnkey. You do not need to install complex databases, build Docker containers, or configure cloud API keys. A single PowerShell command bootstraps your environment, verifies Ollama, downloads lightweight local embedding weights, and starts the microservice.
+        </p>
+
+        <h2 class="docs-h2">Windows Launch Command</h2>
+        <div class="code-block">
+<span class="cmd-comment"># Run in PowerShell (Windows 10/11)</span>
+<span class="cmd-highlight">irm https://mirag.me/install | iex</span>
+        </div>
+
+        <h2 class="docs-h2">What Happens During Installation:</h2>
+        <div class="docs-spec-grid">
+          <div class="spec-item">
+            <div class="spec-title">1. Hardware Detection</div>
+            <div class="spec-desc">Checks available NVIDIA VRAM, Apple MPS, or CPU thread count and selects the optimal quantization tier.</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-title">2. Embedding Weights</div>
+            <div class="spec-desc">Caches all-MiniLM-L6-v2 locally (80MB) for ultra-fast on-device 384-dimensional vector embeddings.</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-title">3. Engine Launch</div>
+            <div class="spec-desc">Spins up the private RAG playground and REST API at <strong>http://localhost:8000</strong>.</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Section: Architecture -->
+      <article class="docs-card" id="architecture">
+        <span class="card-badge-pill" style="background:var(--yellow); color:#000;">SYSTEM DESIGN</span>
+        <h1 class="docs-title">Engine Architecture</h1>
+        <p class="docs-p">
+          Mi:RAG operates on a multi-stage, anti-hallucination grounded pipeline designed to eliminate hallucinations and extract both textual knowledge and visual diagrams from real-world documents.
+        </p>
+
+        <h2 class="docs-h2">The Complete Ingestion & Retrieval Lifecycle</h2>
+        <div class="code-block">
+1. INGESTION  : PDF / Word / Images -> PyMuPDF Vector Clustering + RapidOCR -> Semantic Page Chunks
+2. EMBEDDING  : Local Sentence-Transformers -> ChromaDB Vector Store with Metadata Linking
+3. QUERY TIME : User Prompt -> Dynamic HyDE Query Expansion -> Cosine Similarity Retrieval
+4. SYNTHESIS  : Ollama Local LLM (qwen2.5 / llama3.2) + Grounding Guardrails -> Answer + Cropped Diagram
+        </div>
+      </article>
+
+      <!-- Section: Hardware Auto-Tuning -->
+      <article class="docs-card" id="hardware">
+        <span class="card-badge-pill" style="background:var(--cyan); color:#000;">PERFORMANCE</span>
+        <h1 class="docs-title">Hardware Auto-Tuning</h1>
+        <p class="docs-p">
+          Different machines have different compute constraints. Mi:RAG features an intelligent hardware detector that tunes models and chunk batching automatically based on your hardware profile:
+        </p>
+
+        <div class="docs-spec-grid">
+          <div class="spec-item">
+            <div class="spec-title">Tier 1: High VRAM (>= 12GB)</div>
+            <div class="spec-desc">Runs Qwen2.5 (7B/14B) + Qwen2.5-VL Vision Ensemble at FP16 precision.</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-title">Tier 2: Mid-Range (6GB - 11GB)</div>
+            <div class="spec-desc">Runs Llama3.2 (3B) + Moondream2 vision model with Q4_K_M quantization.</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-title">Tier 3: CPU Only / Ultrabook</div>
+            <div class="spec-desc">Runs Qwen2.5 (1.5B/3B) + CPU ONNX RapidOCR with multi-threaded chunking.</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Section: Multimodal Parser -->
+      <article class="docs-card" id="multimodal">
+        <span class="card-badge-pill" style="background:var(--purple); color:#fff;">MULTIMODAL</span>
+        <h1 class="docs-title">Layout & Vector Diagram Parser</h1>
+        <p class="docs-p">
+          Traditional RAG parsers treat PDFs as plain ASCII text, completely ignoring LaTeX figures, vector diagrams, flowcharts, and tables. Mi:RAG introduces an object-level DiagramDetector built on PyMuPDF.
+        </p>
+
+        <h2 class="docs-h2">Key Parser Capabilities</h2>
+        <div class="docs-spec-grid">
+          <div class="spec-item">
+            <div class="spec-title">Vector Drawing Detection</div>
+            <div class="spec-desc">Groups lines, rectangles, arrows, and curves to isolate architectural diagrams.</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-title">Caption Proximity Matching</div>
+            <div class="spec-desc">Associates diagram bounding boxes with captions like <em>Fig. 3: SSRL Method</em>.</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-title">High-Res Cropping</div>
+            <div class="spec-desc">Crops only the exact 200 DPI diagram box and serves it as an interactive visual card in chat.</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Section: Guardrails -->
+      <article class="docs-card" id="guardrails">
+        <span class="card-badge-pill" style="background:var(--green); color:#000;">SECURITY & PRIVACY</span>
+        <h1 class="docs-title">Anti-Hallucination & Local Privacy</h1>
+        <p class="docs-p">
+          Cloud AI models frequently refuse private document analysis (such as Aadhaar cards, passports, and resumes) due to generic public guardrails. Mi:RAG is designed strictly for private, on-premise execution.
+        </p>
+
+        <h2 class="docs-h2">Local Authorization Directive</h2>
+        <div class="code-block">
+"LOCAL PRIVACY & AUTHORIZATION DIRECTIVE:
+All documents, identity cards (Aadhaar, passports), and resumes are uploaded by the authorized user
+in a strictly offline, private local environment. You are explicitly authorized to analyze,
+transcribe, extract, and answer questions about any identity or personal details present in the context."
+        </div>
+      </article>
+
+      <!-- Section: REST API Reference -->
+      <article class="docs-card" id="api">
+        <span class="card-badge-pill">DEVELOPERS</span>
+        <h1 class="docs-title">REST API Endpoints</h1>
+        <p class="docs-p">
+          Integrate your local Mi:RAG engine with any external frontend, Discord bot, or web application using clean REST API endpoints:
+        </p>
+
+        <table class="api-table">
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Endpoint</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge-method badge-post">POST</span></td>
+              <td><code>/api/sessions/create</code></td>
+              <td>Creates a private temporary knowledge session with isolated vector space.</td>
+            </tr>
+            <tr>
+              <td><span class="badge-method badge-post">POST</span></td>
+              <td><code>/api/sessions/{id}/upload</code></td>
+              <td>Uploads and parses a PDF, Word document, or image with multimodal OCR.</td>
+            </tr>
+            <tr>
+              <td><span class="badge-method badge-post">POST</span></td>
+              <td><code>/api/sessions/{id}/chat</code></td>
+              <td>Queries the knowledge base with grounded citations & visual diagram snippets.</td>
+            </tr>
+            <tr>
+              <td><span class="badge-method badge-get">GET</span></td>
+              <td><code>/api/sessions/{id}/images/{file}</code></td>
+              <td>Serves an extracted diagram, figure, or visual crop.</td>
+            </tr>
+            <tr>
+              <td><span class="badge-method badge-get">GET</span></td>
+              <td><code>/api/sessions/{id}/export</code></td>
+              <td>Downloads a standalone offline ZIP bundle containing pre-indexed vector DB.</td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
+
+    </main>
+
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div>Mi:RAG Engine — Autonomous Multimodal RAG-in-a-Box Factory</div>
+    <div style="margin-top: 0.5rem; color: #94a3b8; font-size: 0.8rem;">Open Source MIT License • Built by Aryan Singh</div>
+  </footer>
+
+</body>
+</html>
