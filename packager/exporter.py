@@ -350,6 +350,7 @@ if __name__ == "__main__":
         return f"<h1>Production RAG Assistant ({model_name})</h1>"
 
     def _generate_installer_script(self, model_name: str, embedding_model: str) -> str:
+        short_name = model_name[:12]
         return f'''"""
 Standalone Turnkey Installer & Pre-flight Setup with Live Progress Bars
 """
@@ -370,7 +371,7 @@ def render_progress_bar(iteration, total, prefix="", suffix="", length=30, fill=
         percent = min(100.0, max(0.0, (iteration / float(total)) * 100.0))
         filled_length = int(length * iteration // total)
     bar = fill * filled_length + empty * (length - filled_length)
-    sys.stdout.write(f"\\r  {prefix} [{bar}] {percent:.1f}% {suffix}")
+    sys.stdout.write(f"\\r  {{prefix}} [{{bar}}] {{percent:.1f}}% {{suffix}}")
     sys.stdout.flush()
     if iteration >= total and total > 0:
         sys.stdout.write("\\n")
@@ -472,7 +473,7 @@ try:
                 render_progress_bar(
                     completed,
                     total,
-                    prefix=f"{model_name[:12]:<12}",
+                    prefix="{short_name:<12}",
                     suffix=f"({{format_bytes(completed)}} / {{format_bytes(total)}}) {{speed_str}} {{eta_str}}"
                 )
             else:
