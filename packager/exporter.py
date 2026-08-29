@@ -141,13 +141,13 @@ def extract_relevant_images(query: str, chunks: list, is_image_query: bool = Fal
                 if "_page_" in u.lower() and not is_image_query and not explicit_visual:
                     continue
                 seen.add(u)
-                local_u = u.replace("/api/sessions/", "").split("/images/")[-1]
-                served_url = f"/images/{{local_u}}" if (IMAGES_DIR / local_u).exists() else u
+                fname = Path(u).name
+                served_url = f"/images/{{fname}}"
                 p_num = c["metadata"].get("page_number", "") if isinstance(c["metadata"], dict) else ""
                 caption = f"{{c['source_file']}}" + (f" (Page {{p_num}})" if p_num else "")
                 matched.append(ImageMatch(
                     url=served_url,
-                    filename=Path(u).name,
+                    filename=fname,
                     source_file=caption,
                     relevance=round(c["score"] * 100, 1)
                 ))
@@ -321,6 +321,17 @@ async def chat_rag(request: Request):
         images=matched_images,
         query_image_url=query_image_url
     )
+
+@app.get("/images/{{filename}}")
+@app.get("/api/sessions/{{session_id}}/images/{{filename}}")
+def serve_image(filename: str, session_id: Optional[str] = None):
+    img_path = IMAGES_DIR / filename
+    if img_path.exists():
+        return FileResponse(str(img_path))
+    for f in IMAGES_DIR.glob("*.*"):
+        if f.name.lower() == filename.lower():
+            return FileResponse(str(f))
+    raise HTTPException(status_code=404, detail=f"Image {{filename}} not found")
 
 @app.get("/", response_class=HTMLResponse)
 def serve_ui():
@@ -700,10 +711,21 @@ docker compose up --build
 
         images_dest = bundle_dir / "images"
         images_dest.mkdir(parents=True, exist_ok=True)
-        if session.uploads_dir.exists():
-            for img_file in session.uploads_dir.glob("*.*"):
-                if img_file.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp", ".bmp"]:
-                    shutil.copy2(img_file, images_dest / img_file.name)
+        search_dirs = [
+            getattr(session, "images_dir", None),
+            getattr(session, "uploads_dir", None),
+            session.session_dir / "images",
+            session.session_dir / "extracted_images",
+            session.session_dir / "uploads",
+            session.session_dir
+        ]
+        for sdir in search_dirs:
+            if sdir and Path(sdir).exists():
+                for img_file in Path(sdir).glob("*.*"):
+                    if img_file.is_file() and img_file.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp", ".bmp"]:
+                        target = images_dest / img_file.name
+                        if not target.exists():
+                            shutil.copy2(img_file, target)
 
         # Write Standalone Server, Hydrated Direct Chat UI & Installer
         (bundle_dir / "server.py").write_text(
