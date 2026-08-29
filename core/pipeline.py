@@ -135,32 +135,8 @@ class RAGPipeline:
 
         avg_confidence = sum(c.score for c in relevant_chunks) / len(relevant_chunks)
 
-        # Extract any embedded image URLs from the retrieved chunks
-        matched_images = []
-        seen_urls = set()
-        import re
-
-        for c in relevant_chunks:
-            # Check metadata first
-            meta_url = c.metadata.get("image_url", "").strip() if isinstance(c.metadata, dict) else ""
-            urls_to_check = [meta_url] if meta_url else []
-
-            # Also check for [Image URL: ...] in text
-            found_urls = re.findall(r"\[Image URL:\s*(.*?)\]", c.text)
-            urls_to_check.extend([u.strip() for u in found_urls if u.strip()])
-
-            for url_clean in urls_to_check:
-                if url_clean and url_clean not in seen_urls:
-                    seen_urls.add(url_clean)
-                    filename = Path(url_clean).name
-                    page_num = c.metadata.get("page_number", "") if isinstance(c.metadata, dict) else ""
-                    caption = f"{c.source_file}" + (f" (Page {page_num})" if page_num else "")
-                    matched_images.append({
-                        "url": url_clean,
-                        "filename": filename,
-                        "source_file": caption,
-                        "relevance": round(c.score * 100, 1)
-                    })
+        # Extract only visually relevant diagrams (prevents dumping images on text/summary queries)
+        matched_images = self._extract_relevant_images(user_question, relevant_chunks, is_image_query=False)
 
         if matched_images:
             print(f"[*] ATTACHED VISUAL DIAGRAMS ({len(matched_images)}):")
@@ -249,7 +225,46 @@ class RAGPipeline:
 
         avg_confidence = sum(c.score for c in relevant_chunks) / len(relevant_chunks) if relevant_chunks else 0.0
 
-        # 6. Extract matched document diagrams
+        # 6. Extract top matching document diagrams (capped at 2-3 most relevant)
+        matched_images = self._extract_relevant_images(effective_question, relevant_chunks, is_image_query=True)
+
+        return GroundedAnswer(
+            answer=llm_response,
+            is_grounded=True,
+            confidence_score=round(avg_confidence, 4),
+            citations=relevant_chunks,
+            images=matched_images
+        )
+
+    def _extract_relevant_images(self, user_question: str, relevant_chunks: list, is_image_query: bool = False) -> list:
+        """
+        Intelligently determines when visual diagrams should be attached.
+        - Text summaries and general questions return NO images.
+        - Attaches diagrams ONLY if the question explicitly mentions visual artifacts
+          (e.g., 'diagram', 'figure', 'chart', 'plot', 'image', 'graph', 'architecture', 'photo', 'show me')
+          OR if this is a Multimodal Visual Search query.
+        - Caps returned images to the top 2-3 highest-confidence matches.
+        """
+        if not relevant_chunks:
+            return []
+
+        q_lower = user_question.lower()
+        visual_keywords = [
+            "diagram", "figure", "chart", "plot", "graph", "architecture", "image", 
+            "photo", "picture", "drawing", "illustration", "flowchart", "show me", 
+            "look like", "screenshot", "table", "visual", "fig.", "fig "
+        ]
+        explicit_visual_intent = any(kw in q_lower for kw in visual_keywords)
+
+        # Pure text queries and summaries return text only
+        if not is_image_query and not explicit_visual_intent:
+            has_high_diag = any(
+                ("[DIAGRAM" in c.text or "[Exact OCR" in c.text) and c.score >= 0.45
+                for c in relevant_chunks
+            )
+            if not has_high_diag:
+                return []
+
         matched_images = []
         seen_urls = set()
         import re
@@ -263,6 +278,10 @@ class RAGPipeline:
 
             for url_clean in urls_to_check:
                 if url_clean and url_clean not in seen_urls:
+                    is_overview = "_page_" in url_clean.lower()
+                    if is_overview and not is_image_query and not explicit_visual_intent:
+                        continue
+
                     seen_urls.add(url_clean)
                     filename = Path(url_clean).name
                     page_num = c.metadata.get("page_number", "") if isinstance(c.metadata, dict) else ""
@@ -274,10 +293,10 @@ class RAGPipeline:
                         "relevance": round(c.score * 100, 1)
                     })
 
-        return GroundedAnswer(
-            answer=llm_response,
-            is_grounded=True,
-            confidence_score=round(avg_confidence, 4),
-            citations=relevant_chunks,
-            images=matched_images
-        )
+                    if len(matched_images) >= (3 if is_image_query else 2):
+                        break
+
+            if len(matched_images) >= (3 if is_image_query else 2):
+                break
+
+        return matched_images
