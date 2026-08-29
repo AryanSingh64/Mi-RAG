@@ -174,3 +174,105 @@ class RAGPipeline:
             citations=relevant_chunks,
             images=matched_images
         )
+
+    def query_with_image(
+        self,
+        user_question: str,
+        query_image_path: Path | str,
+        top_k: int = 6
+    ) -> GroundedAnswer:
+        """
+        Executes a Multimodal Visual Search & Query.
+        Analyzes the user's attached image (OCR text + Vision scene analysis), searches the knowledge base,
+        and provides a grounded comparative answer with document citations and diagrams.
+        """
+        image_path = Path(query_image_path)
+        print(f"\n[*] MULTIMODAL QUERY WITH ATTACHED IMAGE: {image_path.name}")
+
+        # 1. Extract OCR text and Vision description of query image
+        image_analysis = self.parser_factory.vision_parser.describe_and_ocr_image(image_path)
+        ocr_text = image_analysis.get("ocr_text", "")
+        vision_desc = image_analysis.get("description", "")
+        combined_summary = image_analysis.get("combined_summary", "")
+
+        # 2. Formulate enriched search query
+        effective_question = user_question.strip() if user_question else "What is this image and how does it relate to the uploaded documents?"
+        
+        search_terms = [effective_question]
+        if ocr_text:
+            search_terms.append(ocr_text)
+        if vision_desc:
+            search_terms.append(vision_desc[:300])
+        
+        compound_search_query = " ".join(search_terms)
+
+        # 3. Retrieve relevant chunks from ChromaDB
+        raw_results = self.vector_store.query(compound_search_query, top_k=top_k)
+        if effective_question != compound_search_query:
+            direct_results = self.vector_store.query(effective_question, top_k=top_k)
+            seen = {r.text: r for r in raw_results}
+            for dr in direct_results:
+                if dr.text not in seen:
+                    raw_results.append(dr)
+
+        relevant_chunks = self.guardrails.filter_relevant_chunks(raw_results)
+
+        # 4. Construct prompt with user image analysis
+        system_prompt = self.guardrails.build_grounded_system_prompt()
+        user_prompt = self.guardrails.build_user_prompt(
+            query=effective_question,
+            context_chunks=relevant_chunks,
+            user_image_context=combined_summary
+        )
+
+        # 5. Query Ollama
+        try:
+            llm_response = self.ollama.chat_response(
+                user_message=user_prompt,
+                system_prompt=system_prompt,
+                model=self.current_model,
+                temperature=0.1
+            )
+        except Exception as e:
+            return GroundedAnswer(
+                answer=f"Error communicating with local Ollama: {str(e)}",
+                is_grounded=False,
+                confidence_score=0.0,
+                citations=relevant_chunks,
+                warning="Ollama connection failed. Is Ollama running?"
+            )
+
+        avg_confidence = sum(c.score for c in relevant_chunks) / len(relevant_chunks) if relevant_chunks else 0.0
+
+        # 6. Extract matched document diagrams
+        matched_images = []
+        seen_urls = set()
+        import re
+
+        for c in relevant_chunks:
+            meta_url = c.metadata.get("image_url", "").strip() if isinstance(c.metadata, dict) else ""
+            urls_to_check = [meta_url] if meta_url else []
+
+            found_urls = re.findall(r"\[Image URL:\s*(.*?)\]", c.text)
+            urls_to_check.extend([u.strip() for u in found_urls if u.strip()])
+
+            for url_clean in urls_to_check:
+                if url_clean and url_clean not in seen_urls:
+                    seen_urls.add(url_clean)
+                    filename = Path(url_clean).name
+                    page_num = c.metadata.get("page_number", "") if isinstance(c.metadata, dict) else ""
+                    caption = f"{c.source_file}" + (f" (Page {page_num})" if page_num else "")
+                    matched_images.append({
+                        "url": url_clean,
+                        "filename": filename,
+                        "source_file": caption,
+                        "relevance": round(c.score * 100, 1)
+                    })
+
+        return GroundedAnswer(
+            answer=llm_response,
+            is_grounded=True,
+            confidence_score=round(avg_confidence, 4),
+            citations=relevant_chunks,
+            images=matched_images
+        )

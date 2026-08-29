@@ -229,3 +229,46 @@ class VisionImageParser(BaseDocumentParser):
                 "char_count": len(full_content)
             }
         )
+
+    def describe_and_ocr_image(self, image_path: Path | str) -> dict:
+        """
+        Extracts OCR text and multimodal vision descriptions for a query/search image.
+        Returns a dict with 'ocr_text', 'description', and 'combined_summary'.
+        """
+        path = Path(image_path)
+        if not path.exists():
+            return {"ocr_text": "", "description": "", "combined_summary": ""}
+
+        np_img, b64_img = self._prepare_image(path)
+        ocr_text = self._extract_via_ocr(np_img)
+
+        descriptions = []
+        if self.vision_models:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(self.vision_models), 2)) as executor:
+                future_to_model = {
+                    executor.submit(self._extract_from_single_vision_model, model, b64_img): model
+                    for model in self.vision_models
+                }
+                for future in concurrent.futures.as_completed(future_to_model):
+                    model_name = future_to_model[future]
+                    try:
+                        desc = future.result()
+                        if desc:
+                            descriptions.append(f"[{model_name}]: {desc}")
+                    except Exception as e:
+                        print(f"[!] Vision model {model_name} error: {e}")
+
+        combined_desc = "\n".join(descriptions)
+        summary_parts = []
+        if ocr_text:
+            summary_parts.append(f"Text detected in image:\n{ocr_text}")
+        if combined_desc:
+            summary_parts.append(f"Visual Analysis & Details:\n{combined_desc}")
+
+        combined_summary = "\n\n".join(summary_parts) if summary_parts else "Image provided with no detectable text or description."
+
+        return {
+            "ocr_text": ocr_text,
+            "description": combined_desc,
+            "combined_summary": combined_summary
+        }

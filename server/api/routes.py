@@ -1,8 +1,9 @@
 import json
 import shutil
+import uuid
 from pathlib import Path
 from typing import List, Optional
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 import httpx
 from pydantic import BaseModel
@@ -193,13 +194,52 @@ async def upload_document(session_id: str, file: UploadFile = File(...)):
 
 
 @router.post("/sessions/{session_id}/chat")
-def chat_with_rag(session_id: str, req: ChatRequest):
-    """Executes a grounded query against the session's private knowledge base."""
+async def chat_with_rag(session_id: str, request: Request):
+    """
+    Executes a grounded query against the session's private knowledge base.
+    Supports both text queries (JSON) and Multimodal Visual Searches with image attachments (Multipart Form).
+    """
     session = session_manager.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session expired or not found.")
 
-    answer = session.pipeline.query(req.message, top_k=req.top_k)
+    content_type = request.headers.get("content-type", "")
+    query_image_path = None
+    query_image_url = None
+    user_message = ""
+    top_k = 6
+
+    if "application/json" in content_type:
+        try:
+            data = await request.json()
+            user_message = data.get("message", "")
+            top_k = int(data.get("top_k", 6))
+        except Exception:
+            pass
+    else:
+        form = await request.form()
+        user_message = str(form.get("message", "")).strip()
+        try:
+            top_k = int(form.get("top_k", 6))
+        except Exception:
+            top_k = 6
+
+        uploaded_image = form.get("image")
+        if uploaded_image and hasattr(uploaded_image, "filename") and uploaded_image.filename:
+            clean_fname = f"query_{uuid.uuid4().hex[:8]}_{uploaded_image.filename}"
+            query_image_path = session.uploads_dir / clean_fname
+            with open(query_image_path, "wb") as buffer:
+                shutil.copyfileobj(uploaded_image.file, buffer)
+            query_image_url = f"/api/sessions/{session_id}/images/{clean_fname}"
+
+    if query_image_path and query_image_path.exists():
+        answer = session.pipeline.query_with_image(
+            user_question=user_message,
+            query_image_path=query_image_path,
+            top_k=top_k
+        )
+    else:
+        answer = session.pipeline.query(user_question=user_message, top_k=top_k)
 
     # Deduplicate citations by source file and keep highest similarity score
     unique_citations = {}
@@ -218,7 +258,8 @@ def chat_with_rag(session_id: str, req: ChatRequest):
         "confidence_score": answer.confidence_score,
         "is_grounded": answer.is_grounded,
         "citations": list(unique_citations.values()),
-        "images": answer.images
+        "images": answer.images,
+        "query_image_url": query_image_url
     }
 
 
