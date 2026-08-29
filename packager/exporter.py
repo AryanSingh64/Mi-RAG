@@ -344,6 +344,18 @@ def get_info():
         "features": ["attention_reranking", "conversation_memory", "local_storage", "multimodal_search"]
     }}
 
+@app.post("/api/shutdown")
+def shutdown_server():
+    def do_kill():
+        import time, os, signal
+        time.sleep(0.6)
+        try:
+            os.kill(os.getpid(), signal.SIGTERM)
+        except Exception:
+            os._exit(0)
+    threading.Thread(target=do_kill).start()
+    return {{"status": "ok", "message": "Server shutting down."}}
+
 if __name__ == "__main__":
     import socket
     import webbrowser
@@ -374,7 +386,7 @@ if __name__ == "__main__":
         if portal_template.exists():
             content = portal_template.read_text(encoding="utf-8")
             
-            # 1. Direct standalone endpoints
+            # 1. Direct standalone endpoints & safe IDs
             content = content.replace("const pathParts = window.location.pathname.split('/');\n    const sessionId = pathParts[pathParts.length - 1];", "const sessionId = 'standalone';")
             content = content.replace("const pathParts = window.location.pathname.split('/');", "const sessionId = 'standalone';")
             content = content.replace("const sessionId = pathParts[pathParts.length - 1];", "")
@@ -382,9 +394,25 @@ if __name__ == "__main__":
             content = content.replace("`/api/sessions/${sessionId}/clear_memory`", "'/api/clear_memory'")
             content = content.replace("`/api/sessions/${sessionId}`", "'/api/info'")
             
-            # 2. Standalone Branding & Badges
-            content = content.replace('<div class="session-badge" id="session-badge">Session: loading...</div>', f'<div class="session-badge">Production Engine: {model_name}</div>')
-            content = content.replace('<span id="countdown-timer">Expires in: --:--:--</span>', '<span style="color:#000; font-weight:800;">● 100% Offline Private Mode</span>')
+            # 2. Standalone Branding & Badges & Quit Button
+            content = content.replace(
+                '<div class="session-badge" id="session-badge">Session: loading...</div>',
+                f'<div class="session-badge" id="session-badge">Production Engine: {model_name}</div>'
+            )
+            
+            quit_btn_html = (
+                '<div class="timer-badge" style="background:#fef08a;">'
+                '<div class="pulse-dot"></div>'
+                '<span style="color:#000; font-weight:800;">Offline Private Mode</span>'
+                '</div>'
+                '<button type="button" onclick="quitServer()" class="btn-quit-server" data-cursor="Stop Server" style="margin-left:0.75rem; background:#ef4444; color:#fff; border:2px solid #000; border-radius:6px; padding:0.4rem 0.85rem; font-family:\'Space Grotesk\',sans-serif; font-weight:900; font-size:0.8rem; cursor:pointer; box-shadow:2px 2px 0px #000; text-transform:uppercase; transition:all 0.12s ease;">'
+                '🛑 Quit Server'
+                '</button>'
+            )
+            content = content.replace(
+                '<div class="timer-badge">\n      <div class="pulse-dot"></div>\n      <span id="countdown-timer">Expires in: --:--:--</span>\n    </div>',
+                quit_btn_html
+            )
             
             # 3. Pre-render indexed documents
             files_pills = "".join([f'<div class="file-pill">📄 {Path(f).name}</div>' for f in indexed_files]) or '<div class="file-pill">📄 Knowledge Base Documents</div>'
@@ -398,6 +426,72 @@ if __name__ == "__main__":
             content = content.replace('url(\'/static/assets/skytextured.jpg\')', 'linear-gradient(135deg, #090c15 0%, #151b2e 100%)')
             content = content.replace('/static/assets/favicon.png', '')
             content = content.replace('/static/assets/favicon.ico', '')
+            
+            # 6. Inject Standalone LocalStorage Auto-Save & Quit Script
+            standalone_js = f'''
+    const STORAGE_KEY = 'mirag_standalone_history';
+
+    function saveChatToStorage() {{
+      try {{
+        const payload = {{
+          html: document.getElementById('chat-box').innerHTML,
+          turns: conversationTurns
+        }};
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      }} catch (e) {{
+        console.warn("Storage save note:", e);
+      }}
+    }}
+
+    function restoreChatFromStorage() {{
+      try {{
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {{
+          const parsed = JSON.parse(saved);
+          if (parsed.html && parsed.html.trim().length > 10) {{
+            document.getElementById('chat-box').innerHTML = parsed.html;
+            conversationTurns = parsed.turns || [];
+            document.getElementById('chat-box').scrollTop = document.getElementById('chat-box').scrollHeight;
+            return true;
+          }}
+        }}
+      }} catch (e) {{
+        console.warn("Storage restore note:", e);
+      }}
+      return false;
+    }}
+
+    async function quitServer() {{
+      if (!confirm("Are you sure you want to stop and quit the local RAG server?")) return;
+      try {{
+        await fetch('/api/shutdown', {{ method: 'POST' }});
+      }} catch (e) {{}}
+      document.body.innerHTML = `
+        <div style="height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#090c15; color:#fff; font-family:'Space Grotesk',sans-serif; text-align:center; padding:2rem;">
+          <div style="background:#ff2d87; color:#fff; font-size:1.5rem; font-weight:900; padding:0.6rem 1.5rem; border:2.5px solid #000; box-shadow:4px 4px 0px #000; border-radius:8px; margin-bottom:1.5rem;">SERVER SHUT DOWN</div>
+          <p style="font-size:1.1rem; color:#94a3b8; max-width:500px; line-height:1.6;">The offline RAG engine has stopped safely.<br>All chat history has been saved to your local storage.<br>You can now safely close this browser window or tab.</p>
+        </div>
+      `;
+      setTimeout(() => window.close(), 1200);
+    }}
+            '''
+            
+            content = content.replace(
+                "let conversationTurns = [];",
+                f"let conversationTurns = [];\n{standalone_js}"
+            )
+            
+            # Hook saveChatToStorage into clearMemory
+            content = content.replace(
+                "conversationTurns = [];\n      document.getElementById('chat-box').innerHTML = defaultGreetingHtml;",
+                "localStorage.removeItem(STORAGE_KEY);\n      conversationTurns = [];\n      document.getElementById('chat-box').innerHTML = defaultGreetingHtml;"
+            )
+            
+            # Hook restoreChatFromStorage into loadSession
+            content = content.replace(
+                "document.getElementById('chat-box').innerHTML = defaultGreetingHtml;",
+                "const restored = restoreChatFromStorage(); if (!restored) { document.getElementById('chat-box').innerHTML = defaultGreetingHtml; }"
+            )
             
             return content
         return f"<h1>Production RAG Assistant ({model_name})</h1>"
