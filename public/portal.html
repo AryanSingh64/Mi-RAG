@@ -795,11 +795,24 @@
       <div class="panel-card">
         <div class="panel-title">Standalone Package</div>
         <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1rem; line-height: 1.5;">
-          Download your turnkey production bundle containing the pre-indexed vector DB, server, and launch scripts.
+          Download your turnkey production bundle containing the pre-indexed vector DB, server, and direct chatbot launcher.
         </p>
         <a href="#" id="download-zip-btn" class="btn-download-zip" data-cursor="Download ZIP">
           <span>Download Standalone ZIP</span>
         </a>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-title">Memory & Attention</div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <span class="grounded-badge" style="background: var(--green); font-size: 0.72rem; margin: 0;">Multi-Turn Memory Active</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.8rem; line-height: 1.45; margin-bottom: 0.85rem;">
+          Context attention & coreference memory are persisted locally in browser storage.
+        </p>
+        <button type="button" class="btn-clear-mem" onclick="clearMemory()" data-cursor="Clear Memory" style="width: 100%; padding: 0.65rem 1rem; background: #090c15; color: #f87171; border: 2px solid #334155; border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.8rem; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.12s ease; box-shadow: 2px 2px 0px #000;">
+          🧹 Reset Conversation Memory
+        </button>
       </div>
 
       <div class="panel-card">
@@ -813,7 +826,8 @@
         <div class="panel-title">Multimodal Search Guide</div>
         <div style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.6; font-family: 'Space Grotesk', sans-serif;">
           • <strong>Text Search:</strong> Ask specific questions to extract grounded answers.<br>
-          • <strong>Visual Search:</strong> Click 📷 or paste an image (Ctrl+V) to compare math formulas, art styles, or diagrams with your documents.
+          • <strong>Visual Search:</strong> Click 📷 or paste an image (Ctrl+V) to compare math formulas, art styles, or diagrams with your documents.<br>
+          • <strong>Follow-up Attention:</strong> Ask natural follow-ups ("What are its components?", "Compare with the previous figure").
         </div>
       </div>
     </div>
@@ -822,6 +836,7 @@
   <script>
     const pathParts = window.location.pathname.split('/');
     const sessionId = pathParts[pathParts.length - 1];
+    const STORAGE_KEY = 'mirag_chat_v2_' + sessionId;
 
     document.getElementById('session-badge').innerText = `Session: ${sessionId}`;
     document.getElementById('download-zip-btn').href = `/api/sessions/${sessionId}/export`;
@@ -829,6 +844,58 @@
     let timeRemaining = 0;
     let currentAttachedFile = null;
     let currentAttachedBase64 = null;
+    let conversationTurns = [];
+
+    const defaultGreetingHtml = `
+      <div class="msg bot-msg">
+        <div class="grounded-badge">Guardrails & Memory Active</div>
+        <div class="msg-content">
+          Hello. This is your private multimodal RAG playground with <strong>multi-turn memory</strong> and <strong>local storage persistence</strong>. Ask questions, explore follow-ups, or <strong>attach an image</strong> (via camera icon, drag-and-drop, or Ctrl+V) to search formulas, diagrams, and artwork!
+        </div>
+      </div>
+    `;
+
+    function saveChatToStorage() {
+      try {
+        const payload = {
+          html: document.getElementById('chat-box').innerHTML,
+          turns: conversationTurns
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      } catch (e) {
+        console.warn("LocalStorage save error:", e);
+      }
+    }
+
+    function restoreChatFromStorage() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.html && parsed.html.trim().length > 10) {
+            document.getElementById('chat-box').innerHTML = parsed.html;
+            conversationTurns = parsed.turns || [];
+            document.getElementById('chat-box').scrollTop = document.getElementById('chat-box').scrollHeight;
+            return true;
+          }
+        }
+      } catch (e) {
+        console.warn("LocalStorage restore error:", e);
+      }
+      return false;
+    }
+
+    async function clearMemory() {
+      if (!confirm("Are you sure you want to reset conversation memory for this session?")) return;
+      try {
+        await fetch(`/api/sessions/${sessionId}/clear_memory`, { method: 'POST' });
+      } catch (err) {
+        console.warn("Memory clearance warning:", err);
+      }
+      localStorage.removeItem(STORAGE_KEY);
+      conversationTurns = [];
+      document.getElementById('chat-box').innerHTML = defaultGreetingHtml;
+    }
 
     async function loadSession() {
       try {
@@ -843,6 +910,12 @@
           filesContainer.innerHTML = data.indexed_files.map(f => `
             <div class="file-pill"><span>${f}</span></div>
           `).join('');
+        }
+
+        // Restore chat from LocalStorage if exists
+        const restored = restoreChatFromStorage();
+        if (!restored) {
+          document.getElementById('chat-box').innerHTML = defaultGreetingHtml;
         }
       } catch (err) {
         alert("Session is invalid or has expired!");
@@ -1001,11 +1074,14 @@
 
       try {
         let res;
+        const recentHistory = conversationTurns.slice(-8);
+
         if (attachedFileToSend) {
           const fd = new FormData();
           fd.append('message', query);
           fd.append('top_k', 6);
           fd.append('image', attachedFileToSend);
+          fd.append('history', JSON.stringify(recentHistory));
           res = await fetch(`/api/sessions/${sessionId}/chat`, {
             method: 'POST',
             body: fd
@@ -1014,7 +1090,7 @@
           res = await fetch(`/api/sessions/${sessionId}/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: query, top_k: 6 })
+            body: JSON.stringify({ message: query, top_k: 6, history: recentHistory })
           });
         }
 
@@ -1056,6 +1132,15 @@
         }
 
         document.getElementById(botMsgId).innerHTML = badgeHtml + `<div class="msg-content">${formatMarkdown(data.answer)}</div>` + visualGalleryHtml + citationsHtml;
+
+        // Record turn into client conversation memory
+        conversationTurns.push({ role: 'user', content: query || '[Visual Search]' });
+        conversationTurns.push({ role: 'assistant', content: data.answer });
+        if (conversationTurns.length > 12) conversationTurns = conversationTurns.slice(-12);
+
+        // Persist to LocalStorage
+        saveChatToStorage();
+
       } catch (err) {
         document.getElementById(botMsgId).innerHTML = `<div class="grounded-badge" style="background:#fca5a5; color:#000;">Query Note</div><div class="msg-content">${err.message}</div>`;
       } finally {

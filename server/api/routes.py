@@ -207,6 +207,7 @@ async def chat_with_rag(session_id: str, request: Request):
     query_image_path = None
     query_image_url = None
     user_message = ""
+    history = None
     top_k = 6
 
     if "application/json" in content_type:
@@ -214,6 +215,7 @@ async def chat_with_rag(session_id: str, request: Request):
             data = await request.json()
             user_message = data.get("message", "")
             top_k = int(data.get("top_k", 6))
+            history = data.get("history", None)
         except Exception:
             pass
     else:
@@ -223,6 +225,14 @@ async def chat_with_rag(session_id: str, request: Request):
             top_k = int(form.get("top_k", 6))
         except Exception:
             top_k = 6
+        
+        hist_raw = form.get("history")
+        if hist_raw:
+            try:
+                import json
+                history = json.loads(hist_raw)
+            except Exception:
+                pass
 
         uploaded_image = form.get("image")
         if uploaded_image and hasattr(uploaded_image, "filename") and uploaded_image.filename:
@@ -237,10 +247,15 @@ async def chat_with_rag(session_id: str, request: Request):
             answer = session.pipeline.query_with_image(
                 user_question=user_message,
                 query_image_path=query_image_path,
-                top_k=top_k
+                top_k=top_k,
+                history=history
             )
         else:
-            answer = session.pipeline.query(user_question=user_message, top_k=top_k)
+            answer = session.pipeline.query(
+                user_question=user_message,
+                top_k=top_k,
+                history=history
+            )
     except Exception as e:
         print(f"[!] Chat processing error: {e}")
         return {
@@ -273,6 +288,16 @@ async def chat_with_rag(session_id: str, request: Request):
         "images": answer.images,
         "query_image_url": query_image_url
     }
+
+
+@router.post("/sessions/{session_id}/clear_memory")
+def clear_session_memory(session_id: str):
+    """Resets the multi-turn conversational memory for a session."""
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session expired or not found.")
+    session.pipeline.clear_memory()
+    return {"status": "success", "message": "Memory cleared."}
 
 
 @router.get("/sessions/{session_id}/images/{filename}")

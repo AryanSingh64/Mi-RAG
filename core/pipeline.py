@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from core.chunking.text_chunker import RecursiveChunker
 from core.embeddings.embedder import LocalEmbedder
 from core.guardrails.anti_hallucination import AntiHallucinationEngine, GroundedAnswer
@@ -47,6 +47,12 @@ class RAGPipeline:
         self.guardrails = AntiHallucinationEngine(min_similarity_threshold=min_similarity_threshold)
         self.rewriter = QueryRewriter(ollama_client=self.ollama)
         self.current_model = ollama_model
+        self.conversation_memory: List[Dict[str, str]] = []
+
+    def clear_memory(self) -> None:
+        """Resets the multi-turn conversational dialogue memory."""
+        self.conversation_memory = []
+        print("[*] Conversational memory cleared.")
 
     def ingest_file(self, file_path: Path | str) -> int:
         """
@@ -58,13 +64,24 @@ class RAGPipeline:
         self.vector_store.add_chunks(chunks)
         return len(chunks)
 
-    def query(self, user_question: str, top_k: int = 6) -> GroundedAnswer:
+    def query(
+        self,
+        user_question: str,
+        top_k: int = 6,
+        history: Optional[List[Dict[str, str]]] = None
+    ) -> GroundedAnswer:
         """
-        Executes a query with spelling auto-correction, query expansion, and anti-hallucination.
+        Executes a query with spelling auto-correction, attention-guided reranking,
+        multi-turn conversation memory, and anti-hallucination.
         """
+        if history is not None:
+            self.conversation_memory = history[-10:]
+
         # 1. Handle casual greetings ("hi", "hello") politely
         greeting_reply = self.rewriter.is_conversational_greeting(user_question)
         if greeting_reply:
+            self.conversation_memory.append({"role": "user", "content": user_question})
+            self.conversation_memory.append({"role": "assistant", "content": greeting_reply})
             return GroundedAnswer(
                 answer=greeting_reply,
                 is_grounded=True,
@@ -72,7 +89,7 @@ class RAGPipeline:
                 citations=[]
             )
 
-        # 2. Fix typos & expand query
+        # 2. Fix typos & expand query with conversation attention
         cleaned_question, search_query = self.rewriter.clean_and_expand_query(
             user_question,
             model_name=self.current_model
@@ -88,14 +105,19 @@ class RAGPipeline:
                 if dr.text not in seen:
                     raw_results.append(dr)
 
-        # 4. Filter relevant chunks using guardrails
-        relevant_chunks = self.guardrails.filter_relevant_chunks(raw_results)
+        # 4. Filter and apply Attention-Guided Context Reranking
+        filtered_chunks = self.guardrails.filter_relevant_chunks(raw_results)
+        relevant_chunks = self.guardrails.apply_attention_reranking(
+            query=cleaned_question,
+            chunks=filtered_chunks,
+            history=self.conversation_memory
+        )
 
         # Print retrieved context live in terminal
         print("\n" + "="*60)
         print(f"[*] QUERY: {user_question}")
         if relevant_chunks:
-            print(f"[*] RETRIEVED CONTEXT ({len(relevant_chunks)} chunks):")
+            print(f"[*] ATTENTION-RERANKED CONTEXT ({len(relevant_chunks)} chunks):")
             for idx, chunk in enumerate(relevant_chunks, 1):
                 preview = chunk.text.replace("\n", " ")[:140]
                 print(f"  [{idx}] {chunk.source_file} (Similarity: {chunk.score*100:.1f}%) -> {preview}...")
@@ -104,19 +126,26 @@ class RAGPipeline:
         print("="*60 + "\n")
 
         if not relevant_chunks:
+            fallback_msg = "I could not find any information about this in the uploaded documentation."
+            self.conversation_memory.append({"role": "user", "content": user_question})
+            self.conversation_memory.append({"role": "assistant", "content": fallback_msg})
             return GroundedAnswer(
-                answer="I could not find any information about this in the uploaded documentation.",
+                answer=fallback_msg,
                 is_grounded=False,
                 confidence_score=0.0,
                 citations=[],
                 warning="No relevant chunks met the threshold."
             )
 
-        # 6. Construct grounded prompt with the CLEANED question
+        # 5. Construct grounded prompt with conversation memory
         system_prompt = self.guardrails.build_grounded_system_prompt()
-        user_prompt = self.guardrails.build_user_prompt(cleaned_question, relevant_chunks)
+        user_prompt = self.guardrails.build_user_prompt(
+            query=cleaned_question,
+            context_chunks=relevant_chunks,
+            conversation_history=self.conversation_memory
+        )
 
-        # 7. Query Ollama with low temperature
+        # 6. Query Ollama with low temperature
         try:
             llm_response = self.ollama.chat_response(
                 user_message=user_prompt,
@@ -132,6 +161,12 @@ class RAGPipeline:
                 citations=relevant_chunks,
                 warning="Ollama connection failed. Is Ollama running?"
             )
+
+        # Record conversation turn in memory
+        self.conversation_memory.append({"role": "user", "content": user_question})
+        self.conversation_memory.append({"role": "assistant", "content": llm_response})
+        if len(self.conversation_memory) > 12:
+            self.conversation_memory = self.conversation_memory[-12:]
 
         avg_confidence = sum(c.score for c in relevant_chunks) / len(relevant_chunks)
 
@@ -155,13 +190,15 @@ class RAGPipeline:
         self,
         user_question: str,
         query_image_path: Path | str,
-        top_k: int = 6
+        top_k: int = 6,
+        history: Optional[List[Dict[str, str]]] = None
     ) -> GroundedAnswer:
         """
-        Executes a Multimodal Visual Search & Query.
-        Analyzes the user's attached image (OCR text + Vision scene analysis), searches the knowledge base,
-        and provides a grounded comparative answer with document citations and diagrams.
+        Executes a Multimodal Visual Search & Query with memory and attention.
         """
+        if history is not None:
+            self.conversation_memory = history[-10:]
+
         image_path = Path(query_image_path)
         print(f"\n[*] MULTIMODAL QUERY WITH ATTACHED IMAGE: {image_path.name}")
 
@@ -196,14 +233,20 @@ class RAGPipeline:
                 if dr.text not in seen:
                     raw_results.append(dr)
 
-        relevant_chunks = self.guardrails.filter_relevant_chunks(raw_results)
+        filtered_chunks = self.guardrails.filter_relevant_chunks(raw_results)
+        relevant_chunks = self.guardrails.apply_attention_reranking(
+            query=effective_question,
+            chunks=filtered_chunks,
+            history=self.conversation_memory
+        )
 
-        # 4. Construct prompt with user image analysis
+        # 4. Construct prompt with user image analysis & conversation memory
         system_prompt = self.guardrails.build_grounded_system_prompt()
         user_prompt = self.guardrails.build_user_prompt(
             query=effective_question,
             context_chunks=relevant_chunks,
-            user_image_context=combined_summary
+            user_image_context=combined_summary,
+            conversation_history=self.conversation_memory
         )
 
         # 5. Query Ollama
@@ -222,6 +265,12 @@ class RAGPipeline:
                 citations=relevant_chunks,
                 warning="Ollama connection failed. Is Ollama running?"
             )
+
+        # Record conversation turn in memory
+        self.conversation_memory.append({"role": "user", "content": f"[Image Search]: {effective_question}"})
+        self.conversation_memory.append({"role": "assistant", "content": llm_response})
+        if len(self.conversation_memory) > 12:
+            self.conversation_memory = self.conversation_memory[-12:]
 
         avg_confidence = sum(c.score for c in relevant_chunks) / len(relevant_chunks) if relevant_chunks else 0.0
 
