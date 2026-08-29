@@ -96,7 +96,7 @@ class VisionImageParser(BaseDocumentParser):
             print(f"[*] OCR extraction note: {e}")
             return ""
 
-    def _extract_from_single_vision_model(self, model_name: str, b64_image: str, timeout: float = 15.0) -> Optional[str]:
+    def _extract_from_single_vision_model(self, model_name: str, b64_image: str, timeout: float = 35.0) -> Optional[str]:
         """Queries a single vision model with persistent VRAM caching and bounded fast token generation."""
         resolved_model = self._resolve_vision_model(model_name)
         print(f"[*] Querying Vision Model: {resolved_model} (timeout={timeout}s)...")
@@ -117,7 +117,7 @@ class VisionImageParser(BaseDocumentParser):
             "options": {
                 "num_gpu": 99,
                 "num_thread": os.cpu_count() or 12,
-                "num_predict": 180,
+                "num_predict": 220,
                 "temperature": 0.1
             }
         }
@@ -156,7 +156,7 @@ class VisionImageParser(BaseDocumentParser):
         results = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(self.vision_models), 3)) as executor:
             future_to_model = {
-                executor.submit(self._extract_from_single_vision_model, model, b64_image, 25.0): model
+                executor.submit(self._extract_from_single_vision_model, model, b64_image, 30.0): model
                 for model in self.vision_models
             }
             for future in concurrent.futures.as_completed(future_to_model):
@@ -250,7 +250,7 @@ class VisionImageParser(BaseDocumentParser):
         if self.vision_models:
             with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(self.vision_models), 2)) as executor:
                 future_to_model = {
-                    executor.submit(self._extract_from_single_vision_model, model, b64_img, 10.0): model
+                    executor.submit(self._extract_from_single_vision_model, model, b64_img, 35.0): model
                     for model in self.vision_models
                 }
                 for future in concurrent.futures.as_completed(future_to_model):
