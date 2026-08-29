@@ -356,19 +356,21 @@
       border-top: var(--border);
       flex-shrink: 0;
     }
-    .input-form { display: flex; gap: 0.75rem; }
+    .input-form { display: flex; gap: 0.75rem; align-items: center; }
     input[type="text"] {
       flex: 1;
+      height: 48px;
       background: #090c15;
       border: var(--border);
       color: #fff;
-      padding: 0.85rem 1.25rem;
+      padding: 0 1.25rem;
       border-radius: 8px;
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 700;
       font-size: 0.95rem;
       box-shadow: 2px 2px 0px #000;
       outline: none;
+      transition: all 0.15s ease;
     }
     input[type="text"]:focus {
       border-color: var(--pink);
@@ -376,23 +378,66 @@
     }
     /* Attachment Button */
     .btn-attach-img {
+      height: 48px;
+      width: 48px;
+      flex-shrink: 0;
       background: #090c15;
       color: var(--yellow);
       border: var(--border);
       border-radius: 8px;
-      padding: 0.75rem 1rem;
+      padding: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       box-shadow: 2px 2px 0px #000;
-      transition: all 0.1s ease;
+      transition: all 0.12s ease;
       cursor: pointer;
     }
     .btn-attach-img:hover {
       background: var(--yellow);
       color: #000;
-      transform: translate(-1px, -1px);
-      box-shadow: 3px 3px 0px #000;
+      transform: translate(-1.5px, -1.5px);
+      box-shadow: 3.5px 3.5px 0px #000;
+    }
+
+    /* Send Button */
+    .btn-send {
+      height: 48px;
+      flex-shrink: 0;
+      background: var(--yellow);
+      color: #000000;
+      border: var(--border);
+      padding: 0 1.75rem;
+      border-radius: 8px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 0.92rem;
+      letter-spacing: 0.5px;
+      box-shadow: 3px 3px 0px #000000;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      white-space: nowrap;
+      transition: all 0.12s ease;
+    }
+    .btn-send:hover:not(:disabled) {
+      transform: translate(-2px, -2px);
+      box-shadow: 5px 5px 0px #000000;
+      background: #ffe814;
+    }
+    .btn-send:active:not(:disabled) {
+      transform: translate(1px, 1px);
+      box-shadow: 1px 1px 0px #000000;
+    }
+    .btn-send:disabled {
+      background: #334155;
+      color: #94a3b8;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
     }
 
     /* Image Preview Bar */
@@ -731,7 +776,13 @@
           <input type="file" id="query-file-input" accept="image/*" style="display: none;" onchange="handleQueryImageSelected(this.files)">
 
           <input type="text" id="user-input" placeholder="Ask a question or paste/attach an image to compare..." autocomplete="off">
-          <button type="submit" class="btn-send" id="btn-send" data-cursor="Send Query">Send</button>
+          <button type="submit" class="btn-send" id="btn-send" data-cursor="Send Query">
+            <span>Send</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
         </form>
       </div>
     </div>
@@ -815,6 +866,7 @@
     const chatForm = document.getElementById('chat-form');
     const userInput = document.getElementById('user-input');
     const chatBox = document.getElementById('chat-box');
+    const sendBtn = document.getElementById('btn-send');
     const previewBar = document.getElementById('image-preview-bar');
     const previewThumb = document.getElementById('preview-thumb');
     const previewName = document.getElementById('preview-name');
@@ -925,7 +977,7 @@
       if (query) {
         userMsgContent += `<div>${query}</div>`;
       } else {
-        userMsgContent += `<div><em>[Image Search Query]</em></div>`;
+        userMsgContent += `<div><em>[Visual Search Query]</em></div>`;
       }
 
       chatBox.innerHTML += `<div class="msg user-msg">${userMsgContent}</div>`;
@@ -938,6 +990,11 @@
       const botMsgId = 'bot-' + Date.now();
       chatBox.innerHTML += `<div class="msg bot-msg" id="${botMsgId}"><div class="grounded-badge" style="background:var(--yellow); color:#000;">Analyzing & Synthesizing...</div><div class="msg-content">Searching knowledge base with grounded guardrails...</div></div>`;
       chatBox.scrollTop = chatBox.scrollHeight;
+
+      if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = `<span>Searching...</span>`;
+      }
 
       try {
         let res;
@@ -958,7 +1015,17 @@
           });
         }
 
-        const data = await res.json();
+        let data;
+        try {
+          data = await res.json();
+        } catch (jsonErr) {
+          const rawText = await res.text().catch(() => "");
+          throw new Error(rawText ? `Server response: ${rawText.slice(0, 140)}` : "Server returned non-JSON response.");
+        }
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
 
         let badgeHtml = data.is_grounded 
           ? `<div class="grounded-badge">Grounded Match (${Math.round(data.confidence_score * 100)}% Confidence)</div>`
@@ -987,7 +1054,12 @@
 
         document.getElementById(botMsgId).innerHTML = badgeHtml + `<div class="msg-content">${formatMarkdown(data.answer)}</div>` + visualGalleryHtml + citationsHtml;
       } catch (err) {
-        document.getElementById(botMsgId).innerHTML = `<div class="grounded-badge" style="background:#fca5a5;">Connection Error</div><div class="msg-content">${err.message}</div>`;
+        document.getElementById(botMsgId).innerHTML = `<div class="grounded-badge" style="background:#fca5a5; color:#000;">Query Note</div><div class="msg-content">${err.message}</div>`;
+      } finally {
+        if (sendBtn) {
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = `<span>Send</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
+        }
       }
       chatBox.scrollTop = chatBox.scrollHeight;
     });

@@ -232,14 +232,26 @@ async def chat_with_rag(session_id: str, request: Request):
                 shutil.copyfileobj(uploaded_image.file, buffer)
             query_image_url = f"/api/sessions/{session_id}/images/{clean_fname}"
 
-    if query_image_path and query_image_path.exists():
-        answer = session.pipeline.query_with_image(
-            user_question=user_message,
-            query_image_path=query_image_path,
-            top_k=top_k
-        )
-    else:
-        answer = session.pipeline.query(user_question=user_message, top_k=top_k)
+    try:
+        if query_image_path and query_image_path.exists():
+            answer = session.pipeline.query_with_image(
+                user_question=user_message,
+                query_image_path=query_image_path,
+                top_k=top_k
+            )
+        else:
+            answer = session.pipeline.query(user_question=user_message, top_k=top_k)
+    except Exception as e:
+        print(f"[!] Chat processing error: {e}")
+        return {
+            "answer": f"Unable to complete visual analysis or query: {str(e)}",
+            "confidence_score": 0.0,
+            "is_grounded": False,
+            "citations": [],
+            "images": [],
+            "query_image_url": query_image_url,
+            "error": str(e)
+        }
 
     # Deduplicate citations by source file and keep highest similarity score
     unique_citations = {}

@@ -190,8 +190,8 @@ class PdfDocumentParser(BaseDocumentParser):
             # 1. Native Digital Text
             native_text = (page.get_text() or "").strip()
 
-            # 2. Detect & Crop Exact Diagram Bounding Boxes
-            diagram_regions = DiagramDetector.detect_diagram_regions(page)
+            # 2. Detect & Crop Exact Diagram Bounding Boxes (Cap to top 4 diagrams per page)
+            diagram_regions = DiagramDetector.detect_diagram_regions(page)[:4]
             page_diagram_urls = []
 
             for d_idx, (diag_bbox, caption, diag_type) in enumerate(diagram_regions, start=1):
@@ -207,13 +207,13 @@ class PdfDocumentParser(BaseDocumentParser):
                 if self.output_images_dir:
                     target_path = self.output_images_dir / diag_filename
                     try:
-                        # High-resolution 200 DPI crop of ONLY the diagram bounding box
-                        pix = page.get_pixmap(dpi=200, clip=diag_bbox)
+                        # Optimized 140 DPI crop for fast rendering & crisp OCR
+                        pix = page.get_pixmap(dpi=140, clip=diag_bbox)
                         pix.save(str(target_path))
                         page_diagram_urls.append(img_url)
                         extracted_diagrams.append(img_url)
 
-                        # Run RapidOCR on the cropped diagram
+                        # Fast RapidOCR on the cropped diagram
                         ocr = self._get_ocr()
                         ocr_res, _ = ocr(str(target_path))
                         diag_ocr_lines = [item[1].strip() for item in ocr_res if item[1].strip()] if ocr_res else []
@@ -231,8 +231,8 @@ class PdfDocumentParser(BaseDocumentParser):
                     except Exception as e:
                         print(f"[*] Note cropping diagram bbox: {e}")
 
-            # 3. If no specific diagram bounding box was isolated, render the page screenshot as fallback
-            if not page_diagram_urls:
+            # 3. If no specific diagram bounding box was isolated and page has visual content, render page overview
+            if not page_diagram_urls and (len(page.get_images()) > 0 or len(page.get_drawings()) > 0):
                 full_page_filename = f"{clean_stem}_page_{p_idx}.png"
                 full_page_url = (
                     f"/api/sessions/{self.session_id}/images/{full_page_filename}"
@@ -241,7 +241,7 @@ class PdfDocumentParser(BaseDocumentParser):
                 )
                 if self.output_images_dir:
                     try:
-                        pix = page.get_pixmap(dpi=150)
+                        pix = page.get_pixmap(dpi=120)
                         pix.save(str(self.output_images_dir / full_page_filename))
                         page_diagram_urls.append(full_page_url)
                     except Exception:

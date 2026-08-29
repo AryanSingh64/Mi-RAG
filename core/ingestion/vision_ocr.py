@@ -96,10 +96,10 @@ class VisionImageParser(BaseDocumentParser):
             print(f"[*] OCR extraction note: {e}")
             return ""
 
-    def _extract_from_single_vision_model(self, model_name: str, b64_image: str) -> Optional[str]:
-        """Queries a single vision model with persistent VRAM caching and fast bounded token generation."""
+    def _extract_from_single_vision_model(self, model_name: str, b64_image: str, timeout: float = 15.0) -> Optional[str]:
+        """Queries a single vision model with persistent VRAM caching and bounded fast token generation."""
         resolved_model = self._resolve_vision_model(model_name)
-        print(f"[*] Querying Vision Model: {resolved_model}...")
+        print(f"[*] Querying Vision Model: {resolved_model} (timeout={timeout}s)...")
 
         prompt = (
             "Analyze this image: "
@@ -117,13 +117,13 @@ class VisionImageParser(BaseDocumentParser):
             "options": {
                 "num_gpu": 99,
                 "num_thread": os.cpu_count() or 12,
-                "num_predict": 250,
+                "num_predict": 180,
                 "temperature": 0.1
             }
         }
 
         try:
-            with httpx.Client(timeout=240.0) as client:
+            with httpx.Client(timeout=timeout) as client:
                 res = client.post(f"{self.ollama_url}/api/generate", json=payload)
                 if res.status_code == 200:
                     description = res.json().get("response", "").strip()
@@ -144,7 +144,7 @@ class VisionImageParser(BaseDocumentParser):
                         print(f"[*] Vision model note ({resolved_model}): {err_msg[:80]}")
                     return None
         except Exception as e:
-            print(f"[*] Vision model note ({resolved_model}): {e}")
+            print(f"[*] Vision model {resolved_model} note/timeout ({e}). Falling back to fast local OCR.")
             return None
         return None
 
@@ -154,39 +154,43 @@ class VisionImageParser(BaseDocumentParser):
             return []
 
         results = []
-        import concurrent.futures
-
-        def _worker(model):
-            desc = self._extract_from_single_vision_model(model, b64_image)
-            return (model, desc) if desc else None
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(self.vision_models))) as executor:
-            futures = [executor.submit(_worker, m) for m in self.vision_models]
-            for future in concurrent.futures.as_completed(futures):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(self.vision_models), 3)) as executor:
+            future_to_model = {
+                executor.submit(self._extract_from_single_vision_model, model, b64_image, 25.0): model
+                for model in self.vision_models
+            }
+            for future in concurrent.futures.as_completed(future_to_model):
+                model_name = future_to_model[future]
                 try:
-                    res = future.result()
-                    if res:
-                        results.append(res)
+                    desc = future.result()
+                    if desc:
+                        results.append((model_name, desc))
                 except Exception as e:
-                    print(f"[!] Parallel vision worker error: {e}")
+                    print(f"[!] Vision model {model_name} thread error: {e}")
 
         return results
 
     def parse(self, file_path: Path) -> ParsedDocument:
+        """
+        Parses an image document: extracts local OCR text + visual model descriptions in parallel.
+        """
         file_path = Path(file_path)
         if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {file_path}")
+            raise FileNotFoundError(f"Image not found: {file_path}")
 
-        np_img, b64_image = self._prepare_image(file_path)
-
-        # 1. Run all selected Vision Models
-        vision_results = self._extract_all_vision_descriptions(b64_image)
-
-        # 2. Run OCR
-        ocr_text = self._extract_via_ocr(np_img)
-
-        # 3. Format combined ensemble sections
         filename = file_path.name
+
+        # Prepare normalized image + base64 encoding
+        np_img, b64_img = self._prepare_image(file_path)
+
+        # Run OCR and vision model extraction in parallel
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            ocr_future = executor.submit(self._extract_via_ocr, np_img)
+            vision_future = executor.submit(self._extract_all_vision_descriptions, b64_img)
+
+            ocr_text = ocr_future.result()
+            vision_results = vision_future.result()
+
         img_url = f"/api/sessions/{self.session_id}/images/{filename}" if self.session_id else f"/images/{filename}"
 
         if self.output_images_dir:
@@ -246,7 +250,7 @@ class VisionImageParser(BaseDocumentParser):
         if self.vision_models:
             with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(self.vision_models), 2)) as executor:
                 future_to_model = {
-                    executor.submit(self._extract_from_single_vision_model, model, b64_img): model
+                    executor.submit(self._extract_from_single_vision_model, model, b64_img, 10.0): model
                     for model in self.vision_models
                 }
                 for future in concurrent.futures.as_completed(future_to_model):
