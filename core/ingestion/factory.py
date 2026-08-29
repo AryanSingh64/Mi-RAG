@@ -34,6 +34,8 @@ class DocumentParserFactory:
             output_images_dir=self.output_images_dir,
             session_id=self.session_id
         )
+        self.vision_parser = self._image_parser
+        self.image_parser = self._image_parser
 
     def parse_file(self, file_path: Path | str) -> ParsedDocument:
         """

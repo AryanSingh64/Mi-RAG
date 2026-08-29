@@ -190,7 +190,12 @@ class RAGPipeline:
         print(f"\n[*] MULTIMODAL QUERY WITH ATTACHED IMAGE: {image_path.name}")
 
         # 1. Extract OCR text and Vision description of query image
-        image_analysis = self.parser_factory.vision_parser.describe_and_ocr_image(image_path)
+        vision_parser = getattr(self.parser_factory, "vision_parser", getattr(self.parser_factory, "_image_parser", None))
+        if vision_parser:
+            image_analysis = vision_parser.describe_and_ocr_image(image_path)
+        else:
+            image_analysis = {"ocr_text": "", "description": "", "combined_summary": ""}
+
         ocr_text = image_analysis.get("ocr_text", "")
         vision_desc = image_analysis.get("description", "")
         combined_summary = image_analysis.get("combined_summary", "")
