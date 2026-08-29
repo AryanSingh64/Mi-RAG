@@ -13,7 +13,7 @@ if sys.platform == "win32":
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 import uvicorn
 
 from fastapi.staticfiles import StaticFiles
@@ -67,6 +67,14 @@ def portal(session_id: str):
     if html_path.exists():
         return html_path.read_text(encoding="utf-8")
     return f"<h1>Ephemeral Portal for Session: {session_id}</h1>"
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    fav_path = ROOT_DIR / "web" / "static" / "assets" / "favicon.ico"
+    if fav_path.exists():
+        return FileResponse(fav_path)
+    return HTMLResponse(status_code=404)
 
 
 if __name__ == "__main__":
