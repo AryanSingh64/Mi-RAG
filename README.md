@@ -2,6 +2,8 @@
 
 **Autonomous, zero-budget, 100% offline Multimodal RAG Engine & Turnkey Package Exporter.**
 
+![Mi:RAG Hero Preview](docs/assets/landing_hero.jpg)
+
 Mi:RAG indexes your documents (PDFs, Word documents, images) on your local machine, extracts text, tables, formulas, and visual diagrams, and exports a standalone offline assistant bundle that runs anywhere with zero cloud dependencies or API keys.
 
 ---
@@ -15,6 +17,12 @@ Mi:RAG indexes your documents (PDFs, Word documents, images) on your local machi
 - **Anti-Hallucination Guardrails**: Cross-references every LLM claim against retrieved source chunks with confidence scoring.
 - **Turnkey Standalone Export**: Generates a self-contained ZIP bundle with pre-indexed ChromaDB, FastAPI microservice, and 1-click execution scripts (`run.bat` / `run.sh`).
 - **Zero Cloud Leakage**: All inference, vector storage, and processing execute on-premise on your local hardware.
+
+---
+
+## Studio Interface
+
+![Mi:RAG Knowledge Base Studio](docs/assets/studio_preview.png)
 
 ---
 
