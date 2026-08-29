@@ -363,7 +363,7 @@ import subprocess
 import urllib.request
 import urllib.error
 
-def render_progress_bar(iteration, total, prefix="", suffix="", length=30, fill="█", empty="░"):
+def render_progress_bar(iteration, total, prefix="", suffix="", length=28, fill="█", empty="░"):
     if total <= 0:
         percent = 100.0
         filled_length = length
@@ -425,29 +425,41 @@ print("\\n" + "="*70)
 print("       🚀 STANDALONE ENTERPRISE RAG — ONE-CLICK SETUP")
 print("="*70)
 
-# Step 1: Install Dependencies only if missing
+# Step 1: Install Dependencies with live streaming and file progress
 if not env_ready:
-    print("\\n[1/2] 📦 Installing lightweight Python dependencies...")
+    print("\\n[1/2] 📦 Installing Python dependencies (Streaming live progress)...")
     req_file = "requirements.txt"
     if os.path.exists(req_file):
+        with open(req_file, "r") as f:
+            target_pkgs = [l.strip().split(">=")[0].split("==")[0] for l in f if l.strip() and not l.startswith("#")]
+        
         process = subprocess.Popen(
-            [sys.executable, "-m", "pip", "install", "-r", req_file, "--quiet", "--no-warn-script-location"],
+            [sys.executable, "-m", "pip", "install", "-r", req_file, "--progress-bar", "on"],
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
         )
+        
         start_time = time.time()
-        spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-        idx = 0
-        while process.poll() is None:
-            elapsed = int(time.time() - start_time)
-            spin_char = spinner[idx % len(spinner)]
-            sys.stdout.write(f"\\r  {{spin_char}} Unpacking core modules ({{elapsed}}s elapsed)... ")
-            sys.stdout.flush()
-            idx += 1
-            time.sleep(0.12)
-        sys.stdout.write(f"\\r  [✓] Core dependencies verified in {{int(time.time() - start_time)}}s!\\n")
-        sys.stdout.flush()
+        for raw_line in process.stdout:
+            line = raw_line.strip()
+            if not line:
+                continue
+            if line.startswith("Collecting"):
+                pkg_name = line.replace("Collecting", "").strip().split()[0]
+                sys.stdout.write(f"\\r  [📥 Download] {{pkg_name:<35}}\\n")
+                sys.stdout.flush()
+            elif "Downloading" in line:
+                sys.stdout.write(f"\\r    ↳ {{line[:60]:<60}}")
+                sys.stdout.flush()
+            elif line.startswith("Installing collected packages:"):
+                sys.stdout.write(f"\\n  [⚙️  Unpacking & Installing collected wheels...]\\n")
+                sys.stdout.flush()
+            elif line.startswith("Successfully installed"):
+                sys.stdout.write(f"\\n  [✓] All dependencies configured in {{int(time.time() - start_time)}}s!\\n")
+                sys.stdout.flush()
+        process.wait()
 else:
     print("[1/2] [✓] Core dependencies verified!")
 
@@ -519,7 +531,7 @@ This package contains your turnkey, fully-indexed RAG assistant with:
 ## ⚡ 1-Click Launch (Windows)
 1. Double-click **`run.bat`**.
 2. If dependencies or models are already installed, it launches **instantly in < 1 second**!
-3. If first-time run, it displays a live download progress bar with speed and ETA.
+3. If first-time run, it streams live package installation and download progress with speed and ETA.
 4. Your default browser will automatically open straight into the **Chat Assistant** at **`http://localhost:8000`**!
 
 ---
@@ -588,13 +600,25 @@ docker compose up --build
         )
         (bundle_dir / "requirements.txt").write_text(requirements_txt, encoding="utf-8")
 
-        # 5. Write run.bat (Instant Launch with pre-flight check)
+        # 5. Write run.bat (Instant Launch reusing cached packages + live installer)
         run_bat = (
             "@echo off\n"
             "setlocal enabledelayedexpansion\n"
             "title Standalone Enterprise RAG Assistant\n"
+            "\n"
+            ":: 1. Fast check if active python environment already has required modules\n"
+            "python -c \"import fastapi, chromadb, sentence_transformers, httpx\" 2>nul\n"
+            "if %errorlevel% equ 0 (\n"
+            "    echo [✓] System environment has all packages cached. Launching server directly...\n"
+            "    start http://localhost:8000\n"
+            "    python server.py\n"
+            "    exit /b\n"
+            ")\n"
+            "\n"
+            ":: 2. Otherwise create venv inheriting system site packages if available\n"
             "if not exist .venv (\n"
-            "    python -m venv .venv\n"
+            "    echo [1/3] Setting up local environment...\n"
+            "    python -m venv --system-site-packages .venv\n"
             ")\n"
             "call .venv\\Scripts\\activate.bat\n"
             "python setup.py\n"
@@ -607,8 +631,14 @@ docker compose up --build
         # 6. Write run.sh (Linux/Mac Launcher)
         run_sh = (
             "#!/bin/bash\n"
+            "python3 -c \"import fastapi, chromadb, sentence_transformers, httpx\" 2>/dev/null\n"
+            "if [ $? -eq 0 ]; then\n"
+            "    echo '[✓] System environment has all packages cached. Launching server...'\n"
+            "    python3 server.py\n"
+            "    exit 0\n"
+            "fi\n"
             "if [ ! -d '.venv' ]; then\n"
-            "    python3 -m venv .venv\n"
+            "    python3 -m venv --system-site-packages .venv\n"
             "fi\n"
             "source .venv/bin/activate\n"
             "python3 setup.py\n"
