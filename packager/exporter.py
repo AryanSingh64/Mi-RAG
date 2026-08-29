@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import zipfile
 from pathlib import Path
@@ -57,6 +58,10 @@ INDEXED_FILES = {files_json}
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 if IMAGES_DIR.exists():
     app.mount("/images", StaticFiles(directory=str(IMAGES_DIR)), name="images")
+
+STATIC_DIR = Path("./static")
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 print(f"📦 Loading Local Embedding Model: {{EMBEDDING_MODEL}}...")
 embedder = SentenceTransformer(EMBEDDING_MODEL)
@@ -429,14 +434,17 @@ if __name__ == "__main__":
             files_pills = "".join([f'<div class="file-pill">📄 {Path(f).name}</div>' for f in indexed_files]) or '<div class="file-pill">📄 Knowledge Base Documents</div>'
             content = content.replace('Loading documents...', files_pills)
             
-            # 4. Hide redundant download ZIP card inside standalone package
-            content = content.replace('<div class="panel-title">Standalone Package</div>', '<div class="panel-title" style="display:none;"></div>')
-            content = content.replace('id="download-zip-btn" class="btn-download-zip"', 'id="download-zip-btn" class="btn-download-zip" style="display:none;"')
+            # 4. Completely remove redundant "Standalone Package" download card in the offline package
+            content = re.sub(
+                r'<div class="panel-card">\s*<div class="panel-title">Standalone Package</div>[\s\S]*?</a>\s*</div>',
+                '',
+                content,
+                count=1
+            )
             
-            # 5. Fix relative static paths
-            content = content.replace('url(\'/static/assets/skytextured.jpg\')', 'linear-gradient(135deg, #090c15 0%, #151b2e 100%)')
-            content = content.replace('/static/assets/favicon.png', '')
-            content = content.replace('/static/assets/favicon.ico', '')
+            # 5. Standalone SVG Favicon fallback for immediate tab icon rendering
+            svg_fav = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%23ff2d87\' stroke=\'%23000000\' stroke-width=\'1.5\'%3E%3Cpath d=\'M13 2L3 14h9l-1 8 10-12h-9l1-8z\'/%3E%3C/svg%3E'
+            content = content.replace('<link rel="icon" type="image/png" sizes="32x32" href="/static/assets/favicon.png">', f'<link rel="icon" type="image/svg+xml" href="{svg_fav}">\n  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/favicon.png">')
             
             # 6. Inject Standalone LocalStorage Auto-Save & Quit Script
             standalone_js = f'''
@@ -726,6 +734,17 @@ docker compose up --build
                         target = images_dest / img_file.name
                         if not target.exists():
                             shutil.copy2(img_file, target)
+
+        # Copy static assets (logo, favicon, background) into bundle
+        static_dest = bundle_dir / "static" / "assets"
+        static_dest.mkdir(parents=True, exist_ok=True)
+        source_assets = Path("public/static/assets")
+        if not source_assets.exists():
+            source_assets = Path(__file__).parent.parent / "public" / "static" / "assets"
+        if source_assets.exists():
+            for asset_file in source_assets.glob("*.*"):
+                if asset_file.is_file():
+                    shutil.copy2(asset_file, static_dest / asset_file.name)
 
         # Write Standalone Server, Hydrated Direct Chat UI & Installer
         (bundle_dir / "server.py").write_text(
