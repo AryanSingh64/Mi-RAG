@@ -345,19 +345,60 @@ def get_info():
     }}
 
 if __name__ == "__main__":
-    print(f"[*] Starting Standalone Enterprise RAG on http://localhost:8000 (Model: {{MODEL_NAME}})...")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import socket
+    import webbrowser
+    import threading
+
+    def get_free_port(preferred=8000):
+        for p in [preferred, 8001, 8080, 8088, 8888]:
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    if s.connect_ex(('127.0.0.1', p)) != 0:
+                        return p
+            except Exception:
+                pass
+        return preferred
+
+    port = get_free_port(8000)
+    url = f"http://localhost:{{port}}"
+    print(f"[*] Starting Standalone Enterprise RAG Assistant on {{url}} (Model: {{MODEL_NAME}})...")
+    threading.Timer(1.2, lambda: webbrowser.open(url)).start()
+    uvicorn.run(app, host="0.0.0.0", port=port)
 '''
 
-    def _generate_standalone_ui(self, model_name: str, session_id: str) -> str:
+    def _generate_standalone_ui(self, model_name: str, session_id: str, indexed_files: list) -> str:
         portal_template = Path("web/templates/portal.html")
+        if not portal_template.exists():
+            portal_template = Path(__file__).parent.parent / "web" / "templates" / "portal.html"
+            
         if portal_template.exists():
             content = portal_template.read_text(encoding="utf-8")
-            content = content.replace(f"/api/sessions/{session_id}/chat", "/api/chat")
-            content = content.replace(f"/api/sessions/{session_id}/clear_memory", "/api/clear_memory")
-            content = content.replace(f"/api/sessions/{session_id}", "/api/info")
-            content = content.replace(f"/api/sessions/{session_id}/export", "#")
-            content = content.replace(f"Session: ${{sessionId}}", f"Production Engine • {model_name}")
+            
+            # 1. Direct standalone endpoints
+            content = content.replace("const pathParts = window.location.pathname.split('/');\n    const sessionId = pathParts[pathParts.length - 1];", "const sessionId = 'standalone';")
+            content = content.replace("const pathParts = window.location.pathname.split('/');", "const sessionId = 'standalone';")
+            content = content.replace("const sessionId = pathParts[pathParts.length - 1];", "")
+            content = content.replace("`/api/sessions/${sessionId}/chat`", "'/api/chat'")
+            content = content.replace("`/api/sessions/${sessionId}/clear_memory`", "'/api/clear_memory'")
+            content = content.replace("`/api/sessions/${sessionId}`", "'/api/info'")
+            
+            # 2. Standalone Branding & Badges
+            content = content.replace('<div class="session-badge" id="session-badge">Session: loading...</div>', f'<div class="session-badge">Production Engine: {model_name}</div>')
+            content = content.replace('<span id="countdown-timer">Expires in: --:--:--</span>', '<span style="color:#000; font-weight:800;">● 100% Offline Private Mode</span>')
+            
+            # 3. Pre-render indexed documents
+            files_pills = "".join([f'<div class="file-pill">📄 {Path(f).name}</div>' for f in indexed_files]) or '<div class="file-pill">📄 Knowledge Base Documents</div>'
+            content = content.replace('Loading documents...', files_pills)
+            
+            # 4. Hide redundant download ZIP card inside standalone package
+            content = content.replace('<div class="panel-title">Standalone Package</div>', '<div class="panel-title" style="display:none;"></div>')
+            content = content.replace('id="download-zip-btn" class="btn-download-zip"', 'id="download-zip-btn" class="btn-download-zip" style="display:none;"')
+            
+            # 5. Fix relative static paths
+            content = content.replace('url(\'/static/assets/skytextured.jpg\')', 'linear-gradient(135deg, #090c15 0%, #151b2e 100%)')
+            content = content.replace('/static/assets/favicon.png', '')
+            content = content.replace('/static/assets/favicon.ico', '')
+            
             return content
         return f"<h1>Production RAG Assistant ({model_name})</h1>"
 
@@ -438,9 +479,6 @@ if not env_ready:
     print("\\n[1/2] Installing Python dependencies (Streaming live progress)...")
     req_file = "requirements.txt"
     if os.path.exists(req_file):
-        with open(req_file, "r") as f:
-            target_pkgs = [l.strip().split(">=")[0].split("==")[0] for l in f if l.strip() and not l.startswith("#")]
-        
         process = subprocess.Popen(
             [sys.executable, "-m", "pip", "install", "-r", req_file, "--progress-bar", "on"],
             stdout=subprocess.PIPE,
@@ -526,20 +564,18 @@ print("\\n[*] Starting Production Assistant on http://localhost:8000 ...\\n")
         return f'''# Standalone Production RAG Assistant
 
 This package contains your turnkey, fully-indexed RAG assistant with:
-- **Instant 1-Click Launch (starts in <1s once cached)**
+- **Direct Launch into Chat Playground (Bypasses Studio/Training screen completely)**
 - **Pre-Indexed Vector Database (ChromaDB)**
 - **Multi-Turn Conversation Memory & LocalStorage Persistence**
 - **Attention-Weighted Reranking & Anti-Hallucination Guardrails**
 - **Multimodal Visual Diagram Analysis & Image Search**
-- **Direct-Launch Chatbot UI with Live Download & Install Progress Bar**
+- **Instant 1-Click Launch (starts in <1s once cached)**
 
 ---
 
 ## 1-Click Launch (Windows)
 1. Double-click **`run.bat`**.
-2. If dependencies or models are already installed, it launches **instantly in < 1 second**!
-3. If first-time run, it streams live package installation and download progress with speed and ETA.
-4. Your default browser will automatically open straight into the **Chat Assistant** at **`http://localhost:8000`**!
+2. Your browser will automatically open straight into the **Chat Playground** with all your documents and memory ready!
 
 ---
 
@@ -549,7 +585,7 @@ This package contains your turnkey, fully-indexed RAG assistant with:
    chmod +x run.sh
    ./run.sh
    ```
-2. Open **`http://localhost:8000`** in your browser.
+2. Open the URL shown in the terminal in your browser.
 
 ---
 
@@ -575,12 +611,13 @@ docker compose up --build
                 if img_file.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp", ".bmp"]:
                     shutil.copy2(img_file, images_dest / img_file.name)
 
+        # Write Standalone Server, Hydrated Direct Chat UI & Installer
         (bundle_dir / "server.py").write_text(
             self._generate_standalone_server_code(session.model_name, "all-MiniLM-L6-v2", session.indexed_files),
             encoding="utf-8"
         )
         (bundle_dir / "index.html").write_text(
-            self._generate_standalone_ui(session.model_name, session.session_id),
+            self._generate_standalone_ui(session.model_name, session.session_id, session.indexed_files),
             encoding="utf-8"
         )
         (bundle_dir / "setup.py").write_text(
@@ -599,6 +636,7 @@ docker compose up --build
         )
         (bundle_dir / "requirements.txt").write_text(requirements_txt, encoding="utf-8")
 
+        # Write run.bat (Instant Launch with direct Chatbot server execution)
         run_bat = (
             "@echo off\n"
             "setlocal enabledelayedexpansion\n"
@@ -607,30 +645,29 @@ docker compose up --build
             ":: 1. Fast check if active python environment already has required modules\n"
             "python -c \"import fastapi, chromadb, sentence_transformers, httpx\" 2>nul\n"
             "if %errorlevel% equ 0 (\n"
-            "    echo [OK] System environment has all packages cached. Launching server directly...\n"
-            "    start http://localhost:8000\n"
+            "    echo [OK] System environment has all packages cached. Launching Chatbot Assistant...\n"
             "    python server.py\n"
             "    exit /b\n"
             ")\n"
             "\n"
             ":: 2. Otherwise create venv inheriting system site packages if available\n"
             "if not exist .venv (\n"
-            "    echo [1/3] Setting up local environment...\n"
+            "    echo [1/2] Setting up local environment...\n"
             "    python -m venv --system-site-packages .venv\n"
             ")\n"
             "call .venv\\Scripts\\activate.bat\n"
             "python setup.py\n"
-            "start http://localhost:8000\n"
             "python server.py\n"
             "pause\n"
         )
         (bundle_dir / "run.bat").write_text(run_bat, encoding="utf-8")
 
+        # Write run.sh (Linux/Mac Launcher)
         run_sh = (
             "#!/bin/bash\n"
             "python3 -c \"import fastapi, chromadb, sentence_transformers, httpx\" 2>/dev/null\n"
             "if [ $? -eq 0 ]; then\n"
-            "    echo '[OK] System environment has all packages cached. Launching server...'\n"
+            "    echo '[OK] System environment has all packages cached. Launching Chatbot Assistant...'\n"
             "    python3 server.py\n"
             "    exit 0\n"
             "fi\n"
