@@ -63,7 +63,7 @@ def docs_page():
 
 @app.get("/portal/{session_id}", response_class=HTMLResponse)
 def portal(session_id: str):
-    html_path = Path("./web/templates/portal.html")
+    html_path = ROOT_DIR / "web" / "templates" / "portal.html"
     if html_path.exists():
         return html_path.read_text(encoding="utf-8")
     return f"<h1>Ephemeral Portal for Session: {session_id}</h1>"
