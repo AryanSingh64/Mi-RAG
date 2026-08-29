@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Mi:RAG Documentation — Architecture & Engineering Specs</title>
+  <title>Mi:RAG Documentation — Architecture, Quickstart & Engineering Guide</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="icon" type="image/x-icon" href="/static/assets/favicon.ico">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ff2d87' stroke='%23000000' stroke-width='1.5'%3E%3Cpath d='M13 2L3 14h9l-1 8 10-12h-9l1-8z'/%3E%3C/svg%3E">
   <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/favicon.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Space+Grotesk:wght@600;700;800;900&family=Anton&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&family=Space+Grotesk:wght@600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
   
   <style>
     :root {
@@ -19,9 +20,12 @@
       --green: #2be26c;
       --cyan: #00d2ff;
       --purple: #7a3cf4;
+      --card-bg: #ffffff;
       --border-thick: 2.5px solid #000000;
       --shadow-neo: 4px 4px 0px #000000;
       --shadow-neo-lg: 8px 8px 0px #000000;
+      --text: #0f172a;
+      --text-muted: #64748b;
     }
 
     * {
@@ -35,11 +39,11 @@
       cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='%23ff2d87' stroke='%23000000' stroke-width='1.5' stroke-linejoin='round'%3E%3Cpath d='M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.54.35-.85L6.35 2.85a.5.5 0 0 0-.85.36z'/%3E%3C/svg%3E") 5 3, auto !important;
     }
 
-    button, a, input, select, textarea, [role="button"], .btn-header-cta, .sidebar-link {
+    button, a, input, select, textarea, [role="button"], .btn-cta, .sidebar-link, .code-copy-btn {
       cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='%23ffe814' stroke='%23000000' stroke-width='1.5' stroke-linejoin='round'%3E%3Cpath d='M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.54.35-.85L6.35 2.85a.5.5 0 0 0-.85.36z'/%3E%3C/svg%3E") 5 3, pointer !important;
     }
 
-    /* Figma Multi-User Contextual Hover Tag (Desktop Only) */
+    /* Figma Multi-User Contextual Nametag */
     #figma-nametag {
       position: fixed;
       top: 0;
@@ -75,14 +79,19 @@
       html, body, button, a, input { cursor: auto !important; }
     }
 
+    ::selection {
+      background: var(--yellow);
+      color: #000000;
+    }
+
     body {
       background-color: #070a12;
-      background-image: url('/static/assets/skytextured.jpg');
+      background-image: url('/static/assets/skytextured.jpg'), linear-gradient(135deg, #090c15 0%, #151b2e 100%);
       background-size: cover;
       background-position: center top;
       background-repeat: no-repeat;
       background-attachment: fixed;
-      color: #000000;
+      color: var(--text);
       font-family: 'Plus Jakarta Sans', sans-serif;
       overflow-x: hidden;
       scroll-behavior: smooth;
@@ -90,28 +99,31 @@
 
     /* Header */
     header {
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(255, 255, 255, 0.96);
       backdrop-filter: blur(10px);
       border-bottom: var(--border-thick);
-      padding: 1.25rem 2.5rem;
+      padding: 1rem 2.5rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
       position: sticky;
       top: 0;
       z-index: 1000;
+      box-shadow: var(--shadow-neo);
     }
 
     .brand-link {
       display: flex;
       align-items: center;
+      gap: 0.85rem;
       text-decoration: none;
+      color: #000;
     }
 
     .brand-logo-img {
-      height: 48px;
+      height: 42px;
       width: auto;
-      object-fit: contain;
+      display: block;
     }
 
     .nav-links {
@@ -121,94 +133,109 @@
     }
 
     .nav-item {
+      color: #0f172a;
       text-decoration: none;
-      color: #000;
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 800;
-      font-size: 0.9rem;
-      transition: color 0.15s;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: color 0.15s ease;
     }
 
     .nav-item:hover {
       color: var(--pink);
     }
 
-    .btn-header-cta {
-      background: var(--yellow);
-      color: #000;
-      text-decoration: none;
+    .btn-cta {
+      background: var(--pink);
+      color: #ffffff;
+      border: var(--border-thick);
+      box-shadow: 3px 3px 0px #000000;
+      border-radius: 6px;
+      padding: 0.55rem 1.25rem;
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 900;
       font-size: 0.85rem;
-      padding: 0.6rem 1.4rem;
-      border-radius: 999px;
-      border: var(--border-thick);
-      box-shadow: 3px 3px 0px #000;
-      transition: all 0.15s;
-      display: inline-flex;
+      text-decoration: none;
+      text-transform: uppercase;
+      display: flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.5rem;
+      transition: all 0.12s ease;
     }
 
-    .btn-header-cta:hover {
+    .btn-cta:hover {
       transform: translate(-2px, -2px);
-      box-shadow: 5px 5px 0px #000;
-      background: #facc15;
+      box-shadow: 5px 5px 0px #000000;
+      background: #e00067;
     }
 
-    /* Layout Wrapper */
+    /* Layout */
     .docs-layout {
-      max-width: 1280px;
-      margin: 2.5rem auto 4rem;
-      padding: 0 1.5rem;
+      max-width: 1380px;
+      margin: 2.5rem auto 5rem;
+      padding: 0 2rem;
       display: grid;
-      grid-template-columns: 280px 1fr;
+      grid-template-columns: 290px 1fr;
       gap: 2.5rem;
       align-items: start;
     }
 
-    /* Sticky Sidebar Navigation */
+    /* Sidebar */
     .docs-sidebar {
-      background: #ffffff;
+      background: rgba(255, 255, 255, 0.98);
       border: var(--border-thick);
       border-radius: 12px;
-      box-shadow: var(--shadow-neo-lg);
-      padding: 1.5rem;
+      box-shadow: var(--shadow-neo);
+      padding: 1.5rem 1.25rem;
       position: sticky;
-      top: 100px;
+      top: 90px;
       max-height: calc(100vh - 120px);
       overflow-y: auto;
     }
 
     .sidebar-heading {
       font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.75rem;
       font-weight: 900;
-      font-size: 0.82rem;
-      letter-spacing: 1px;
-      color: #64748b;
       text-transform: uppercase;
-      margin-bottom: 0.85rem;
+      color: var(--text-muted);
+      letter-spacing: 0.8px;
+      margin: 1.25rem 0 0.5rem 0.5rem;
+    }
+
+    .sidebar-heading:first-child {
+      margin-top: 0;
     }
 
     .sidebar-nav-list {
       list-style: none;
       display: flex;
       flex-direction: column;
-      gap: 0.35rem;
-      margin-bottom: 1.5rem;
+      gap: 0.25rem;
     }
 
     .sidebar-link {
-      display: block;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
       text-decoration: none;
-      color: #0f172a;
+      color: #1e293b;
       font-family: 'Space Grotesk', sans-serif;
-      font-weight: 800;
-      font-size: 0.9rem;
-      padding: 0.5rem 0.75rem;
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 0.55rem 0.75rem;
       border-radius: 6px;
-      transition: all 0.15s;
+      transition: all 0.15s ease;
       border: 1.5px solid transparent;
+    }
+
+    .sidebar-link svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
     }
 
     .sidebar-link:hover {
@@ -224,7 +251,7 @@
       box-shadow: 2px 2px 0px #000;
     }
 
-    /* Main Docs Content */
+    /* Content Cards */
     .docs-content {
       display: flex;
       flex-direction: column;
@@ -234,134 +261,193 @@
     .docs-card {
       background: #ffffff;
       border: var(--border-thick);
-      border-radius: 14px;
+      border-radius: 12px;
       box-shadow: var(--shadow-neo-lg);
-      padding: 2.5rem;
+      padding: 2.25rem;
       position: relative;
     }
 
-    .card-badge-pill {
-      display: inline-block;
+    .card-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
       background: var(--pink);
       color: #ffffff;
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 900;
-      font-size: 0.75rem;
-      letter-spacing: 0.5px;
+      font-size: 0.72rem;
+      letter-spacing: 0.6px;
       padding: 0.3rem 0.75rem;
       border-radius: 4px;
       border: 1.5px solid #000;
       box-shadow: 2px 2px 0px #000;
-      margin-bottom: 1rem;
+      margin-bottom: 1.1rem;
+      text-transform: uppercase;
     }
+
+    .card-badge.yellow { background: var(--yellow); color: #000; }
+    .card-badge.green { background: var(--green); color: #000; }
+    .card-badge.cyan { background: var(--cyan); color: #000; }
+    .card-badge.purple { background: var(--purple); color: #fff; }
 
     .docs-title {
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 900;
-      font-size: clamp(1.8rem, 3.5vw, 2.5rem);
-      letter-spacing: -1px;
-      margin-bottom: 1rem;
-      line-height: 1.15;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      letter-spacing: -0.8px;
+      margin-bottom: 0.85rem;
+      line-height: 1.2;
+      color: #090c15;
     }
 
     .docs-p {
-      font-size: 1rem;
+      font-size: 0.96rem;
       line-height: 1.65;
-      color: #1e293b;
+      color: #334155;
       font-weight: 600;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
     }
 
     .docs-h2 {
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 900;
-      font-size: 1.45rem;
-      letter-spacing: -0.5px;
-      margin: 2rem 0 0.85rem;
+      font-size: 1.25rem;
+      letter-spacing: -0.4px;
+      margin: 1.75rem 0 0.75rem;
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      color: #000;
     }
 
     /* Code Snippets */
+    .code-container {
+      position: relative;
+      margin: 1rem 0 1.5rem;
+    }
+
     .code-block {
       background: #090c15;
       color: #f8fafc;
       border: var(--border-thick);
       border-radius: 8px;
-      padding: 1.25rem 1.5rem;
+      padding: 1.15rem 1.4rem;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       line-height: 1.6;
       overflow-x: auto;
-      margin: 1rem 0 1.5rem;
       box-shadow: 4px 4px 0px #000;
-      user-select: all;
     }
 
-    .code-block .cmd-highlight {
+    .code-copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1.5px solid #475569;
+      border-radius: 4px;
+      padding: 0.3rem 0.6rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.12s;
+    }
+
+    .code-copy-btn:hover {
+      background: var(--yellow);
+      color: #000;
+      border-color: #000;
+    }
+
+    .cmd-highlight {
       color: var(--yellow);
       font-weight: 700;
     }
 
-    .code-block .cmd-comment {
+    .cmd-comment {
       color: #64748b;
     }
 
-    /* Feature Grid inside Docs */
-    .docs-spec-grid {
+    /* Grids & Cards */
+    .spec-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 1.25rem;
-      margin: 1.5rem 0;
+      gap: 1.15rem;
+      margin: 1.25rem 0;
     }
 
     .spec-item {
       background: #f8fafc;
       border: 2px solid #000;
       border-radius: 8px;
-      padding: 1.15rem;
+      padding: 1.1rem;
       box-shadow: 3px 3px 0px #000;
+    }
+
+    .spec-icon-wrapper {
+      width: 32px;
+      height: 32px;
+      border: 1.5px solid #000;
+      border-radius: 6px;
+      background: var(--yellow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.65rem;
+      box-shadow: 2px 2px 0px #000;
     }
 
     .spec-title {
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 900;
-      font-size: 0.95rem;
-      margin-bottom: 0.35rem;
+      font-size: 0.92rem;
+      margin-bottom: 0.3rem;
       color: #000;
     }
 
     .spec-desc {
-      font-size: 0.85rem;
+      font-size: 0.84rem;
       color: #475569;
       line-height: 1.45;
       font-weight: 600;
     }
 
-    /* Endpoint Table */
+    /* API Tables */
+    .api-table-wrapper {
+      overflow-x: auto;
+      border: var(--border-thick);
+      border-radius: 8px;
+      box-shadow: var(--shadow-neo);
+      margin: 1.25rem 0;
+    }
+
     .api-table {
       width: 100%;
       border-collapse: collapse;
-      margin: 1.5rem 0;
+      background: #fff;
       font-family: 'Space Grotesk', sans-serif;
     }
 
     .api-table th {
-      background: #000;
+      background: #090c15;
       color: #fff;
       text-align: left;
       padding: 0.75rem 1rem;
       font-weight: 900;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       letter-spacing: 0.5px;
     }
 
     .api-table td {
       padding: 0.85rem 1rem;
-      border-bottom: 2px solid #e2e8f0;
-      font-size: 0.88rem;
+      border-bottom: 1.5px solid #e2e8f0;
+      font-size: 0.85rem;
       font-weight: 700;
+      color: #1e293b;
     }
 
     .api-table tr:last-child td {
@@ -373,8 +459,8 @@
       padding: 0.2rem 0.5rem;
       border-radius: 4px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
-      font-weight: 800;
+      font-size: 0.72rem;
+      font-weight: 900;
       border: 1.5px solid #000;
     }
 
@@ -383,73 +469,69 @@
 
     /* Footer */
     footer {
-      background: #000000;
+      background: #090c15;
       color: #ffffff;
       border-top: var(--border-thick);
       padding: 2.5rem 1.5rem;
       text-align: center;
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 700;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
     }
 
-    /* Mobile / Tablet Responsive */
-    @media (max-width: 900px) {
+    /* Responsive */
+    @media (max-width: 960px) {
       header {
-        padding: 1rem 1.25rem;
+        padding: 0.85rem 1.25rem;
       }
-      .brand-logo-img { height: 40px; }
+      .brand-logo-img { height: 36px; }
       .nav-links { display: none; }
-      
       .docs-layout {
         grid-template-columns: 1fr;
         gap: 1.5rem;
         margin: 1.5rem auto 3rem;
         padding: 0 1rem;
       }
-
       .docs-sidebar {
         position: relative;
         top: 0;
         max-height: none;
         padding: 1.25rem;
       }
-
       .docs-card {
         padding: 1.5rem 1.25rem;
-      }
-
-      .docs-title {
-        font-size: 1.75rem;
-      }
-
-      .docs-h2 {
-        font-size: 1.25rem;
-      }
-
-      .api-table {
-        display: block;
-        overflow-x: auto;
       }
     }
   </style>
 </head>
 <body>
 
-  <!-- Multi-User Figma Nametag (Desktop) -->
+  <!-- Multi-User Figma Nametag -->
   <div id="figma-nametag">Aryan [Docs]</div>
 
   <!-- Header -->
   <header>
-    <a href="/" class="brand-link">
+    <a href="/" class="brand-link" data-cursor="Mi:RAG Home">
       <img src="/static/assets/logo.png" class="brand-logo-img" alt="Mi:RAG Logo">
     </a>
 
     <nav class="nav-links">
-      <a href="/" class="nav-item">Home</a>
-      <a href="/docs" class="nav-item" style="color:var(--pink);">Documentation</a>
-      <a href="https://github.com/AryanSingh64/Mi-RAG" target="_blank" class="nav-item">GitHub</a>
-      <a href="/" class="btn-header-cta">Back to Home</a>
+      <a href="/" class="nav-item" data-cursor="Go to Home">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        Home
+      </a>
+      <a href="/docs" class="nav-item" style="color:var(--pink);" data-cursor="Documentation">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+        Docs
+      </a>
+      <a href="https://github.com/AryanSingh64/Mi-RAG" target="_blank" class="nav-item" data-cursor="View on GitHub">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+        GitHub
+      </a>
+      <a href="/app" class="btn-cta" data-cursor="Open Playground">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        Launch Studio
+      </a>
     </nav>
   </header>
 
@@ -460,186 +542,306 @@
     <aside class="docs-sidebar">
       <div class="sidebar-heading">Getting Started</div>
       <ul class="sidebar-nav-list">
-        <li><a href="#quickstart" class="sidebar-link active">1-Line CLI Quickstart</a></li>
-        <li><a href="#architecture" class="sidebar-link">Engine Architecture</a></li>
+        <li>
+          <a href="#quickstart" class="sidebar-link active" data-cursor="1-Line Setup">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+            1-Line Quickstart
+          </a>
+        </li>
+        <li>
+          <a href="#architecture" class="sidebar-link" data-cursor="Architecture">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+            Engine Architecture
+          </a>
+        </li>
       </ul>
 
-      <div class="sidebar-heading">Core Systems</div>
+      <div class="sidebar-heading">Core Capabilities</div>
       <ul class="sidebar-nav-list">
-        <li><a href="#hardware" class="sidebar-link">Hardware Auto-Tuning</a></li>
-        <li><a href="#multimodal" class="sidebar-link">Layout & Diagram Parser</a></li>
-        <li><a href="#guardrails" class="sidebar-link">Anti-Hallucination & Privacy</a></li>
-        <li><a href="#standalone" class="sidebar-link">Turnkey Standalone Export</a></li>
+        <li>
+          <a href="#hardware" class="sidebar-link" data-cursor="Hardware Auto-Tuning">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+            Hardware Auto-Tuning
+          </a>
+        </li>
+        <li>
+          <a href="#multimodal" class="sidebar-link" data-cursor="Multimodal OCR">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            Diagram & Visual Parser
+          </a>
+        </li>
+        <li>
+          <a href="#guardrails" class="sidebar-link" data-cursor="Security & Memory">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            Anti-Hallucination & Privacy
+          </a>
+        </li>
+        <li>
+          <a href="#standalone" class="sidebar-link" data-cursor="Offline Export">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Turnkey Standalone Export
+          </a>
+        </li>
       </ul>
 
       <div class="sidebar-heading">Developers</div>
       <ul class="sidebar-nav-list">
-        <li><a href="#api" class="sidebar-link">REST API Endpoints</a></li>
-        <li><a href="https://github.com/AryanSingh64/Mi-RAG" target="_blank" class="sidebar-link">GitHub Repository ↗</a></li>
+        <li>
+          <a href="#api" class="sidebar-link" data-cursor="REST API Endpoints">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+            REST API Reference
+          </a>
+        </li>
+        <li>
+          <a href="https://github.com/AryanSingh64/Mi-RAG" target="_blank" class="sidebar-link" data-cursor="GitHub Repository">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            GitHub Repository
+          </a>
+        </li>
       </ul>
     </aside>
 
-    <!-- Main Documentation Articles -->
+    <!-- Main Content -->
     <main class="docs-content">
 
-      <!-- Section: Quickstart -->
+      <!-- Quickstart -->
       <article class="docs-card" id="quickstart">
-        <span class="card-badge-pill">GETTING STARTED</span>
-        <h1 class="docs-title">1-Line Quickstart & CLI Launch</h1>
+        <span class="card-badge">QUICKSTART</span>
+        <h1 class="docs-title">1-Line Setup & CLI Installation</h1>
         <p class="docs-p">
-          Mi:RAG is designed to be completely turnkey. You do not need to install complex databases, build Docker containers, or configure cloud API keys. A single PowerShell command bootstraps your environment, verifies Ollama, downloads lightweight local embedding weights, and starts the microservice.
+          Mi:RAG is an autonomous, multimodal local RAG generator. It indexes PDFs, Word documents, and images entirely on your local machine with zero external cloud subscriptions or API keys required.
         </p>
 
-        <h2 class="docs-h2">Windows Launch Command</h2>
-        <div class="code-block">
-<span class="cmd-comment"># Run in PowerShell (Windows 10/11)</span>
-<span class="cmd-highlight">irm https://mirag.me/install | iex</span>
+        <h2 class="docs-h2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+          Windows 1-Line Installer
+        </h2>
+        <div class="code-container">
+          <button class="code-copy-btn" onclick="copyCode(this, 'irm https://mirag.me/install | iex')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            Copy
+          </button>
+          <pre class="code-block"><span class="cmd-comment"># Run in PowerShell (Windows 10 or 11)</span>
+<span class="cmd-highlight">irm https://mirag.me/install | iex</span></pre>
         </div>
 
-        <h2 class="docs-h2">What Happens During Installation:</h2>
-        <div class="docs-spec-grid">
+        <h2 class="docs-h2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+          Manual Installation (Git / All Platforms)
+        </h2>
+        <div class="code-container">
+          <button class="code-copy-btn" onclick="copyCode(this, 'git clone https://github.com/AryanSingh64/Mi-RAG.git\ncd Mi-RAG\npip install -r requirements.txt\npython run_factory.py')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            Copy
+          </button>
+          <pre class="code-block"><span class="cmd-comment"># Clone and start the factory server</span>
+git clone https://github.com/AryanSingh64/Mi-RAG.git
+cd Mi-RAG
+pip install -r requirements.txt
+python run_factory.py</pre>
+        </div>
+
+        <div class="spec-grid">
           <div class="spec-item">
-            <div class="spec-title">1. Hardware Detection</div>
-            <div class="spec-desc">Checks available NVIDIA VRAM, Apple MPS, or CPU thread count and selects the optimal quantization tier.</div>
+            <div class="spec-icon-wrapper">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            <div class="spec-title">Automatic Hardware Check</div>
+            <div class="spec-desc">Detects available NVIDIA VRAM, Apple Silicon MPS, or CPU cores to configure quantization.</div>
           </div>
           <div class="spec-item">
-            <div class="spec-title">2. Embedding Weights</div>
-            <div class="spec-desc">Caches all-MiniLM-L6-v2 locally (80MB) for ultra-fast on-device 384-dimensional vector embeddings.</div>
+            <div class="spec-icon-wrapper" style="background:var(--cyan);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </div>
+            <div class="spec-title">Local Weight Caching</div>
+            <div class="spec-desc">Downloads lightweight on-device embedding weights (all-MiniLM-L6-v2, 80MB) once.</div>
           </div>
           <div class="spec-item">
-            <div class="spec-title">3. Engine Launch</div>
-            <div class="spec-desc">Spins up the private RAG playground and REST API at <strong>http://localhost:8000</strong>.</div>
+            <div class="spec-icon-wrapper" style="background:var(--green);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </div>
+            <div class="spec-title">Instant Browser Launch</div>
+            <div class="spec-desc">Launches the factory web studio on <strong>http://localhost:8000</strong> automatically.</div>
           </div>
         </div>
       </article>
 
-      <!-- Section: Architecture -->
+      <!-- Architecture -->
       <article class="docs-card" id="architecture">
-        <span class="card-badge-pill" style="background:var(--yellow); color:#000;">SYSTEM DESIGN</span>
-        <h1 class="docs-title">Engine Architecture</h1>
+        <span class="card-badge yellow">SYSTEM ARCHITECTURE</span>
+        <h1 class="docs-title">4-Stage Pipeline Lifecycle</h1>
         <p class="docs-p">
-          Mi:RAG operates on a multi-stage, anti-hallucination grounded pipeline designed to eliminate hallucinations and extract both textual knowledge and visual diagrams from real-world documents.
+          Mi:RAG uses a multi-tier pipeline engineered to prevent hallucinations while extracting textual information, mathematical formulas, and visual diagrams:
         </p>
 
-        <h2 class="docs-h2">The Complete Ingestion & Retrieval Lifecycle</h2>
-        <div class="code-block">
-1. INGESTION  : PDF / Word / Images -> PyMuPDF Vector Clustering + RapidOCR -> Semantic Page Chunks
-2. EMBEDDING  : Local Sentence-Transformers -> ChromaDB Vector Store with Metadata Linking
-3. QUERY TIME : User Prompt -> Dynamic HyDE Query Expansion -> Cosine Similarity Retrieval
-4. SYNTHESIS  : Ollama Local LLM (qwen2.5 / llama3.2) + Grounding Guardrails -> Answer + Cropped Diagram
+        <div class="code-container">
+          <pre class="code-block">1. INGESTION  : PDF / Word / Images -> PyMuPDF Vector Clustering + RapidOCR -> Semantic Chunks
+2. EMBEDDING  : Local SentenceTransformer -> Embedded ChromaDB Vector Store
+3. RETRIEVAL  : Multi-Turn Query Attention + HyDE Expansion -> Top-K Semantic Chunks
+4. SYNTHESIS  : Local Ollama LLM + Grounding Verification -> Answer + Visual Evidence Diagrams</pre>
         </div>
       </article>
 
-      <!-- Section: Hardware Auto-Tuning -->
+      <!-- Hardware Auto-Tuning -->
       <article class="docs-card" id="hardware">
-        <span class="card-badge-pill" style="background:var(--cyan); color:#000;">PERFORMANCE</span>
+        <span class="card-badge cyan">COMPUTE PROFILING</span>
         <h1 class="docs-title">Hardware Auto-Tuning</h1>
         <p class="docs-p">
-          Different machines have different compute constraints. Mi:RAG features an intelligent hardware detector that tunes models and chunk batching automatically based on your hardware profile:
+          Rather than failing on resource-constrained machines, the hardware engine automatically scales quantization and model parameters to fit your machine's exact specifications:
         </p>
 
-        <div class="docs-spec-grid">
+        <div class="spec-grid">
           <div class="spec-item">
-            <div class="spec-title">Tier 1: High VRAM (>= 12GB)</div>
-            <div class="spec-desc">Runs Qwen2.5 (7B/14B) + Qwen2.5-VL Vision Ensemble at FP16 precision.</div>
+            <div class="spec-icon-wrapper" style="background:var(--pink); color:#fff;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            </div>
+            <div class="spec-title">High VRAM (>= 12GB)</div>
+            <div class="spec-desc">Runs Qwen2.5 (7B / 14B) with full context windows and high-resolution visual processing.</div>
           </div>
           <div class="spec-item">
-            <div class="spec-title">Tier 2: Mid-Range (6GB - 11GB)</div>
-            <div class="spec-desc">Runs Llama3.2 (3B) + Moondream2 vision model with Q4_K_M quantization.</div>
+            <div class="spec-icon-wrapper" style="background:var(--yellow);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+            </div>
+            <div class="spec-title">Mid-Range (6GB - 11GB)</div>
+            <div class="spec-desc">Selects Llama3.2 (3B) with Q4_K_M quantization for rapid inference and low memory overhead.</div>
           </div>
           <div class="spec-item">
-            <div class="spec-title">Tier 3: CPU Only / Ultrabook</div>
-            <div class="spec-desc">Runs Qwen2.5 (1.5B/3B) + CPU ONNX RapidOCR with multi-threaded chunking.</div>
+            <div class="spec-icon-wrapper" style="background:var(--green);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+            </div>
+            <div class="spec-title">CPU Only / Ultrabook</div>
+            <div class="spec-desc">Employs CPU ONNX runtime, multi-threaded batching, and lightweight 1.5B/3B models.</div>
           </div>
         </div>
       </article>
 
-      <!-- Section: Multimodal Parser -->
+      <!-- Multimodal Parser -->
       <article class="docs-card" id="multimodal">
-        <span class="card-badge-pill" style="background:var(--purple); color:#fff;">MULTIMODAL</span>
-        <h1 class="docs-title">Layout & Vector Diagram Parser</h1>
+        <span class="card-badge purple">MULTIMODAL</span>
+        <h1 class="docs-title">Vector Diagram & OCR Parser</h1>
         <p class="docs-p">
-          Traditional RAG parsers treat PDFs as plain ASCII text, completely ignoring LaTeX figures, vector diagrams, flowcharts, and tables. Mi:RAG introduces an object-level DiagramDetector built on PyMuPDF.
+          Standard RAG solutions discard charts, flowcharts, and math formulas by stripping PDFs down to plain text. Mi:RAG uses an object-level layout detector to isolate, crop, and index diagrams alongside text.
         </p>
 
-        <h2 class="docs-h2">Key Parser Capabilities</h2>
-        <div class="docs-spec-grid">
+        <div class="spec-grid">
           <div class="spec-item">
-            <div class="spec-title">Vector Drawing Detection</div>
-            <div class="spec-desc">Groups lines, rectangles, arrows, and curves to isolate architectural diagrams.</div>
+            <div class="spec-title">Vector Shape Clustering</div>
+            <div class="spec-desc">Detects architectural diagrams, graphs, and drawings from raw page vectors.</div>
           </div>
           <div class="spec-item">
-            <div class="spec-title">Caption Proximity Matching</div>
-            <div class="spec-desc">Associates diagram bounding boxes with captions like <em>Fig. 3: SSRL Method</em>.</div>
+            <div class="spec-title">Proximity Caption Matching</div>
+            <div class="spec-desc">Matches diagram bounding boxes to nearby figure captions (e.g. <em>Figure 2: Architecture Overview</em>).</div>
           </div>
           <div class="spec-item">
-            <div class="spec-title">High-Res Cropping</div>
-            <div class="spec-desc">Crops only the exact 200 DPI diagram box and serves it as an interactive visual card in chat.</div>
+            <div class="spec-title">Reverse Image Search</div>
+            <div class="spec-desc">Allows users to paste or upload an image (Ctrl+V) to find matching diagrams and formulas across documents.</div>
           </div>
         </div>
       </article>
 
-      <!-- Section: Guardrails -->
+      <!-- Anti-Hallucination & Privacy -->
       <article class="docs-card" id="guardrails">
-        <span class="card-badge-pill" style="background:var(--green); color:#000;">SECURITY & PRIVACY</span>
-        <h1 class="docs-title">Anti-Hallucination & Local Privacy</h1>
+        <span class="card-badge green">PRIVACY & GUARDRAILS</span>
+        <h1 class="docs-title">Anti-Hallucination & Local Privacy Directives</h1>
         <p class="docs-p">
-          Cloud AI models frequently refuse private document analysis (such as Aadhaar cards, passports, and resumes) due to generic public guardrails. Mi:RAG is designed strictly for private, on-premise execution.
+          Cloud models frequently reject identity documents (passports, tax filings, resumes) due to public cloud restrictions. Mi:RAG is strictly on-premise and applies verifiable citation verification.
         </p>
 
-        <h2 class="docs-h2">Local Authorization Directive</h2>
-        <div class="code-block">
-"LOCAL PRIVACY & AUTHORIZATION DIRECTIVE:
-All documents, identity cards (Aadhaar, passports), and resumes are uploaded by the authorized user
-in a strictly offline, private local environment. You are explicitly authorized to analyze,
-transcribe, extract, and answer questions about any identity or personal details present in the context."
+        <h2 class="docs-h2">Anti-Hallucination Verification</h2>
+        <p class="docs-p">
+          Every generated response is cross-checked against retrieved source chunks. Answers unsupported by source text are flagged with confidence metrics and grounded badges.
+        </p>
+      </article>
+
+      <!-- Standalone Export -->
+      <article class="docs-card" id="standalone">
+        <span class="card-badge">DEPLOYMENT</span>
+        <h1 class="docs-title">Turnkey Standalone Export</h1>
+        <p class="docs-p">
+          Once your knowledge base is indexed in the factory studio, you can export a self-contained ZIP bundle that operates entirely offline with zero configuration:
+        </p>
+
+        <h2 class="docs-h2">What's Inside the Exported Bundle:</h2>
+        <div class="spec-grid">
+          <div class="spec-item">
+            <div class="spec-title">vector_db/</div>
+            <div class="spec-desc">Pre-indexed ChromaDB vector database with all document embeddings.</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-title">images/</div>
+            <div class="spec-desc">Extracted high-resolution diagram crops and figures ready for visual search.</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-title">run.bat & run.sh</div>
+            <div class="spec-desc">1-click launchers with system package cache detection for startup under 0.1s.</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-title">server.py & index.html</div>
+            <div class="spec-desc">Standalone FastAPI microservice with persistent LocalStorage auto-save and Quit controls.</div>
+          </div>
+        </div>
+
+        <h2 class="docs-h2">Running Your Standalone Package</h2>
+        <div class="code-container">
+          <button class="code-copy-btn" onclick="copyCode(this, 'run.bat')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            Copy
+          </button>
+          <pre class="code-block"><span class="cmd-comment"># On Windows: Double-click or run from terminal</span>
+run.bat
+
+<span class="cmd-comment"># On Linux or macOS:</span>
+chmod +x run.sh
+./run.sh</pre>
         </div>
       </article>
 
-      <!-- Section: REST API Reference -->
+      <!-- REST API Reference -->
       <article class="docs-card" id="api">
-        <span class="card-badge-pill">DEVELOPERS</span>
-        <h1 class="docs-title">REST API Endpoints</h1>
+        <span class="card-badge yellow">DEVELOPERS</span>
+        <h1 class="docs-title">REST API Reference</h1>
         <p class="docs-p">
-          Integrate your local Mi:RAG engine with any external frontend, Discord bot, or web application using clean REST API endpoints:
+          Integrate the Mi:RAG engine into your own frontends, Discord bots, or internal tools using the standard REST API:
         </p>
 
-        <table class="api-table">
-          <thead>
-            <tr>
-              <th>Method</th>
-              <th>Endpoint</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><span class="badge-method badge-post">POST</span></td>
-              <td><code>/api/sessions/create</code></td>
-              <td>Creates a private temporary knowledge session with isolated vector space.</td>
-            </tr>
-            <tr>
-              <td><span class="badge-method badge-post">POST</span></td>
-              <td><code>/api/sessions/{id}/upload</code></td>
-              <td>Uploads and parses a PDF, Word document, or image with multimodal OCR.</td>
-            </tr>
-            <tr>
-              <td><span class="badge-method badge-post">POST</span></td>
-              <td><code>/api/sessions/{id}/chat</code></td>
-              <td>Queries the knowledge base with grounded citations & visual diagram snippets.</td>
-            </tr>
-            <tr>
-              <td><span class="badge-method badge-get">GET</span></td>
-              <td><code>/api/sessions/{id}/images/{file}</code></td>
-              <td>Serves an extracted diagram, figure, or visual crop.</td>
-            </tr>
-            <tr>
-              <td><span class="badge-method badge-get">GET</span></td>
-              <td><code>/api/sessions/{id}/export</code></td>
-              <td>Downloads a standalone offline ZIP bundle containing pre-indexed vector DB.</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="api-table-wrapper">
+          <table class="api-table">
+            <thead>
+              <tr>
+                <th>Method</th>
+                <th>Endpoint</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="badge-method badge-post">POST</span></td>
+                <td><code>/api/sessions/create</code></td>
+                <td>Creates an isolated RAG session with private vector storage.</td>
+              </tr>
+              <tr>
+                <td><span class="badge-method badge-post">POST</span></td>
+                <td><code>/api/sessions/{id}/upload</code></td>
+                <td>Uploads and parses a PDF, Word document, or image.</td>
+              </tr>
+              <tr>
+                <td><span class="badge-method badge-post">POST</span></td>
+                <td><code>/api/sessions/{id}/chat</code></td>
+                <td>Submits a query with multi-turn memory and diagram matching.</td>
+              </tr>
+              <tr>
+                <td><span class="badge-method badge-get">GET</span></td>
+                <td><code>/api/sessions/{id}/export</code></td>
+                <td>Exports the turnkey standalone ZIP package.</td>
+              </tr>
+              <tr>
+                <td><span class="badge-method badge-post">POST</span></td>
+                <td><code>/api/shutdown</code></td>
+                <td>Gracefully stops and halts the local standalone server.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </article>
 
     </main>
@@ -648,11 +850,12 @@ transcribe, extract, and answer questions about any identity or personal details
 
   <!-- Footer -->
   <footer>
-    <div>Mi:RAG Engine — Autonomous Multimodal RAG-in-a-Box Factory</div>
-    <div style="margin-top: 0.5rem; color: #94a3b8; font-size: 0.8rem;">Open Source MIT License • Built by Aryan Singh</div>
+    <div>Mi:RAG Autonomous Multimodal RAG Engine</div>
+    <div style="margin-top: 0.4rem; color: #94a3b8; font-size: 0.8rem;">Open Source MIT License • Built by Aryan Singh</div>
   </footer>
 
   <script>
+    // Contextual cursor nametag
     const nameTag = document.getElementById('figma-nametag');
     if (nameTag && window.innerWidth > 900) {
       window.addEventListener('mousemove', (e) => {
@@ -677,6 +880,39 @@ transcribe, extract, and answer questions about any identity or personal details
         if (!e.relatedTarget || !e.relatedTarget.closest('[data-cursor], a, button, input, .spec-item, .docs-card')) {
           nameTag.classList.remove('visible');
         }
+      });
+    }
+
+    // Active sidebar link highlighting on scroll
+    window.addEventListener('scroll', () => {
+      const articles = document.querySelectorAll('.docs-card');
+      const navLinks = document.querySelectorAll('.sidebar-link');
+      let currentId = '';
+
+      articles.forEach((art) => {
+        const top = art.offsetTop - 120;
+        if (window.scrollY >= top) {
+          currentId = art.getAttribute('id');
+        }
+      });
+
+      navLinks.forEach((link) => {
+        if (link.getAttribute('href') === `#${currentId}`) {
+          link.classList.add('active');
+        } else if (link.getAttribute('href')?.startsWith('#')) {
+          link.classList.remove('active');
+        }
+      });
+    });
+
+    // Copy to clipboard helper
+    function copyCode(btn, text) {
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!';
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+        }, 2000);
       });
     }
   </script>
