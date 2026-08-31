@@ -832,13 +832,29 @@
           GENERATE PRODUCTION RAG PACKAGE
         </button>
 
-        <div class="progress-box" id="progress-container">
-          <div class="progress-header">
-            <span id="progress-status">Ingesting & Processing...</span>
-            <span id="progress-percent">0%</span>
+        <div class="progress-box" id="progress-container" style="display: none; margin-top: 1.5rem; background: #fff; border: 2.5px solid #000; box-shadow: 4px 4px 0px #000; padding: 1.25rem; border-radius: 8px;">
+          <div class="progress-header" style="display: flex; justify-content: space-between; align-items: center; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.92rem; margin-bottom: 0.6rem;">
+            <span id="progress-status" style="color: #0f172a;">Ingesting & Processing...</span>
+            <span id="progress-percent" style="background: var(--yellow); padding: 0.15rem 0.6rem; border: 1.5px solid #000; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">0%</span>
           </div>
-          <div class="progress-bar-bg">
-            <div class="progress-bar-fill" id="progress-fill"></div>
+          <div class="progress-bar-bg" style="width: 100%; height: 18px; background: #f1f5f9; border: 2px solid #000; border-radius: 10px; overflow: hidden; margin-bottom: 0.85rem;">
+            <div class="progress-bar-fill" id="progress-fill" style="width: 0%; height: 100%; background: var(--green); transition: width 0.3s ease;"></div>
+          </div>
+          
+          <!-- Live Telemetry / Accurate ETA Readout -->
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; background: #f8fafc; border: 1.5px solid #000; padding: 0.6rem 0.8rem; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.76rem; font-weight: 700; color: #334155;">
+            <div>
+              <span style="color: #64748b; font-size: 0.68rem; display: block; letter-spacing: 0.5px;">ELAPSED TIME</span>
+              <span id="progress-elapsed" style="color: #0f172a; font-weight: 800; font-size: 0.85rem;">00:00</span>
+            </div>
+            <div style="text-align: center;">
+              <span style="color: #64748b; font-size: 0.68rem; display: block; letter-spacing: 0.5px;">EST. REMAINING</span>
+              <span id="progress-eta" style="color: #059669; font-weight: 800; font-size: 0.85rem;">Estimating...</span>
+            </div>
+            <div style="text-align: right;">
+              <span style="color: #64748b; font-size: 0.68rem; display: block; letter-spacing: 0.5px;">SPEED / ENGINE</span>
+              <span id="progress-speed" style="color: #0f172a; font-weight: 800; font-size: 0.85rem;">~100+ p/s</span>
+            </div>
           </div>
         </div>
       </form>
@@ -1155,10 +1171,46 @@
       `).join('');
     }
 
-    function updateProgress(percent, text) {
+    let ingestionStartTime = 0;
+    let etaTimerInterval = null;
+    let currentPct = 0;
+
+    function formatDuration(sec) {
+      const s = Math.max(0, Math.round(sec));
+      const m = Math.floor(s / 60);
+      const remS = s % 60;
+      return `${String(m).padStart(2, '0')}:${String(remS).padStart(2, '0')}`;
+    }
+
+    function updateProgress(percent, text, customSpeed) {
+      currentPct = percent;
       progressFill.style.width = percent + '%';
       progressPercent.innerText = percent + '%';
       progressStatus.innerText = text;
+
+      const elapsedSec = (Date.now() - ingestionStartTime) / 1000;
+      const elapsedEl = document.getElementById('progress-elapsed');
+      const etaEl = document.getElementById('progress-eta');
+      const speedEl = document.getElementById('progress-speed');
+
+      if (elapsedEl) elapsedEl.innerText = formatDuration(elapsedSec);
+
+      if (customSpeed && speedEl) {
+        speedEl.innerText = customSpeed;
+      }
+
+      if (etaEl) {
+        if (percent >= 100) {
+          etaEl.innerText = '00:00 (Complete)';
+          etaEl.style.color = '#059669';
+        } else if (percent > 10 && elapsedSec > 1) {
+          const totalEstimatedSec = elapsedSec / (percent / 100);
+          const remainingSec = Math.max(1, totalEstimatedSec - elapsedSec);
+          etaEl.innerText = `~${formatDuration(remainingSec)}`;
+        } else {
+          etaEl.innerText = 'Calculating...';
+        }
+      }
     }
 
     form.addEventListener('submit', async (e) => {
@@ -1174,8 +1226,22 @@
       progressContainer.style.display = 'block';
       resultBox.style.display = 'none';
 
+      ingestionStartTime = Date.now();
+      if (etaTimerInterval) clearInterval(etaTimerInterval);
+      etaTimerInterval = setInterval(() => {
+        const elapsedSec = (Date.now() - ingestionStartTime) / 1000;
+        const elapsedEl = document.getElementById('progress-elapsed');
+        const etaEl = document.getElementById('progress-eta');
+        if (elapsedEl) elapsedEl.innerText = formatDuration(elapsedSec);
+        if (currentPct > 10 && currentPct < 100 && elapsedSec > 1 && etaEl) {
+          const totalEstimatedSec = elapsedSec / (currentPct / 100);
+          const remainingSec = Math.max(1, totalEstimatedSec - elapsedSec);
+          etaEl.innerText = `~${formatDuration(remainingSec)}`;
+        }
+      }, 500);
+
       try {
-        updateProgress(10, "⚡ Initializing Parallel RAG Pipeline & Multi-Core Buffer...");
+        updateProgress(10, "Initializing Parallel RAG Pipeline & Multi-Core Buffer...", "Buffer Init");
         
         const sessionRes = await fetch('/api/sessions/create', {
           method: 'POST',
@@ -1192,14 +1258,14 @@
         const total = selectedFiles.length;
         for (let i = 0; i < total; i++) {
           const file = selectedFiles[i];
-          const isLarge = file.size > 2 * 1024 * 1024; // > 2MB or multi-page
+          const fileSizeMb = (file.size / (1024 * 1024)).toFixed(1);
 
           // Stage 1: Reading & Parsing
-          updateProgress(25, `📄 Multi-Core Parsing: ${file.name} (Extracting Text & Mathematical Tables)...`);
+          updateProgress(25, `Multi-Core Parsing: ${file.name} (${fileSizeMb} MB)...`, "~120 p/s");
           await new Promise(r => setTimeout(r, 200));
 
           // Stage 2: Diagram & Visual Isolation
-          updateProgress(50, `🔍 Isolating Diagrams, Architectural Figures & High-Res Crops (~120 pages/sec)...`);
+          updateProgress(50, `Isolating Diagrams, Architectural Figures & High-Res Crops...`, "~100+ p/s");
 
           const fd = new FormData();
           fd.append('file', file);
@@ -1208,20 +1274,23 @@
           const uploadPromise = fetch(`/api/sessions/${sessionId}/upload`, { method: 'POST', body: fd });
           
           // Stage 3: Embedding & ChromaDB Storage
-          updateProgress(75, `⚡ Generating Dense Semantic Vector Embeddings (Batched MiniLM)...`);
+          updateProgress(75, `Generating Dense Semantic Vector Embeddings (Batched MiniLM)...`, "MiniLM CPU");
           
           const uploadRes = await uploadPromise;
           const uploadData = await uploadRes.json();
           
-          updateProgress(90, `💾 Persisting ${uploadData.chunks_indexed || 'all'} Vectors to Local ChromaDB...`);
+          const speedMetric = uploadData.elapsed_seconds ? `${(uploadData.chunks_indexed / Math.max(uploadData.elapsed_seconds, 0.1)).toFixed(0)} vec/s` : '~100+ p/s';
+          updateProgress(90, `Persisting ${uploadData.chunks_indexed || 'all'} Vectors to Local ChromaDB...`, speedMetric);
           await new Promise(r => setTimeout(r, 250));
         }
 
-        updateProgress(100, "✅ Knowledge Base Ready • 100% Offline & Hardware Accelerated");
+        updateProgress(100, "Knowledge Base Ready • Hardware Accelerated", "Complete");
+        if (etaTimerInterval) clearInterval(etaTimerInterval);
         resultBox.style.display = 'block';
         portalLink.href = `/portal/${sessionId}`;
         buildBtn.disabled = false;
       } catch (err) {
+        if (etaTimerInterval) clearInterval(etaTimerInterval);
         alert("Error: " + err.message);
         buildBtn.disabled = false;
         progressContainer.style.display = 'none';

@@ -173,6 +173,7 @@ def create_session(req: CreateSessionRequest):
         embedding_model=req.embedding_model or "all-MiniLM-L6-v2",
         ttl_hours=req.ttl_hours or 3.0
     )
+    print(f"\n[SESSION CREATED] ID: {session.session_id} | Model: {session.model_name} | Vision: {models_to_use} | Embedder: {session.embedding_model}")
     return {
         "session_id": session.session_id,
         "model_name": session.model_name,
@@ -200,6 +201,7 @@ def get_session_info(session_id: str):
 @router.post("/sessions/{session_id}/upload")
 async def upload_document(session_id: str, file: UploadFile = File(...)):
     """Uploads and ingests any supported document (PDF, DOCX, TXT, Image/OCR)."""
+    import time
     session = session_manager.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session expired or not found.")
@@ -208,16 +210,24 @@ async def upload_document(session_id: str, file: UploadFile = File(...)):
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
+    file_size_mb = file_path.stat().st_size / (1024 * 1024)
+    print(f"\n[INGESTION START] Session: {session_id} | File: {file.filename} ({file_size_mb:.2f} MB)")
+    t0 = time.perf_counter()
+
     try:
         chunks_indexed = session.pipeline.ingest_file(file_path)
+        dur = time.perf_counter() - t0
         session.indexed_files.append(file.filename)
+        print(f"[INGESTION COMPLETE] {file.filename} -> {chunks_indexed} vectors indexed in {dur:.2f}s ({file_size_mb / max(dur, 0.001):.1f} MB/s)")
         return {
             "status": "success",
             "filename": file.filename,
             "chunks_indexed": chunks_indexed,
+            "elapsed_seconds": round(dur, 2),
             "total_files": len(session.indexed_files)
         }
     except Exception as e:
+        print(f"[INGESTION ERROR] {file.filename}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process document: {str(e)}")
 
 
