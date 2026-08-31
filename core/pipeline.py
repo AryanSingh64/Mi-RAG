@@ -307,11 +307,9 @@ class RAGPipeline:
     def _extract_relevant_images(self, user_question: str, relevant_chunks: list, is_image_query: bool = False) -> list:
         """
         Intelligently determines when visual diagrams should be attached.
-        - Text summaries and general questions return NO images.
-        - Attaches diagrams ONLY if the question explicitly mentions visual artifacts
-          (e.g., 'diagram', 'figure', 'chart', 'plot', 'image', 'graph', 'architecture', 'photo', 'show me')
-          OR if this is a Multimodal Visual Search query.
-        - Caps returned images to the top 2-3 highest-confidence matches.
+        - Attaches diagrams whenever relevant chunks contain extracted figures or diagrams,
+          or when the user asks visual / structural questions.
+        - Caps returned images to the top 4 highest-confidence matches.
         """
         if not relevant_chunks:
             return []
@@ -320,18 +318,10 @@ class RAGPipeline:
         visual_keywords = [
             "diagram", "figure", "chart", "plot", "graph", "architecture", "image", 
             "photo", "picture", "drawing", "illustration", "flowchart", "show me", 
-            "look like", "screenshot", "table", "visual", "fig.", "fig "
+            "look like", "screenshot", "table", "visual", "fig.", "fig ", "workflow",
+            "model", "pipeline", "network", "block", "schema"
         ]
         explicit_visual_intent = any(kw in q_lower for kw in visual_keywords)
-
-        # Pure text queries and summaries return text only
-        if not is_image_query and not explicit_visual_intent:
-            has_high_diag = any(
-                ("[DIAGRAM" in c.text or "[Exact OCR" in c.text) and c.score >= 0.45
-                for c in relevant_chunks
-            )
-            if not has_high_diag:
-                return []
 
         matched_images = []
         seen_urls = set()
@@ -361,10 +351,10 @@ class RAGPipeline:
                         "relevance": round(c.score * 100, 1)
                     })
 
-                    if len(matched_images) >= (3 if is_image_query else 2):
+                    if len(matched_images) >= (4 if (is_image_query or explicit_visual_intent) else 2):
                         break
 
-            if len(matched_images) >= (3 if is_image_query else 2):
+            if len(matched_images) >= (4 if (is_image_query or explicit_visual_intent) else 2):
                 break
 
         return matched_images

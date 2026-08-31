@@ -161,56 +161,51 @@ class PdfDocumentParser(BaseDocumentParser):
             # 1. Native Digital Text (Instant extraction)
             native_text = (page.get_text() or "").strip()
 
-            # 2. Check if page has visual content (images or distinct drawings)
-            image_list = page.get_images()
-            has_images = len(image_list) > 0
+            # 2. Detect & Crop Exact Diagram Bounding Boxes (Vector charts, Figure captions, Drawings, & Embedded images)
+            diagram_regions = DiagramDetector.detect_diagram_regions(page)[:4]
 
-            # Only run heavy diagram clustering if visual items exist on page
-            if has_images:
-                diagram_regions = DiagramDetector.detect_diagram_regions(page)[:3]
+            for d_idx, (diag_bbox, caption, diag_type) in enumerate(diagram_regions, start=1):
+                clean_cap = "".join(c if c.isalnum() else "_" for c in caption[:25])
+                diag_filename = f"{clean_stem}_p{p_idx}_diag{d_idx}_{clean_cap}.jpg"
 
-                for d_idx, (diag_bbox, caption, diag_type) in enumerate(diagram_regions, start=1):
-                    clean_cap = "".join(c if c.isalnum() else "_" for c in caption[:25])
-                    diag_filename = f"{clean_stem}_p{p_idx}_diag{d_idx}_{clean_cap}.jpg"
+                img_url = (
+                    f"/api/sessions/{self.session_id}/images/{diag_filename}"
+                    if self.session_id
+                    else f"/images/{diag_filename}"
+                )
 
-                    img_url = (
-                        f"/api/sessions/{self.session_id}/images/{diag_filename}"
-                        if self.session_id
-                        else f"/images/{diag_filename}"
-                    )
-
-                    if self.output_images_dir:
-                        target_path = self.output_images_dir / diag_filename
-                        try:
-                            # 120 DPI JPEG crop for fast encoding & low disk footprint
-                            pix = page.get_pixmap(dpi=120, clip=diag_bbox)
-                            pix.save(str(target_path), jpg_quality=80)
-                            page_diagram_urls.append(img_url)
-
-                            diag_block = [
-                                f"[DIAGRAM / FIGURE: {caption}]",
-                                f"[Image URL: {img_url}]"
-                            ]
-                            page_sections.append("\n".join(diag_block))
-
-                        except Exception:
-                            pass
-
-                # If standalone image exists without isolated bounding box and page text is sparse
-                if not page_diagram_urls and len(native_text) < 150 and self.output_images_dir:
-                    full_page_filename = f"{clean_stem}_page_{p_idx}.jpg"
-                    full_page_url = (
-                        f"/api/sessions/{self.session_id}/images/{full_page_filename}"
-                        if self.session_id
-                        else f"/images/{full_page_filename}"
-                    )
+                if self.output_images_dir:
+                    target_path = self.output_images_dir / diag_filename
                     try:
-                        pix = page.get_pixmap(dpi=100)
-                        pix.save(str(self.output_images_dir / full_page_filename), jpg_quality=75)
-                        page_diagram_urls.append(full_page_url)
-                        page_sections.append(f"[Page {p_idx} Figure]\n[Image URL: {full_page_url}]")
+                        # 140 DPI JPEG crop for crisp diagram rendering & low disk footprint
+                        pix = page.get_pixmap(dpi=140, clip=diag_bbox)
+                        pix.save(str(target_path), jpg_quality=85)
+                        page_diagram_urls.append(img_url)
+
+                        diag_block = [
+                            f"[DIAGRAM / FIGURE: {caption}]",
+                            f"[Image URL: {img_url}]"
+                        ]
+                        page_sections.append("\n".join(diag_block))
+
                     except Exception:
                         pass
+
+            # 3. Fallback: If standalone image/drawing exists without isolated bounding box and page text is sparse
+            if not page_diagram_urls and len(page.get_images()) > 0 and len(native_text) < 200 and self.output_images_dir:
+                full_page_filename = f"{clean_stem}_page_{p_idx}.jpg"
+                full_page_url = (
+                    f"/api/sessions/{self.session_id}/images/{full_page_filename}"
+                    if self.session_id
+                    else f"/images/{full_page_filename}"
+                )
+                try:
+                    pix = page.get_pixmap(dpi=100)
+                    pix.save(str(self.output_images_dir / full_page_filename), jpg_quality=75)
+                    page_diagram_urls.append(full_page_url)
+                    page_sections.append(f"[Page {p_idx} Figure]\n[Image URL: {full_page_url}]")
+                except Exception:
+                    pass
 
             if native_text:
                 page_sections.append(native_text)
