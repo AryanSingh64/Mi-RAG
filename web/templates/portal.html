@@ -771,63 +771,6 @@
     </div>
   </div>
 
-  <!-- AI Model Engine & Cloud API Settings Modal -->
-  <div id="model-settings-modal" class="custom-modal" onclick="closeModelSettingsModal()">
-    <div class="modal-card" style="max-width: 520px;" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <div class="modal-title">⚙️ AI Engine & Cloud API Settings</div>
-        <button type="button" class="modal-close" onclick="closeModelSettingsModal()">✕</button>
-      </div>
-      <div class="modal-body" style="display: flex; flex-direction: column; gap: 1.1rem;">
-        <div style="font-size: 0.82rem; color: #475569; line-height: 1.45; font-weight: 600; background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 0.75rem; border-radius: 6px;">
-          🔒 <strong>Offline-First Privacy</strong>: By default, Mi:RAG runs 100% locally and offline via Ollama. You can optionally connect your own API keys for OpenAI, Google Gemini, OpenRouter, Groq, or Claude. All document processing, vector storage, and visual citations remain local.
-        </div>
-
-        <div>
-          <label style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Active Provider:</label>
-          <select id="setting-provider-select" onchange="handleProviderChange()" style="width: 100%; padding: 0.65rem; border: var(--border); border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: var(--shadow);">
-            <option value="ollama">⚡ Local Ollama (100% Offline / Zero-Cost Runtime - Default)</option>
-            <option value="openai">🟢 OpenAI (GPT-5.6 Sol, GPT-5.5, GPT-5.4, GPT-4o)</option>
-            <option value="gemini">🔵 Google Gemini (Gemini 3.7 Flash, 3.6 Flash, 3.1 Pro)</option>
-            <option value="anthropic">🟣 Anthropic Claude (Claude Opus 5, Sonnet 5, Fable 5)</option>
-            <option value="grok">🔴 xAI Grok (Grok 4.6, Grok 4.5, Grok 4)</option>
-            <option value="openrouter">🌐 OpenRouter — Multi-Model Gateway (300+ Live Models)</option>
-          </select>
-        </div>
-
-        <div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-            <label style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; color: #0f172a;">Model Selection:</label>
-            <button type="button" onclick="fetchLatestModels()" id="btn-fetch-models" style="background: var(--yellow); border: 1.5px solid #000; box-shadow: 1.5px 1.5px 0px #000; padding: 0.2rem 0.6rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.72rem; border-radius: 4px; cursor: pointer; transition: all 0.1s ease;">🔄 Fetch Latest Models</button>
-          </div>
-          <select id="setting-model-select" style="width: 100%; padding: 0.65rem; border: var(--border); border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: var(--shadow);"></select>
-        </div>
-
-        <div>
-          <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
-            <input type="checkbox" id="check-custom-model" onchange="toggleCustomModelInput()" style="cursor: pointer; width: 14px; height: 14px;">
-            <label for="check-custom-model" style="font-size: 0.78rem; font-weight: 700; color: #475569; cursor: pointer;">Or enter custom model ID (e.g. gpt-4.5-preview, claude-3-7-sonnet-20250219)</label>
-          </div>
-          <input type="text" id="setting-custom-model" placeholder="Enter exact model ID..." style="display: none; width: 100%; padding: 0.55rem; border: var(--border); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; box-shadow: var(--shadow);">
-        </div>
-
-        <div id="api-key-container" style="display: none;">
-          <label id="api-key-label" style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Provider API Key:</label>
-          <div style="display: flex; gap: 0.5rem;">
-            <input type="password" id="setting-api-key" placeholder="Enter API key..." style="flex: 1; padding: 0.65rem; border: var(--border); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; box-shadow: var(--shadow);">
-            <button type="button" onclick="testCurrentKey()" id="btn-test-key" style="background: var(--yellow); border: var(--border); box-shadow: var(--shadow); padding: 0.65rem 0.9rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; border-radius: 6px; cursor: pointer;">Test Key</button>
-          </div>
-          <div id="key-test-feedback" style="margin-top: 0.5rem; font-size: 0.78rem; font-weight: 700; display: none;"></div>
-        </div>
-
-        <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem; border-top: var(--border); padding-top: 1rem;">
-          <button type="button" onclick="closeModelSettingsModal()" style="background: #e2e8f0; border: var(--border); box-shadow: 2px 2px 0px #000; padding: 0.65rem 1.2rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; border-radius: 6px; cursor: pointer;">Cancel</button>
-          <button type="button" onclick="saveModelSettings()" style="background: var(--green); color: #000; border: var(--border); box-shadow: 2px 2px 0px #000; padding: 0.65rem 1.4rem; font-family: 'Space Grotesk', sans-serif; font-weight: 900; font-size: 0.85rem; border-radius: 6px; cursor: pointer;">Save & Apply</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <header>
     <div class="header-left">
       <a href="/" style="display: flex; align-items: center; text-decoration: none;">
@@ -837,10 +780,9 @@
     </div>
     
     <div style="display: flex; align-items: center; gap: 0.75rem;">
-      <div class="model-switch-pill" onclick="openModelSettingsModal()" title="Switch Model / Configure API Keys" style="background: var(--pink); border: 2.5px solid #000; box-shadow: 3px 3px 0px #000; color: #fff;">
+      <div class="session-model-pill" style="display: flex; align-items: center; gap: 0.45rem; background: #182035; border: 2px solid #000; box-shadow: 2.5px 2.5px 0px #000; border-radius: 20px; padding: 0.35rem 0.8rem; font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; font-weight: 800; color: #fff;">
         <span class="provider-badge-icon" id="header-provider-badge" style="background: var(--yellow); color: #000; font-weight: 900;">OLLAMA</span>
         <span id="active-model-display" style="font-weight: 900;">llama3.2:3b</span>
-        <span style="font-size: 0.95rem;">⚙️</span>
       </div>
 
       <div class="timer-badge">
@@ -1501,11 +1443,11 @@
         conversationTurns.push({ role: 'assistant', content: data.answer });
         if (conversationTurns.length > 12) conversationTurns = conversationTurns.slice(-12);
 
-        // Persist to LocalStorage
+        // Persist to Storage
         saveChatToStorage();
 
       } catch (err) {
-        document.getElementById(botMsgId).innerHTML = `<div class="grounded-badge" style="background:#fca5a5; color:#000;">Query Note</div><div class="msg-content">${err.message}</div>`;
+        document.getElementById(botMsgId).innerHTML = `<div class="grounded-badge" style="background:#fca5a5; color:#000;">Notice</div><div class="msg-content">${err.message}</div>`;
       } finally {
         if (sendBtn) {
           sendBtn.disabled = false;
@@ -1514,6 +1456,26 @@
       }
       chatBox.scrollTop = chatBox.scrollHeight;
     });
+
+    function saveChatToStorage() {
+      try {
+        if (sessionId) {
+          sessionStorage.setItem("mirag_chat_" + sessionId, JSON.stringify(conversationTurns));
+        }
+      } catch (e) {}
+    }
+
+    function loadChatFromStorage() {
+      try {
+        if (sessionId) {
+          const saved = sessionStorage.getItem("mirag_chat_" + sessionId);
+          if (saved) {
+            conversationTurns = JSON.parse(saved);
+          }
+        }
+      } catch (e) {}
+    }
+    loadChatFromStorage();
 
     // Native Smooth Multi-User Figma Nametag Tracker with Contextual Hover
     const nameTag = document.getElementById('figma-nametag');

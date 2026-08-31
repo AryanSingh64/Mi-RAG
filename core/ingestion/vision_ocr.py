@@ -39,28 +39,35 @@ class VisionImageParser(BaseDocumentParser):
         else:
             self.vision_models = ["moondream"]
 
-    def _resolve_vision_model(self, target_model: str) -> str:
-        """Finds the exact matching vision model tag in local Ollama."""
+    def _get_installed_models(self) -> List[str]:
+        """Fetches list of currently installed local Ollama models."""
         try:
-            with httpx.Client(timeout=5.0) as client:
+            with httpx.Client(timeout=2.0) as client:
                 res = client.get(f"{self.ollama_url}/api/tags")
                 if res.status_code == 200:
-                    models = [m.get("name") for m in res.json().get("models", [])]
-                    if target_model in models:
-                        return target_model
-                    if f"{target_model}:latest" in models:
-                        return f"{target_model}:latest"
-                    for m in models:
-                        if target_model.lower() in m.lower():
-                            return m
+                    return [m.get("name") for m in res.json().get("models", []) if m.get("name")]
         except Exception:
             pass
-        return target_model
+        return []
+
+    def _resolve_vision_model(self, target_model: str) -> Optional[str]:
+        """Finds the exact matching vision model tag in local Ollama or returns None if not installed."""
+        installed = self._get_installed_models()
+        if not installed:
+            return None
+        if target_model in installed:
+            return target_model
+        if f"{target_model}:latest" in installed:
+            return f"{target_model}:latest"
+        for m in installed:
+            if target_model.lower() in m.lower():
+                return m
+        return None
 
     def _prepare_image(self, image_path: Path) -> tuple[np.ndarray, str]:
         """
         Loads image, normalizes alpha transparency, keeps native resolution for OCR,
-        and generates an optimized 768px base64 thumbnail for ultra-fast vision LLM processing.
+        and generates an optimized 768px base64 thumbnail for fast vision processing.
         """
         with Image.open(image_path) as img:
             if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
@@ -79,7 +86,7 @@ class VisionImageParser(BaseDocumentParser):
             vis_img.thumbnail((768, 768), Image.Resampling.LANCZOS)
 
             buffered = io.BytesIO()
-            vis_img.save(buffered, format="JPEG", quality=85, optimize=True)
+            vis_img.save(buffered, format="JPEG", quality=80, optimize=True)
             b64_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
             return np_img, b64_str
@@ -93,13 +100,17 @@ class VisionImageParser(BaseDocumentParser):
             lines = [item[1].strip() for item in result if item[1].strip()]
             return "\n".join(lines)
         except Exception as e:
-            print(f"[*] OCR extraction note: {e}")
+            print(f"[*] OCR extraction: {e}")
             return ""
 
-    def _extract_from_single_vision_model(self, model_name: str, b64_image: str, timeout: float = 35.0) -> Optional[str]:
-        """Queries a single vision model with persistent VRAM caching and bounded fast token generation."""
+    def _extract_from_single_vision_model(self, model_name: str, b64_image: str, timeout: float = 8.0) -> Optional[str]:
+        """Queries a single vision model with bounded fast token generation."""
         resolved_model = self._resolve_vision_model(model_name)
-        print(f"[*] Querying Vision Model: {resolved_model} (timeout={timeout}s)...")
+        if not resolved_model:
+            # Model not installed locally, immediately use OCR without stalling
+            return None
+
+        print(f"[*] Processing with Vision Model: {resolved_model} (timeout={timeout}s)...")
 
         prompt = (
             "Analyze this image: "
@@ -113,11 +124,11 @@ class VisionImageParser(BaseDocumentParser):
             "prompt": prompt,
             "images": [b64_image],
             "stream": False,
-            "keep_alive": "30m",
+            "keep_alive": "15m",
             "options": {
                 "num_gpu": 99,
-                "num_thread": os.cpu_count() or 12,
-                "num_predict": 220,
+                "num_thread": os.cpu_count() or 8,
+                "num_predict": 180,
                 "temperature": 0.1
             }
         }
@@ -128,23 +139,14 @@ class VisionImageParser(BaseDocumentParser):
                 if res.status_code == 200:
                     description = res.json().get("response", "").strip()
                     if len(description) > 5:
-                        print(f"[OK] {resolved_model} produced description ({len(description)} chars)")
+                        print(f"[*] {resolved_model} extracted description ({len(description)} chars)")
                         return description
                     else:
-                        print(f"[*] {resolved_model} produced no text. Using OCR extraction.")
                         return None
                 else:
-                    try:
-                        err_msg = res.json().get("error", res.text)
-                    except Exception:
-                        err_msg = res.text
-                    if "unknown model architecture" in err_msg:
-                        print(f"[*] Note: {resolved_model} requires Ollama mllama update. Using complementary vision models.")
-                    else:
-                        print(f"[*] Vision model note ({resolved_model}): {err_msg[:80]}")
                     return None
-        except Exception as e:
-            print(f"[*] Vision model {resolved_model} note/timeout ({e}). Falling back to fast local OCR.")
+        except Exception:
+            # Silent fallback to local OCR without freezing
             return None
         return None
 
@@ -156,7 +158,7 @@ class VisionImageParser(BaseDocumentParser):
         results = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(self.vision_models), 3)) as executor:
             future_to_model = {
-                executor.submit(self._extract_from_single_vision_model, model, b64_image, 30.0): model
+                executor.submit(self._extract_from_single_vision_model, model, b64_image, 8.0): model
                 for model in self.vision_models
             }
             for future in concurrent.futures.as_completed(future_to_model):
@@ -165,8 +167,8 @@ class VisionImageParser(BaseDocumentParser):
                     desc = future.result()
                     if desc:
                         results.append((model_name, desc))
-                except Exception as e:
-                    print(f"[!] Vision model {model_name} thread error: {e}")
+                except Exception:
+                    pass
 
         return results
 
