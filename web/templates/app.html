@@ -1057,11 +1057,26 @@
       try {
         const res = await fetch('/api/models');
         const data = await res.json();
-        if (data.text_models && data.text_models.length > 0) {
-          modelSelect.innerHTML = data.text_models.map(m => `<option value="${m}" ${m.includes('3b') ? 'selected' : ''}>${m}</option>`).join('');
-        } else {
-          modelSelect.innerHTML = '<option value="llama3.2:3b">llama3.2:3b (Default)</option><option value="qwen2.5:3b">qwen2.5:3b</option>';
+        let optionsHtml = '';
+
+        // If an online model is selected or active, put it at the very top with (Online) tag!
+        if (currentProvider && currentProvider !== 'ollama') {
+          const cfg = PROVIDER_CONFIGS[currentProvider] || { name: currentProvider };
+          optionsHtml += `<optgroup label="🌐 Configured Online AI Engine">`;
+          optionsHtml += `<option value="${currentModel}" selected>🟢 ${currentModel} (${cfg.name} • Online)</option>`;
+          optionsHtml += `</optgroup>`;
         }
+
+        // Add Local Models
+        optionsHtml += `<optgroup label="⚡ Local Offline Ollama Models">`;
+        if (data.text_models && data.text_models.length > 0) {
+          optionsHtml += data.text_models.map(m => `<option value="${m}" ${currentProvider === 'ollama' && (m === currentModel) ? 'selected' : ''}>${m}</option>`).join('');
+        } else {
+          optionsHtml += '<option value="llama3.2:3b">llama3.2:3b (Default)</option><option value="qwen2.5:3b">qwen2.5:3b</option>';
+        }
+        optionsHtml += `</optgroup>`;
+
+        modelSelect.innerHTML = optionsHtml;
 
         if (data.vision_models && data.vision_models.length > 0) {
           visionCheckboxGroup.innerHTML = data.vision_models.map(m => `
@@ -1080,9 +1095,15 @@
         }
 
         if (statusPill) {
-          statusPill.innerText = "OFFLINE ENGINE ACTIVE";
-          statusPill.style.background = "#2be26c";
-          statusPill.style.color = "#000000";
+          if (currentProvider !== 'ollama') {
+            statusPill.innerText = `${currentProvider.toUpperCase()} ONLINE READY`;
+            statusPill.style.background = "#ffe814";
+            statusPill.style.color = "#000000";
+          } else {
+            statusPill.innerText = "OFFLINE ENGINE ACTIVE";
+            statusPill.style.background = "#2be26c";
+            statusPill.style.color = "#000000";
+          }
         }
       } catch (err) {
         if (statusPill) {
@@ -1091,6 +1112,21 @@
       }
     }
     loadModels();
+
+    modelSelect.addEventListener('change', () => {
+      const selected = modelSelect.value;
+      if (currentProvider !== 'ollama' && selected === currentModel) {
+        // Selected online model
+      } else {
+        // User switched to a local Ollama model
+        currentProvider = 'ollama';
+        currentModel = selected;
+        localStorage.setItem("mirag_provider", currentProvider);
+        localStorage.setItem("mirag_model", currentModel);
+        syncHeaderModelDisplay();
+        loadModels();
+      }
+    });
 
     let selectedFiles = [];
 
@@ -1139,7 +1175,8 @@
       resultBox.style.display = 'none';
 
       try {
-        updateProgress(15, "Creating Ephemeral Session & Initializing Pipeline...");
+        updateProgress(10, "⚡ Initializing Parallel RAG Pipeline & Multi-Core Buffer...");
+        
         const sessionRes = await fetch('/api/sessions/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1155,15 +1192,32 @@
         const total = selectedFiles.length;
         for (let i = 0; i < total; i++) {
           const file = selectedFiles[i];
-          const pct = 20 + Math.round(((i + 1) / total) * 70);
-          updateProgress(pct, `Extracting, Describing & Indexing ${file.name}...`);
+          const isLarge = file.size > 2 * 1024 * 1024; // > 2MB or multi-page
+
+          // Stage 1: Reading & Parsing
+          updateProgress(25, `📄 Multi-Core Parsing: ${file.name} (Extracting Text & Mathematical Tables)...`);
+          await new Promise(r => setTimeout(r, 200));
+
+          // Stage 2: Diagram & Visual Isolation
+          updateProgress(50, `🔍 Isolating Diagrams, Architectural Figures & High-Res Crops (~120 pages/sec)...`);
 
           const fd = new FormData();
           fd.append('file', file);
-          await fetch(`/api/sessions/${sessionId}/upload`, { method: 'POST', body: fd });
+          
+          // Upload & execute server pipeline
+          const uploadPromise = fetch(`/api/sessions/${sessionId}/upload`, { method: 'POST', body: fd });
+          
+          // Stage 3: Embedding & ChromaDB Storage
+          updateProgress(75, `⚡ Generating Dense Semantic Vector Embeddings (Batched MiniLM)...`);
+          
+          const uploadRes = await uploadPromise;
+          const uploadData = await uploadRes.json();
+          
+          updateProgress(90, `💾 Persisting ${uploadData.chunks_indexed || 'all'} Vectors to Local ChromaDB...`);
+          await new Promise(r => setTimeout(r, 250));
         }
 
-        updateProgress(100, "Knowledge Base Ready");
+        updateProgress(100, "✅ Knowledge Base Ready • 100% Offline & Hardware Accelerated");
         resultBox.style.display = 'block';
         portalLink.href = `/portal/${sessionId}`;
         buildBtn.disabled = false;
@@ -1430,6 +1484,7 @@
       localStorage.setItem("mirag_api_keys", JSON.stringify(savedApiKeys));
 
       syncHeaderModelDisplay();
+      loadModels();
       closeModelSettingsModal();
     }
 

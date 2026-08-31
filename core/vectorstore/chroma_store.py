@@ -50,15 +50,11 @@ class ChromaVectorStore:
 
     def add_chunks(self, chunks: List[DocumentChunk]):
         """
-        Embeds and stores document chunks in the vector collection.
+        Embeds and stores document chunks in the vector collection in high-throughput batches.
         """
         if not chunks:
             return
 
-        texts = [chunk.text for chunk in chunks]
-        ids = [chunk.chunk_id for chunk in chunks]
-        
-        # Sanitize metadata for ChromaDB (only allows str, int, float, bool)
         clean_metadatas = []
         for chunk in chunks:
             clean_meta = {}
@@ -71,16 +67,24 @@ class ChromaVectorStore:
                     clean_meta[k] = str(v)
             clean_metadatas.append(clean_meta)
 
-        # Generate vectors using local embedder
-        embeddings = self.embedder.embed_batch(texts)
+        # Batch upsert in chunks of 256 for optimal vector throughput
+        batch_size = 256
+        for i in range(0, len(chunks), batch_size):
+            b_chunks = chunks[i:i + batch_size]
+            b_texts = [c.text for c in b_chunks]
+            b_ids = [c.chunk_id for c in b_chunks]
+            b_metas = clean_metadatas[i:i + batch_size]
 
-        # Upsert into Chroma collection
-        self.collection.upsert(
-            ids=ids,
-            embeddings=embeddings,
-            documents=texts,
-            metadatas=clean_metadatas
-        )
+            # Generate vectors using local embedder
+            b_embeddings = self.embedder.embed_batch(b_texts)
+
+            # Upsert into Chroma collection
+            self.collection.upsert(
+                ids=b_ids,
+                embeddings=b_embeddings,
+                documents=b_texts,
+                metadatas=b_metas
+            )
 
     def query(self, query_text: str, top_k: int = 4) -> List[SearchResult]:
         """

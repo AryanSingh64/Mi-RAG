@@ -147,13 +147,88 @@ class PdfDocumentParser(BaseDocumentParser):
             self.ocr_engine = RapidOCR()
         return self.ocr_engine
 
+    def _process_single_page(self, doc_path: str, page_num: int, clean_stem: str, total_pages: int) -> Tuple[str, List[str]]:
+        """Processes a single page in an isolated worker thread."""
+        page_sections = []
+        page_diagram_urls = []
+        p_idx = page_num + 1
+
+        try:
+            # Open per-thread PyMuPDF doc handle for thread-safe concurrent rendering
+            thread_doc = fitz.open(doc_path)
+            page = thread_doc[page_num]
+
+            # 1. Native Digital Text (Instant extraction)
+            native_text = (page.get_text() or "").strip()
+
+            # 2. Check if page has visual content (images or distinct drawings)
+            image_list = page.get_images()
+            has_images = len(image_list) > 0
+
+            # Only run heavy diagram clustering if visual items exist on page
+            if has_images:
+                diagram_regions = DiagramDetector.detect_diagram_regions(page)[:3]
+
+                for d_idx, (diag_bbox, caption, diag_type) in enumerate(diagram_regions, start=1):
+                    clean_cap = "".join(c if c.isalnum() else "_" for c in caption[:25])
+                    diag_filename = f"{clean_stem}_p{p_idx}_diag{d_idx}_{clean_cap}.jpg"
+
+                    img_url = (
+                        f"/api/sessions/{self.session_id}/images/{diag_filename}"
+                        if self.session_id
+                        else f"/images/{diag_filename}"
+                    )
+
+                    if self.output_images_dir:
+                        target_path = self.output_images_dir / diag_filename
+                        try:
+                            # 120 DPI JPEG crop for fast encoding & low disk footprint
+                            pix = page.get_pixmap(dpi=120, clip=diag_bbox)
+                            pix.save(str(target_path), jpg_quality=80)
+                            page_diagram_urls.append(img_url)
+
+                            diag_block = [
+                                f"[DIAGRAM / FIGURE: {caption}]",
+                                f"[Image URL: {img_url}]"
+                            ]
+                            page_sections.append("\n".join(diag_block))
+
+                        except Exception:
+                            pass
+
+                # If standalone image exists without isolated bounding box and page text is sparse
+                if not page_diagram_urls and len(native_text) < 150 and self.output_images_dir:
+                    full_page_filename = f"{clean_stem}_page_{p_idx}.jpg"
+                    full_page_url = (
+                        f"/api/sessions/{self.session_id}/images/{full_page_filename}"
+                        if self.session_id
+                        else f"/images/{full_page_filename}"
+                    )
+                    try:
+                        pix = page.get_pixmap(dpi=100)
+                        pix.save(str(self.output_images_dir / full_page_filename), jpg_quality=75)
+                        page_diagram_urls.append(full_page_url)
+                        page_sections.append(f"[Page {p_idx} Figure]\n[Image URL: {full_page_url}]")
+                    except Exception:
+                        pass
+
+            if native_text:
+                page_sections.append(native_text)
+
+            thread_doc.close()
+        except Exception as err:
+            page_sections.append(f"[Page {p_idx} parsing notice: {err}]")
+
+        page_content = f"[Page {p_idx}]\n" + "\n\n".join(page_sections)
+        return page_content, page_diagram_urls
+
     def parse(self, file_path: Path) -> ParsedDocument:
         file_path = Path(file_path)
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
         if fitz is None:
-            # Safe Fallback to pypdf if pymupdf is not yet installed in venv
+            # Safe Fallback to pypdf if pymupdf is not installed
             from pypdf import PdfReader
             reader = PdfReader(str(file_path))
             total_pages = len(reader.pages)
@@ -178,84 +253,34 @@ class PdfDocumentParser(BaseDocumentParser):
         clean_stem = "".join(c if c.isalnum() else "_" for c in file_path.stem)
         doc = fitz.open(str(file_path))
         total_pages = len(doc)
+        doc.close()
 
-        pages_text = []
+        import os
+        from concurrent.futures import ThreadPoolExecutor
+
+        # Parallel multi-core page processing
+        num_workers = min(12, max(2, (os.cpu_count() or 4) * 2))
+        doc_path_str = str(file_path.resolve())
+
+        pages_results = [None] * total_pages
         extracted_diagrams = []
 
-        for page_num in range(total_pages):
-            page = doc[page_num]
-            p_idx = page_num + 1
-            page_sections = []
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            future_to_idx = {
+                executor.submit(self._process_single_page, doc_path_str, i, clean_stem, total_pages): i
+                for i in range(total_pages)
+            }
+            for future in future_to_idx:
+                idx = future_to_idx[future]
+                try:
+                    page_text, diag_urls = future.result()
+                    pages_results[idx] = page_text
+                    if diag_urls:
+                        extracted_diagrams.extend(diag_urls)
+                except Exception as e:
+                    pages_results[idx] = f"[Page {idx + 1}]\n[Extraction error: {e}]"
 
-            # 1. Native Digital Text
-            native_text = (page.get_text() or "").strip()
-
-            # 2. Detect & Crop Exact Diagram Bounding Boxes (Cap to top 4 diagrams per page)
-            diagram_regions = DiagramDetector.detect_diagram_regions(page)[:4]
-            page_diagram_urls = []
-
-            for d_idx, (diag_bbox, caption, diag_type) in enumerate(diagram_regions, start=1):
-                clean_cap = "".join(c if c.isalnum() else "_" for c in caption[:25])
-                diag_filename = f"{clean_stem}_p{p_idx}_diag{d_idx}_{clean_cap}.png"
-
-                img_url = (
-                    f"/api/sessions/{self.session_id}/images/{diag_filename}"
-                    if self.session_id
-                    else f"/images/{diag_filename}"
-                )
-
-                if self.output_images_dir:
-                    target_path = self.output_images_dir / diag_filename
-                    try:
-                        # Optimized 140 DPI crop for fast rendering & crisp OCR
-                        pix = page.get_pixmap(dpi=140, clip=diag_bbox)
-                        pix.save(str(target_path))
-                        page_diagram_urls.append(img_url)
-                        extracted_diagrams.append(img_url)
-
-                        # Fast RapidOCR on the cropped diagram
-                        ocr = self._get_ocr()
-                        ocr_res, _ = ocr(str(target_path))
-                        diag_ocr_lines = [item[1].strip() for item in ocr_res if item[1].strip()] if ocr_res else []
-                        diag_ocr_text = "\n".join(diag_ocr_lines)
-
-                        diag_block = [
-                            f"[DIAGRAM / FIGURE: {caption}]",
-                            f"[Image URL: {img_url}]"
-                        ]
-                        if diag_ocr_text:
-                            diag_block.append(f"[Diagram Content & OCR Text]:\n{diag_ocr_text}")
-
-                        page_sections.append("\n".join(diag_block))
-
-                    except Exception as e:
-                        print(f"[*] Note cropping diagram bbox: {e}")
-
-            # 3. If no specific diagram bounding box was isolated and page has visual content, render page overview
-            if not page_diagram_urls and (len(page.get_images()) > 0 or len(page.get_drawings()) > 0):
-                full_page_filename = f"{clean_stem}_page_{p_idx}.png"
-                full_page_url = (
-                    f"/api/sessions/{self.session_id}/images/{full_page_filename}"
-                    if self.session_id
-                    else f"/images/{full_page_filename}"
-                )
-                if self.output_images_dir:
-                    try:
-                        pix = page.get_pixmap(dpi=120)
-                        pix.save(str(self.output_images_dir / full_page_filename))
-                        page_diagram_urls.append(full_page_url)
-                    except Exception:
-                        pass
-
-                page_sections.append(f"[Page {p_idx} Overview Image]\n[Image URL: {full_page_url}]")
-
-            if native_text:
-                page_sections.append(native_text)
-
-            full_page_content = "\n\n".join(page_sections)
-            pages_text.append(full_page_content)
-
-        doc.close()
+        pages_text = [p for p in pages_results if p is not None]
         full_text = "\n\n".join(pages_text)
 
         return ParsedDocument(
