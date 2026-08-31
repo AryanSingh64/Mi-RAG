@@ -811,6 +811,22 @@
           </div>
 
           <div class="input-group" style="grid-column: span 2;">
+            <div class="label-row" style="display: flex; justify-content: space-between; align-items: center;">
+              <label class="label" for="embedding-select">Dense Embedding Engine (GPU / CPU Modular Vectors)</label>
+              <span style="font-size: 0.72rem; font-weight: 800; background: var(--green); color: #000; padding: 0.15rem 0.5rem; border: 1.5px solid #000; border-radius: 4px; box-shadow: 1.5px 1.5px 0px #000;">GPU AUTO-ACCELERATED</span>
+            </div>
+            <select id="embedding-select" onchange="handleEmbeddingChange()" style="font-family: 'Space Grotesk', sans-serif; font-weight: 700;">
+              <option value="BAAI/bge-base-en-v1.5" selected>⚡ BAAI/bge-base-en-v1.5 (Recommended • 768-dim • SOTA Accuracy)</option>
+              <option value="all-MiniLM-L6-v2">🚀 all-MiniLM-L6-v2 (Ultra-Fast • 384-dim • Low Memory)</option>
+              <option value="BAAI/bge-m3">🌐 BAAI/bge-m3 (Multilingual • 1024-dim • 8192 Token Context)</option>
+              <option value="BAAI/bge-large-en-v1.5">🔬 BAAI/bge-large-en-v1.5 (Deep Reasoning • 1024-dim)</option>
+              <option value="nomic-ai/nomic-embed-text-v1.5">📑 nomic-ai/nomic-embed-text-v1.5 (8192 Long-Context • 768-dim)</option>
+              <option value="custom">⚙️ Enter Custom HuggingFace Model ID...</option>
+            </select>
+            <input type="text" id="custom-embedding-input" placeholder="Enter HuggingFace repo ID (e.g. Snowflake/snowflake-arctic-embed-m)..." style="display: none; margin-top: 0.4rem; padding: 0.6rem; border: var(--border); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; box-shadow: var(--shadow); width: 100%;">
+          </div>
+
+          <div class="input-group" style="grid-column: span 2;">
             <div class="label-row">
               <label class="label">Vision OCR Models (Multi-Model Combined Ensemble)</label>
             </div>
@@ -1213,6 +1229,26 @@
       }
     }
 
+    function handleEmbeddingChange() {
+      const select = document.getElementById('embedding-select');
+      const customInput = document.getElementById('custom-embedding-input');
+      if (select && select.value === 'custom') {
+        customInput.style.display = 'block';
+        customInput.focus();
+      } else if (customInput) {
+        customInput.style.display = 'none';
+      }
+    }
+
+    function getSelectedEmbeddingModel() {
+      const select = document.getElementById('embedding-select');
+      const customInput = document.getElementById('custom-embedding-input');
+      if (select && select.value === 'custom' && customInput && customInput.value.trim()) {
+        return customInput.value.trim();
+      }
+      return select ? select.value : 'BAAI/bge-base-en-v1.5';
+    }
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (selectedFiles.length === 0) {
@@ -1221,6 +1257,7 @@
       }
 
       const checkedVisionModels = Array.from(document.querySelectorAll('#vision-checkbox-group input[type="checkbox"]:checked')).map(cb => cb.value);
+      const chosenEmbeddingModel = getSelectedEmbeddingModel();
 
       buildBtn.disabled = true;
       progressContainer.style.display = 'block';
@@ -1248,6 +1285,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             model_name: modelSelect.value,
+            embedding_model: chosenEmbeddingModel,
             vision_models: checkedVisionModels.length > 0 ? checkedVisionModels : ["moondream"],
             ttl_hours: parseFloat(document.getElementById('ttl-select').value)
           })
@@ -1274,7 +1312,8 @@
           const uploadPromise = fetch(`/api/sessions/${sessionId}/upload`, { method: 'POST', body: fd });
           
           // Stage 3: Embedding & ChromaDB Storage
-          updateProgress(75, `Generating Dense Semantic Vector Embeddings (Batched MiniLM)...`, "MiniLM CPU");
+          const modelShortName = chosenEmbeddingModel.split('/').pop();
+          updateProgress(75, `Generating Dense Semantic Vector Embeddings (${modelShortName})...`, "GPU / CPU");
           
           const uploadRes = await uploadPromise;
           const uploadData = await uploadRes.json();

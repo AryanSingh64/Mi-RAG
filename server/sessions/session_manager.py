@@ -23,6 +23,7 @@ class RAGSession:
     images_dir: Path
     pipeline: RAGPipeline
     model_name: str
+    embedding_model: str = "BAAI/bge-base-en-v1.5"
     indexed_files: List[str] = field(default_factory=list)
 
     @property
@@ -49,7 +50,7 @@ class SessionManager:
         self,
         model_name: str = "llama3.2:3b",
         vision_models: Optional[List[str] | str] = None,
-        embedding_model: str = "all-MiniLM-L6-v2",
+        embedding_model: str = "BAAI/bge-base-en-v1.5",
         ttl_hours: Optional[float] = None
     ) -> RAGSession:
         """
@@ -87,7 +88,8 @@ class SessionManager:
             uploads_dir=uploads_dir,
             images_dir=images_dir,
             pipeline=pipeline,
-            model_name=model_name
+            model_name=model_name,
+            embedding_model=embedding_model
         )
 
         self.active_sessions[session_id] = session

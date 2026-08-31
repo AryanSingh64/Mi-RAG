@@ -158,25 +158,35 @@ async def delete_model(model: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/embeddings")
+def get_embedding_models():
+    """Returns available modular embedding models and configurations."""
+    from core.embeddings.embedder import LocalEmbedder
+    return {"catalog": LocalEmbedder.get_catalog(), "default": "BAAI/bge-base-en-v1.5"}
+
+
 @router.post("/sessions/create")
 def create_session(req: CreateSessionRequest):
-    """Creates a new ephemeral RAG session with optional multi-model Vision ensemble."""
+    """Creates a new ephemeral RAG session with modular embedding & multi-model Vision ensemble."""
     models_to_use = req.vision_models
     if not models_to_use and req.vision_model:
         models_to_use = [req.vision_model]
     if not models_to_use:
         models_to_use = ["moondream"]
 
+    chosen_embedder = req.embedding_model or "BAAI/bge-base-en-v1.5"
+
     session = session_manager.create_session(
         model_name=req.model_name or "llama3.2:3b",
         vision_models=models_to_use,
-        embedding_model=req.embedding_model or "all-MiniLM-L6-v2",
+        embedding_model=chosen_embedder,
         ttl_hours=req.ttl_hours or 3.0
     )
     print(f"\n[SESSION CREATED] ID: {session.session_id} | Model: {session.model_name} | Vision: {models_to_use} | Embedder: {session.embedding_model}")
     return {
         "session_id": session.session_id,
         "model_name": session.model_name,
+        "embedding_model": session.embedding_model,
         "expires_at": session.expires_at,
         "time_remaining_seconds": session.time_remaining_seconds,
         "portal_url": f"/portal/{session.session_id}"

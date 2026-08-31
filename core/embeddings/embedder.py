@@ -1,5 +1,6 @@
+import os
 import sys
-from typing import List
+from typing import Any, Dict, List, Optional
 from sentence_transformers import SentenceTransformer
 
 # Windows console encoding fix
@@ -10,25 +11,121 @@ if sys.platform == "win32":
         pass
 
 
+EMBEDDING_CATALOG: Dict[str, Dict[str, Any]] = {
+    "BAAI/bge-base-en-v1.5": {
+        "name": "BAAI/bge-base-en-v1.5",
+        "label": "BGE Base v1.5 (Recommended • 768-dim • SOTA Accuracy)",
+        "dim": 768,
+        "is_default": True,
+        "query_prefix": "Represent this sentence for searching relevant passages: ",
+        "description": "State-of-the-art embedding model with exceptional MTEB benchmark score and high-precision semantic retrieval."
+    },
+    "all-MiniLM-L6-v2": {
+        "name": "all-MiniLM-L6-v2",
+        "label": "MiniLM L6 v2 (Ultra-Fast • 384-dim • Low Memory)",
+        "dim": 384,
+        "is_default": False,
+        "query_prefix": "",
+        "description": "Extremely lightweight and fast CPU-friendly model for rapid indexing."
+    },
+    "BAAI/bge-m3": {
+        "name": "BAAI/bge-m3",
+        "label": "BGE M3 (Multilingual • 1024-dim • 8192 Token Context)",
+        "dim": 1024,
+        "is_default": False,
+        "query_prefix": "",
+        "description": "Multi-lingual, multi-granularity model with 8192 token long-context support."
+    },
+    "BAAI/bge-large-en-v1.5": {
+        "name": "BAAI/bge-large-en-v1.5",
+        "label": "BGE Large v1.5 (Deep Reasoning • 1024-dim)",
+        "dim": 1024,
+        "is_default": False,
+        "query_prefix": "Represent this sentence for searching relevant passages: ",
+        "description": "Large-capacity model designed for complex technical manuals and research papers."
+    },
+    "nomic-ai/nomic-embed-text-v1.5": {
+        "name": "nomic-ai/nomic-embed-text-v1.5",
+        "label": "Nomic Embed Text v1.5 (8192 Context • 768-dim)",
+        "dim": 768,
+        "is_default": False,
+        "query_prefix": "search_query: ",
+        "passage_prefix": "search_document: ",
+        "description": "Long-context embedding model with Matryoshka dimensionality truncation support."
+    }
+}
+
+
 class LocalEmbedder:
     """
-    Wrapper for local Hugging Face embedding models via sentence-transformers.
-    Runs entirely offline on CPU/GPU with zero cloud API dependencies.
+    Modular wrapper for local Hugging Face embedding models via sentence-transformers.
+    Automatically detects CUDA GPU, Apple Silicon (MPS), or optimized multi-core CPU.
     """
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        self.model_name = model_name
-        print(f"[*] Loading embedding model: {model_name} (CPU/local)...")
-        self.model = SentenceTransformer(model_name)
+    def __init__(self, model_name: str = "BAAI/bge-base-en-v1.5", device: Optional[str] = None):
+        self.model_name = model_name or "BAAI/bge-base-en-v1.5"
+        
+        # 1. Device Selection & GPU Acceleration
+        if device:
+            self.device = device
+        else:
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    self.device = "cuda"
+                elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                    self.device = "mps"
+                else:
+                    self.device = "cpu"
+            except Exception:
+                self.device = "cpu"
+
+        # 2. Query Instruction Prefixes
+        catalog_entry = EMBEDDING_CATALOG.get(self.model_name, {})
+        self.query_prefix = catalog_entry.get("query_prefix", "")
+        self.passage_prefix = catalog_entry.get("passage_prefix", "")
+
+        # 3. Dynamic Batch Sizing
+        self.batch_size = 128 if self.device in ("cuda", "mps") else 64
+
+        print(f"[*] Initializing Embedding Model: {self.model_name} on device: {self.device.upper()} (batch_size={self.batch_size})...")
+        try:
+            self.model = SentenceTransformer(self.model_name, device=self.device)
+        except Exception as e:
+            print(f"[!] Warning loading {self.model_name} on {self.device}: {e}. Falling back to all-MiniLM-L6-v2 on CPU...")
+            self.model_name = "all-MiniLM-L6-v2"
+            self.device = "cpu"
+            self.query_prefix = ""
+            self.passage_prefix = ""
+            self.model = SentenceTransformer(self.model_name, device="cpu")
 
     def embed_text(self, text: str) -> List[float]:
-        """Generates an embedding vector for a single search query."""
-        embedding = self.model.encode(text, convert_to_numpy=True)
+        """Generates an embedding vector for a single search query with instruction prefix."""
+        formatted_text = f"{self.query_prefix}{text}" if self.query_prefix else text
+        embedding = self.model.encode(formatted_text, convert_to_numpy=True, normalize_embeddings=True)
         return embedding.tolist()
 
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
-        """Generates embedding vectors for a list of document chunks in batches."""
+        """Generates normalized embedding vectors for a list of document chunks in high-speed batches."""
         if not texts:
             return []
-        embeddings = self.model.encode(texts, batch_size=32, show_progress_bar=False, convert_to_numpy=True)
+        
+        if self.passage_prefix:
+            formatted_texts = [f"{self.passage_prefix}{t}" for t in texts]
+        else:
+            formatted_texts = texts
+
+        embeddings = self.model.encode(
+            formatted_texts,
+            batch_size=self.batch_size,
+            show_progress_bar=False,
+            convert_to_numpy=True,
+            normalize_embeddings=True
+        )
         return embeddings.tolist()
+
+    @classmethod
+    def get_catalog(cls) -> List[Dict[str, Any]]:
+        """Returns the list of pre-configured embedding models with metadata."""
+        return list(EMBEDDING_CATALOG.values())
+
