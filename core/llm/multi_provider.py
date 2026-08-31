@@ -23,21 +23,22 @@ class MultiProviderLLM:
     PROVIDER_PRESETS = [
         {
             "id": "ollama",
-            "name": "Local Ollama (Offline / Zero-Cost)",
-            "models": ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b", "qwen2.5:7b", "mistral:latest", "gemma2:2b"],
-            "requires_key": False
+            "name": "Local Ollama",
+            "models": ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b", "qwen2.5:7b", "deepseek-r1:7b", "deepseek-r1:8b", "mistral:latest", "phi3.5:latest", "gemma2:2b"],
+            "requires_key": False,
+            "placeholder": ""
         },
         {
             "id": "openai",
             "name": "OpenAI",
-            "models": ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo", "o3-mini"],
+            "models": ["gpt-4o", "gpt-4o-mini", "o3-mini", "gpt-4.5-preview", "o1", "o1-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
             "requires_key": True,
             "placeholder": "sk-proj-..."
         },
         {
             "id": "gemini",
             "name": "Google Gemini",
-            "models": ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"],
+            "models": ["gemini-2.0-flash", "gemini-2.0-flash-thinking-exp", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.5-flash-8b"],
             "requires_key": True,
             "placeholder": "AIzaSy..."
         },
@@ -46,10 +47,14 @@ class MultiProviderLLM:
             "name": "OpenRouter",
             "models": [
                 "deepseek/deepseek-r1",
+                "deepseek/deepseek-chat",
+                "anthropic/claude-3.7-sonnet",
                 "anthropic/claude-3.5-sonnet",
                 "meta-llama/llama-3.3-70b-instruct",
                 "google/gemini-2.0-flash-001",
-                "qwen/qwen-2.5-72b-instruct"
+                "qwen/qwen-2.5-72b-instruct",
+                "mistralai/mistral-large-2411",
+                "openai/gpt-4o"
             ],
             "requires_key": True,
             "placeholder": "sk-or-v1-..."
@@ -57,14 +62,14 @@ class MultiProviderLLM:
         {
             "id": "groq",
             "name": "Groq Cloud",
-            "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+            "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "qwen-2.5-32b", "deepseek-r1-distill-llama-70b", "mixtral-8x7b-32768"],
             "requires_key": True,
             "placeholder": "gsk_..."
         },
         {
             "id": "anthropic",
             "name": "Anthropic Claude",
-            "models": ["claude-3-5-haiku-20241022", "claude-3-5-sonnet-20241022", "claude-3-opus-20240229"],
+            "models": ["claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"],
             "requires_key": True,
             "placeholder": "sk-ant-api03-..."
         }

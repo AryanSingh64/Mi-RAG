@@ -1132,42 +1132,42 @@
         name: "Local Ollama",
         badge: "OLLAMA",
         requiresKey: false,
-        models: ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b", "qwen2.5:7b", "mistral:latest", "gemma2:2b"]
+        models: ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b", "qwen2.5:7b", "deepseek-r1:7b", "deepseek-r1:8b", "mistral:latest", "phi3.5:latest", "gemma2:2b"]
       },
       openai: {
         name: "OpenAI",
         badge: "OPENAI",
         requiresKey: true,
         placeholder: "sk-proj-...",
-        models: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo", "o3-mini"]
+        models: ["gpt-4o", "gpt-4o-mini", "o3-mini", "gpt-4.5-preview", "o1", "o1-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
       },
       gemini: {
         name: "Google Gemini",
         badge: "GEMINI",
         requiresKey: true,
         placeholder: "AIzaSy...",
-        models: ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
+        models: ["gemini-2.0-flash", "gemini-2.0-flash-thinking-exp", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.5-flash-8b"]
       },
       openrouter: {
         name: "OpenRouter",
         badge: "OPENROUTER",
         requiresKey: true,
         placeholder: "sk-or-v1-...",
-        models: ["deepseek/deepseek-r1", "anthropic/claude-3.5-sonnet", "meta-llama/llama-3.3-70b-instruct", "google/gemini-2.0-flash-001", "qwen/qwen-2.5-72b-instruct"]
+        models: ["deepseek/deepseek-r1", "deepseek/deepseek-chat", "anthropic/claude-3.7-sonnet", "anthropic/claude-3.5-sonnet", "meta-llama/llama-3.3-70b-instruct", "google/gemini-2.0-flash-001", "qwen/qwen-2.5-72b-instruct", "mistralai/mistral-large-2411", "openai/gpt-4o"]
       },
       groq: {
         name: "Groq Cloud",
         badge: "GROQ",
         requiresKey: true,
         placeholder: "gsk_...",
-        models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]
+        models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "qwen-2.5-32b", "deepseek-r1-distill-llama-70b", "mixtral-8x7b-32768"]
       },
       anthropic: {
         name: "Anthropic Claude",
         badge: "CLAUDE",
         requiresKey: true,
         placeholder: "sk-ant-api03-...",
-        models: ["claude-3-5-haiku-20241022", "claude-3-5-sonnet-20241022", "claude-3-opus-20240229"]
+        models: ["claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]
       }
     };
 
@@ -1190,7 +1190,17 @@
       if (pSelect) pSelect.value = currentProvider;
       handleProviderChange();
       const mSelect = document.getElementById("setting-model-select");
-      if (mSelect && currentModel) mSelect.value = currentModel;
+      if (mSelect) {
+        if (currentModel && Array.from(mSelect.options).some(opt => opt.value === currentModel)) {
+          mSelect.value = currentModel;
+        } else if (currentModel) {
+          const opt = document.createElement("option");
+          opt.value = currentModel;
+          opt.innerText = currentModel;
+          mSelect.appendChild(opt);
+          mSelect.value = currentModel;
+        }
+      }
       
       const keyInput = document.getElementById("setting-api-key");
       if (keyInput) keyInput.value = savedApiKeys[currentProvider] || "";
@@ -1212,6 +1222,11 @@
       const mSelect = document.getElementById("setting-model-select");
       if (mSelect) {
         mSelect.innerHTML = cfg.models.map(m => `<option value="${m}">${m}</option>`).join('');
+        if (provider === currentProvider && currentModel && cfg.models.includes(currentModel)) {
+          mSelect.value = currentModel;
+        } else if (cfg.models.length > 0) {
+          mSelect.value = cfg.models[0];
+        }
       }
 
       const keyContainer = document.getElementById("api-key-container");
