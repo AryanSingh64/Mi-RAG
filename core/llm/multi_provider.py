@@ -75,6 +75,105 @@ class MultiProviderLLM:
         return cls.PROVIDER_PRESETS
 
     @classmethod
+    def fetch_models(cls, provider: str, api_key: Optional[str] = None) -> List[str]:
+        """Dynamically queries the provider's API to fetch the latest available models."""
+        provider = (provider or "ollama").lower().strip()
+        api_key = (api_key or "").strip()
+
+        preset_models = []
+        for p in cls.PROVIDER_PRESETS:
+            if p["id"] == provider:
+                preset_models = list(p["models"])
+                break
+
+        if provider == "ollama":
+            try:
+                with httpx.Client(timeout=4.0) as client:
+                    res = client.get("http://localhost:11434/api/tags")
+                    if res.status_code == 200:
+                        data = res.json()
+                        local_models = [m.get("name") for m in data.get("models", []) if m.get("name")]
+                        if local_models:
+                            return list(dict.fromkeys(local_models + preset_models))
+            except Exception:
+                pass
+            return preset_models
+
+        if provider == "openai" and api_key:
+            try:
+                with httpx.Client(timeout=6.0) as client:
+                    res = client.get(
+                        "https://api.openai.com/v1/models",
+                        headers={"Authorization": f"Bearer {api_key}"}
+                    )
+                    if res.status_code == 200:
+                        data = res.json()
+                        all_ids = [m.get("id") for m in data.get("data", []) if m.get("id")]
+                        chat_keywords = ["gpt-4", "gpt-3.5", "o1", "o3", "chatgpt"]
+                        chat_models = [m for m in all_ids if any(k in m for k in chat_keywords) and not any(ex in m for ex in ["audio", "realtime", "transcription", "tts", "embedding"])]
+                        chat_models.sort(reverse=True)
+                        if chat_models:
+                            return list(dict.fromkeys(chat_models + preset_models))
+            except Exception:
+                pass
+
+        if provider == "openrouter":
+            try:
+                with httpx.Client(timeout=6.0) as client:
+                    headers = {}
+                    if api_key:
+                        headers["Authorization"] = f"Bearer {api_key}"
+                    res = client.get("https://openrouter.ai/api/v1/models", headers=headers)
+                    if res.status_code == 200:
+                        data = res.json()
+                        or_models = [m.get("id") for m in data.get("data", []) if m.get("id")]
+                        if or_models:
+                            return list(dict.fromkeys(preset_models + or_models[:30]))
+            except Exception:
+                pass
+
+        if provider == "groq" and api_key:
+            try:
+                with httpx.Client(timeout=6.0) as client:
+                    res = client.get(
+                        "https://api.groq.com/openai/v1/models",
+                        headers={"Authorization": f"Bearer {api_key}"}
+                    )
+                    if res.status_code == 200:
+                        data = res.json()
+                        groq_models = [m.get("id") for m in data.get("data", []) if m.get("id")]
+                        if groq_models:
+                            return list(dict.fromkeys(groq_models + preset_models))
+            except Exception:
+                pass
+
+        if provider == "gemini" and api_key:
+            try:
+                with httpx.Client(timeout=6.0) as client:
+                    res = client.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}")
+                    if res.status_code == 200:
+                        data = res.json()
+                        gem_models = [
+                            m.get("name", "").replace("models/", "")
+                            for m in data.get("models", [])
+                            if "generateContent" in m.get("supportedGenerationMethods", [])
+                        ]
+                        if gem_models:
+                            return list(dict.fromkeys(gem_models + preset_models))
+            except Exception:
+                pass
+
+        if provider == "anthropic":
+            return [
+                "claude-3-7-sonnet-20250219",
+                "claude-3-5-sonnet-20241022",
+                "claude-3-5-haiku-20241022",
+                "claude-3-opus-20240229"
+            ]
+
+        return preset_models
+
+    @classmethod
     def test_key(cls, provider: str, api_key: str, model: Optional[str] = None) -> Dict[str, Any]:
         """Validates API key by firing a minimal ping prompt to the provider."""
         provider = (provider or "ollama").lower().strip()

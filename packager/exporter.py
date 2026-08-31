@@ -337,6 +337,77 @@ def clear_memory():
     SERVER_MEMORY = []
     return {{"status": "success", "message": "Memory cleared."}}
 
+@app.post("/api/models/fetch")
+def fetch_provider_models(req: KeyTestRequest):
+    provider = (req.provider or "ollama").lower().strip()
+    api_key = (req.api_key or "").strip()
+    
+    if provider == "ollama":
+        try:
+            with httpx.Client(timeout=4.0) as client:
+                res = client.get("http://localhost:11434/api/tags")
+                if res.status_code == 200:
+                    models = [m.get("name") for m in res.json().get("models", []) if m.get("name")]
+                    if models:
+                        return {{"provider": provider, "models": models}}
+        except Exception:
+            pass
+        return {{"provider": provider, "models": ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b", "mistral:latest"]}}
+
+    if provider == "openai" and api_key:
+        try:
+            with httpx.Client(timeout=6.0) as client:
+                res = client.get("https://api.openai.com/v1/models", headers={{"Authorization": f"Bearer {{api_key}}"}})
+                if res.status_code == 200:
+                    ids = [m.get("id") for m in res.json().get("data", []) if m.get("id")]
+                    chat_models = [m for m in ids if any(k in m for k in ["gpt-4", "gpt-3.5", "o1", "o3"]) and not any(ex in m for ex in ["audio", "realtime", "tts"])]
+                    if chat_models:
+                        return {{"provider": provider, "models": sorted(chat_models, reverse=True)}}
+        except Exception:
+            pass
+        return {{"provider": provider, "models": ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo", "o3-mini"]}}
+
+    if provider == "gemini" and api_key:
+        try:
+            with httpx.Client(timeout=6.0) as client:
+                res = client.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={{api_key}}")
+                if res.status_code == 200:
+                    gem_models = [m.get("name", "").replace("models/", "") for m in res.json().get("models", []) if "generateContent" in m.get("supportedGenerationMethods", [])]
+                    if gem_models:
+                        return {{"provider": provider, "models": gem_models}}
+        except Exception:
+            pass
+        return {{"provider": provider, "models": ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]}}
+
+    if provider == "openrouter":
+        try:
+            with httpx.Client(timeout=6.0) as client:
+                res = client.get("https://openrouter.ai/api/v1/models")
+                if res.status_code == 200:
+                    or_models = [m.get("id") for m in res.json().get("data", []) if m.get("id")]
+                    if or_models:
+                        return {{"provider": provider, "models": or_models[:30]}}
+        except Exception:
+            pass
+        return {{"provider": provider, "models": ["deepseek/deepseek-r1", "anthropic/claude-3.5-sonnet", "meta-llama/llama-3.3-70b-instruct"]}}
+
+    if provider == "groq" and api_key:
+        try:
+            with httpx.Client(timeout=6.0) as client:
+                res = client.get("https://api.groq.com/openai/v1/models", headers={{"Authorization": f"Bearer {{api_key}}"}})
+                if res.status_code == 200:
+                    g_models = [m.get("id") for m in res.json().get("data", []) if m.get("id")]
+                    if g_models:
+                        return {{"provider": provider, "models": g_models}}
+        except Exception:
+            pass
+        return {{"provider": provider, "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]}}
+
+    if provider == "anthropic":
+        return {{"provider": provider, "models": ["claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]}}
+
+    return {{"provider": provider, "models": ["llama3.2:3b"]}}
+
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_rag(request: Request):
     global SERVER_MEMORY

@@ -103,6 +103,13 @@ def test_provider_key(req: KeyTestRequest):
     return MultiProviderLLM.test_key(provider=req.provider, api_key=req.api_key or "", model=req.model)
 
 
+@router.post("/models/fetch")
+def fetch_provider_models(req: KeyTestRequest):
+    """Fetches latest dynamic model catalogue from the provider's API."""
+    models = MultiProviderLLM.fetch_models(provider=req.provider, api_key=req.api_key or "")
+    return {"provider": req.provider, "models": models}
+
+
 @router.get("/models")
 def get_available_models():
     """

@@ -787,17 +787,28 @@
           <label style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Active Provider:</label>
           <select id="setting-provider-select" onchange="handleProviderChange()" style="width: 100%; padding: 0.65rem; border: var(--border); border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: var(--shadow);">
             <option value="ollama">⚡ Local Ollama (100% Offline / Zero-Cost - Default)</option>
-            <option value="openai">🟢 OpenAI (GPT-4o, GPT-4o-mini, o3-mini)</option>
+            <option value="openai">🟢 OpenAI (GPT-4o, GPT-4o-mini, o3-mini, GPT-4.5)</option>
             <option value="gemini">🔵 Google Gemini (Gemini 1.5 Flash, 2.0 Flash)</option>
             <option value="openrouter">🟣 OpenRouter (DeepSeek R1, Claude 3.5, Llama 3.3)</option>
             <option value="groq">⚡ Groq Cloud (Ultra-Fast Llama 3.3 70B)</option>
-            <option value="anthropic">🟠 Anthropic Claude (Claude 3.5 Sonnet, Haiku)</option>
+            <option value="anthropic">🟠 Anthropic Claude (Claude 3.7 Sonnet, Haiku)</option>
           </select>
         </div>
 
         <div>
-          <label style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Model Selection:</label>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+            <label style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; color: #0f172a;">Model Selection:</label>
+            <button type="button" onclick="fetchLatestModels()" id="btn-fetch-models" style="background: var(--yellow); border: 1.5px solid #000; box-shadow: 1.5px 1.5px 0px #000; padding: 0.2rem 0.6rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.72rem; border-radius: 4px; cursor: pointer; transition: all 0.1s ease;">🔄 Fetch Latest Models</button>
+          </div>
           <select id="setting-model-select" style="width: 100%; padding: 0.65rem; border: var(--border); border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: var(--shadow);"></select>
+        </div>
+
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
+            <input type="checkbox" id="check-custom-model" onchange="toggleCustomModelInput()" style="cursor: pointer; width: 14px; height: 14px;">
+            <label for="check-custom-model" style="font-size: 0.78rem; font-weight: 700; color: #475569; cursor: pointer;">Or enter custom model ID (e.g. gpt-4.5-preview, claude-3-7-sonnet-20250219)</label>
+          </div>
+          <input type="text" id="setting-custom-model" placeholder="Enter exact model ID..." style="display: none; width: 100%; padding: 0.55rem; border: var(--border); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; box-shadow: var(--shadow);">
         </div>
 
         <div id="api-key-container" style="display: none;">
@@ -826,10 +837,10 @@
     </div>
     
     <div style="display: flex; align-items: center; gap: 0.75rem;">
-      <div class="model-switch-pill" onclick="openModelSettingsModal()" title="Switch Model / Configure API Keys">
-        <span class="provider-badge-icon" id="header-provider-badge">OLLAMA</span>
-        <span id="active-model-display">llama3.2:3b</span>
-        <span style="font-size: 0.85rem; opacity: 0.8;">⚙️</span>
+      <div class="model-switch-pill" onclick="openModelSettingsModal()" title="Switch Model / Configure API Keys" style="background: var(--pink); border: 2.5px solid #000; box-shadow: 3px 3px 0px #000; color: #fff;">
+        <span class="provider-badge-icon" id="header-provider-badge" style="background: var(--yellow); color: #000; font-weight: 900;">OLLAMA</span>
+        <span id="active-model-display" style="font-weight: 900;">llama3.2:3b</span>
+        <span style="font-size: 0.95rem;">⚙️</span>
       </div>
 
       <div class="timer-badge">
@@ -1219,9 +1230,60 @@
       }
     }
 
+    function toggleCustomModelInput() {
+      const isChecked = document.getElementById("check-custom-model").checked;
+      const customInput = document.getElementById("setting-custom-model");
+      const mSelect = document.getElementById("setting-model-select");
+      if (isChecked) {
+        customInput.style.display = 'block';
+        customInput.value = mSelect.value;
+        customInput.focus();
+      } else {
+        customInput.style.display = 'none';
+      }
+    }
+
+    async function fetchLatestModels() {
+      const provider = document.getElementById("setting-provider-select").value;
+      const apiKey = document.getElementById("setting-api-key")?.value?.trim() || savedApiKeys[provider] || "";
+      const fetchBtn = document.getElementById("btn-fetch-models");
+      const originalText = fetchBtn.innerText;
+      fetchBtn.innerText = "⏳ Fetching...";
+      fetchBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/models/fetch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, api_key: apiKey })
+        });
+        const data = await res.json();
+        if (data.models && data.models.length > 0) {
+          const mSelect = document.getElementById("setting-model-select");
+          mSelect.innerHTML = data.models.map(m => `<option value="${m}">${m}</option>`).join('');
+          if (data.models.includes(currentModel)) {
+            mSelect.value = currentModel;
+          }
+          fetchBtn.innerText = "✅ Updated";
+        } else {
+          fetchBtn.innerText = "❌ None Found";
+        }
+      } catch (err) {
+        fetchBtn.innerText = "❌ Error";
+      } finally {
+        setTimeout(() => {
+          if (fetchBtn) {
+            fetchBtn.innerText = originalText;
+            fetchBtn.disabled = false;
+          }
+        }, 2000);
+      }
+    }
+
     async function testCurrentKey() {
       const provider = document.getElementById("setting-provider-select").value;
-      const model = document.getElementById("setting-model-select").value;
+      const isCustom = document.getElementById("check-custom-model")?.checked;
+      const model = isCustom ? document.getElementById("setting-custom-model").value.trim() : document.getElementById("setting-model-select").value;
       const apiKey = document.getElementById("setting-api-key")?.value?.trim() || "";
       const feedback = document.getElementById("key-test-feedback");
       const testBtn = document.getElementById("btn-test-key");
@@ -1257,7 +1319,10 @@
 
     function saveModelSettings() {
       const provider = document.getElementById("setting-provider-select").value;
-      const model = document.getElementById("setting-model-select").value;
+      const isCustom = document.getElementById("check-custom-model")?.checked;
+      const customModel = document.getElementById("setting-custom-model")?.value?.trim();
+      const selectModel = document.getElementById("setting-model-select").value;
+      const model = (isCustom && customModel) ? customModel : selectModel;
       const apiKey = document.getElementById("setting-api-key")?.value?.trim() || "";
 
       currentProvider = provider;

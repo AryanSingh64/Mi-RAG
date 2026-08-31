@@ -519,19 +519,18 @@
     /* AI Model Engine Settings Modal */
     .custom-modal {
       position: fixed;
-      top: 0;
-      left: 0;
+      inset: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(0, 0, 0, 0.82);
-      backdrop-filter: blur(6px);
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 9999999;
+      z-index: 99999999 !important;
       padding: 1rem;
     }
-    .custom-modal.active { display: flex; }
+    .custom-modal.active { display: flex !important; }
     .modal-card {
       background: #ffffff;
       border: 3px solid #000000;
@@ -557,45 +556,67 @@
     }
     .modal-title {
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       font-weight: 900;
       color: #000;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
     }
     .modal-close {
       background: var(--pink);
       color: #fff;
       border: 2px solid #000;
       border-radius: 6px;
-      width: 28px;
-      height: 28px;
+      width: 30px;
+      height: 30px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 900;
+      font-size: 1.1rem;
       cursor: pointer;
       box-shadow: 2px 2px 0px #000;
+      transition: all 0.1s ease;
+    }
+    .modal-close:hover {
+      background: #000;
+      color: #fff;
+      transform: translate(-1px, -1px);
     }
     .btn-header-settings {
-      background: #182035;
-      color: #fff;
-      border: 2px solid #000;
-      box-shadow: 2.5px 2.5px 0px #000;
-      padding: 0.45rem 0.95rem;
+      background: var(--pink) !important;
+      color: #ffffff !important;
+      border: 2.5px solid #000000 !important;
+      box-shadow: 3px 3px 0px #000000 !important;
+      padding: 0.45rem 1rem;
       border-radius: 999px;
       font-family: 'Space Grotesk', sans-serif;
-      font-weight: 800;
+      font-weight: 900;
       font-size: 0.82rem;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 0.45rem;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
       text-decoration: none;
+      user-select: none;
+      z-index: 20;
     }
     .btn-header-settings:hover {
       transform: translate(-2px, -2px);
-      box-shadow: 4px 4px 0px #000;
-      background: #242f4d;
+      box-shadow: 5px 5px 0px #000000 !important;
+      background: #e00067 !important;
+    }
+    .provider-pill-badge {
+      background: var(--yellow);
+      color: #000000;
+      padding: 0.15rem 0.45rem;
+      border-radius: 5px;
+      font-size: 0.68rem;
+      font-weight: 900;
+      border: 1.5px solid #000000;
+      letter-spacing: 0.3px;
     }
   </style>
 
@@ -612,12 +633,12 @@
 
   <!-- AI Model Engine & Cloud API Settings Modal -->
   <div id="model-settings-modal" class="custom-modal" onclick="closeModelSettingsModal()">
-    <div class="modal-card" style="max-width: 520px;" onclick="event.stopPropagation()">
+    <div class="modal-card" onclick="event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title">⚙️ AI Model Engine & API Providers</div>
         <button type="button" class="modal-close" onclick="closeModelSettingsModal()">✕</button>
       </div>
-      <div class="modal-body" style="display: flex; flex-direction: column; gap: 1.1rem;">
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
         <div style="font-size: 0.82rem; color: #475569; line-height: 1.45; font-weight: 600; background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 0.75rem; border-radius: 6px;">
           🔒 <strong>Offline-First Privacy</strong>: By default, Mi:RAG runs 100% locally and offline via Ollama. You can optionally connect your own API keys for OpenAI, Google Gemini, OpenRouter, Groq, or Claude. All document processing, vector storage, and visual citations remain local.
         </div>
@@ -626,17 +647,28 @@
           <label style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Active Provider:</label>
           <select id="setting-provider-select" onchange="handleProviderChange()" style="width: 100%; padding: 0.65rem; border: var(--border-thick); border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: var(--shadow-neo);">
             <option value="ollama">⚡ Local Ollama (100% Offline / Zero-Cost - Default)</option>
-            <option value="openai">🟢 OpenAI (GPT-4o, GPT-4o-mini, o3-mini)</option>
+            <option value="openai">🟢 OpenAI (GPT-4o, GPT-4o-mini, o3-mini, GPT-4.5)</option>
             <option value="gemini">🔵 Google Gemini (Gemini 1.5 Flash, 2.0 Flash)</option>
             <option value="openrouter">🟣 OpenRouter (DeepSeek R1, Claude 3.5, Llama 3.3)</option>
             <option value="groq">⚡ Groq Cloud (Ultra-Fast Llama 3.3 70B)</option>
-            <option value="anthropic">🟠 Anthropic Claude (Claude 3.5 Sonnet, Haiku)</option>
+            <option value="anthropic">🟠 Anthropic Claude (Claude 3.7 Sonnet, Haiku)</option>
           </select>
         </div>
 
         <div>
-          <label style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Model Selection:</label>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+            <label style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; color: #0f172a;">Model Selection:</label>
+            <button type="button" onclick="fetchLatestModels()" id="btn-fetch-models" style="background: var(--yellow); border: 1.5px solid #000; box-shadow: 1.5px 1.5px 0px #000; padding: 0.2rem 0.6rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.72rem; border-radius: 4px; cursor: pointer; transition: all 0.1s ease;">🔄 Fetch Latest Models</button>
+          </div>
           <select id="setting-model-select" style="width: 100%; padding: 0.65rem; border: var(--border-thick); border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: var(--shadow-neo);"></select>
+        </div>
+
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
+            <input type="checkbox" id="check-custom-model" onchange="toggleCustomModelInput()" style="cursor: pointer; width: 14px; height: 14px;">
+            <label for="check-custom-model" style="font-size: 0.78rem; font-weight: 700; color: #475569; cursor: pointer;">Or enter custom model ID (e.g. gpt-4.5-preview, claude-3-7-sonnet-20250219)</label>
+          </div>
+          <input type="text" id="setting-custom-model" placeholder="Enter exact model ID..." style="display: none; width: 100%; padding: 0.55rem; border: var(--border-thick); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; box-shadow: var(--shadow-neo);">
         </div>
 
         <div id="api-key-container" style="display: none;">
@@ -676,7 +708,7 @@
         GitHub
       </a>
       <button type="button" onclick="openModelSettingsModal()" class="btn-header-settings" id="btn-header-settings" data-cursor="Configure Cloud AI Keys">
-        <span style="background: var(--yellow); color: #000; padding: 0.15rem 0.45rem; border-radius: 6px; font-size: 0.68rem; font-weight: 900; border: 1px solid #000;" id="nav-provider-badge">OLLAMA</span>
+        <span class="provider-pill-badge" id="nav-provider-badge">OLLAMA</span>
         <span id="nav-model-name">⚙️ AI Settings</span>
       </button>
       <a href="/app" class="btn-cta" data-cursor="Open Playground">
@@ -1169,9 +1201,60 @@ chmod +x run.sh
       }
     }
 
+    function toggleCustomModelInput() {
+      const isChecked = document.getElementById("check-custom-model").checked;
+      const customInput = document.getElementById("setting-custom-model");
+      const mSelect = document.getElementById("setting-model-select");
+      if (isChecked) {
+        customInput.style.display = 'block';
+        customInput.value = mSelect.value;
+        customInput.focus();
+      } else {
+        customInput.style.display = 'none';
+      }
+    }
+
+    async function fetchLatestModels() {
+      const provider = document.getElementById("setting-provider-select").value;
+      const apiKey = document.getElementById("setting-api-key")?.value?.trim() || savedApiKeys[provider] || "";
+      const fetchBtn = document.getElementById("btn-fetch-models");
+      const originalText = fetchBtn.innerText;
+      fetchBtn.innerText = "⏳ Fetching...";
+      fetchBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/models/fetch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, api_key: apiKey })
+        });
+        const data = await res.json();
+        if (data.models && data.models.length > 0) {
+          const mSelect = document.getElementById("setting-model-select");
+          mSelect.innerHTML = data.models.map(m => `<option value="${m}">${m}</option>`).join('');
+          if (data.models.includes(currentModel)) {
+            mSelect.value = currentModel;
+          }
+          fetchBtn.innerText = "✅ Updated";
+        } else {
+          fetchBtn.innerText = "❌ None Found";
+        }
+      } catch (err) {
+        fetchBtn.innerText = "❌ Error";
+      } finally {
+        setTimeout(() => {
+          if (fetchBtn) {
+            fetchBtn.innerText = originalText;
+            fetchBtn.disabled = false;
+          }
+        }, 2000);
+      }
+    }
+
     async function testCurrentKey() {
       const provider = document.getElementById("setting-provider-select").value;
-      const model = document.getElementById("setting-model-select").value;
+      const isCustom = document.getElementById("check-custom-model")?.checked;
+      const model = isCustom ? document.getElementById("setting-custom-model").value.trim() : document.getElementById("setting-model-select").value;
       const apiKey = document.getElementById("setting-api-key")?.value?.trim() || "";
       const feedback = document.getElementById("key-test-feedback");
       const testBtn = document.getElementById("btn-test-key");
@@ -1207,7 +1290,10 @@ chmod +x run.sh
 
     function saveModelSettings() {
       const provider = document.getElementById("setting-provider-select").value;
-      const model = document.getElementById("setting-model-select").value;
+      const isCustom = document.getElementById("check-custom-model")?.checked;
+      const customModel = document.getElementById("setting-custom-model")?.value?.trim();
+      const selectModel = document.getElementById("setting-model-select").value;
+      const model = (isCustom && customModel) ? customModel : selectModel;
       const apiKey = document.getElementById("setting-api-key")?.value?.trim() || "";
 
       currentProvider = provider;
