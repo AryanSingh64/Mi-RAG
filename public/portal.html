@@ -888,6 +888,20 @@
 
     <!-- Sidebar -->
     <div class="sidebar">
+      <!-- AI Model Engine & Cloud Keys Card -->
+      <div class="panel-card" style="border: 2px solid var(--yellow); box-shadow: 3px 3px 0px var(--yellow);">
+        <div class="panel-title" style="display: flex; align-items: center; justify-content: space-between;">
+          <span>⚙️ AI Engine & Keys</span>
+          <span class="provider-badge-icon" id="sidebar-provider-badge" style="background: var(--yellow); color: #000; font-size: 0.7rem;">OLLAMA</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 0.85rem; line-height: 1.45;">
+          Switch between 100% offline Ollama or connect your OpenAI, Gemini, OpenRouter, Groq, or Claude API keys.
+        </p>
+        <button type="button" onclick="openModelSettingsModal()" class="btn-settings-trigger" style="width: 100%; background: var(--yellow); color: #000; border: 2px solid #000; padding: 0.65rem; border-radius: 6px; font-weight: 900; font-family: 'Space Grotesk', sans-serif; cursor: pointer; box-shadow: 2px 2px 0px #000; text-transform: uppercase; font-size: 0.82rem; transition: all 0.1s ease;">
+          ⚙️ Change Model / API Key
+        </button>
+      </div>
+
       <div class="panel-card">
         <div class="panel-title">Standalone Package</div>
         <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1rem; line-height: 1.5;">
@@ -1154,8 +1168,10 @@
       const cfg = PROVIDER_CONFIGS[currentProvider] || PROVIDER_CONFIGS.ollama;
       const badge = document.getElementById("header-provider-badge");
       const disp = document.getElementById("active-model-display");
+      const sideBadge = document.getElementById("sidebar-provider-badge");
       if (badge) badge.innerText = cfg.badge;
       if (disp) disp.innerText = currentModel || cfg.models[0];
+      if (sideBadge) sideBadge.innerText = cfg.badge;
     }
 
     function openModelSettingsModal() {

@@ -516,6 +516,86 @@
       .docs-card {
         padding: 1.5rem 1.25rem;
       }
+    /* AI Model Engine Settings Modal */
+    .custom-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.82);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999999;
+      padding: 1rem;
+    }
+    .custom-modal.active { display: flex; }
+    .modal-card {
+      background: #ffffff;
+      border: 3px solid #000000;
+      box-shadow: 8px 8px 0px #000000;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 520px;
+      padding: 1.5rem;
+      color: #000000;
+      animation: popModal 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes popModal {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.1rem;
+      border-bottom: 2px solid #000;
+      padding-bottom: 0.75rem;
+    }
+    .modal-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: #000;
+    }
+    .modal-close {
+      background: var(--pink);
+      color: #fff;
+      border: 2px solid #000;
+      border-radius: 6px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 2px 2px 0px #000;
+    }
+    .btn-header-settings {
+      background: #182035;
+      color: #fff;
+      border: 2px solid #000;
+      box-shadow: 2.5px 2.5px 0px #000;
+      padding: 0.45rem 0.95rem;
+      border-radius: 999px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+    .btn-header-settings:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 4px 4px 0px #000;
+      background: #242f4d;
     }
   </style>
 
@@ -529,6 +609,52 @@
 
   <!-- Multi-User Figma Nametag -->
   <div id="figma-nametag">Aryan [Docs]</div>
+
+  <!-- AI Model Engine & Cloud API Settings Modal -->
+  <div id="model-settings-modal" class="custom-modal" onclick="closeModelSettingsModal()">
+    <div class="modal-card" style="max-width: 520px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">⚙️ AI Model Engine & API Providers</div>
+        <button type="button" class="modal-close" onclick="closeModelSettingsModal()">✕</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 1.1rem;">
+        <div style="font-size: 0.82rem; color: #475569; line-height: 1.45; font-weight: 600; background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 0.75rem; border-radius: 6px;">
+          🔒 <strong>Offline-First Privacy</strong>: By default, Mi:RAG runs 100% locally and offline via Ollama. You can optionally connect your own API keys for OpenAI, Google Gemini, OpenRouter, Groq, or Claude. All document processing, vector storage, and visual citations remain local.
+        </div>
+
+        <div>
+          <label style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Active Provider:</label>
+          <select id="setting-provider-select" onchange="handleProviderChange()" style="width: 100%; padding: 0.65rem; border: var(--border-thick); border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: var(--shadow-neo);">
+            <option value="ollama">⚡ Local Ollama (100% Offline / Zero-Cost - Default)</option>
+            <option value="openai">🟢 OpenAI (GPT-4o, GPT-4o-mini, o3-mini)</option>
+            <option value="gemini">🔵 Google Gemini (Gemini 1.5 Flash, 2.0 Flash)</option>
+            <option value="openrouter">🟣 OpenRouter (DeepSeek R1, Claude 3.5, Llama 3.3)</option>
+            <option value="groq">⚡ Groq Cloud (Ultra-Fast Llama 3.3 70B)</option>
+            <option value="anthropic">🟠 Anthropic Claude (Claude 3.5 Sonnet, Haiku)</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Model Selection:</label>
+          <select id="setting-model-select" style="width: 100%; padding: 0.65rem; border: var(--border-thick); border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: var(--shadow-neo);"></select>
+        </div>
+
+        <div id="api-key-container" style="display: none;">
+          <label id="api-key-label" style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Provider API Key:</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="password" id="setting-api-key" placeholder="Enter API key..." style="flex: 1; padding: 0.65rem; border: var(--border-thick); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; box-shadow: var(--shadow-neo);">
+            <button type="button" onclick="testCurrentKey()" id="btn-test-key" style="background: var(--yellow); border: var(--border-thick); box-shadow: var(--shadow-neo); padding: 0.65rem 0.9rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; border-radius: 6px; cursor: pointer;">Test Key</button>
+          </div>
+          <div id="key-test-feedback" style="margin-top: 0.5rem; font-size: 0.78rem; font-weight: 700; display: none;"></div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem; border-top: 2px solid #000; padding-top: 1rem;">
+          <button type="button" onclick="closeModelSettingsModal()" style="background: #e2e8f0; border: 2px solid #000; box-shadow: 2px 2px 0px #000; padding: 0.65rem 1.2rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; border-radius: 6px; cursor: pointer;">Cancel</button>
+          <button type="button" onclick="saveModelSettings()" style="background: var(--green); color: #000; border: 2px solid #000; box-shadow: 2px 2px 0px #000; padding: 0.65rem 1.4rem; font-family: 'Space Grotesk', sans-serif; font-weight: 900; font-size: 0.85rem; border-radius: 6px; cursor: pointer;">Save & Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Header -->
   <header>
@@ -549,6 +675,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
         GitHub
       </a>
+      <button type="button" onclick="openModelSettingsModal()" class="btn-header-settings" id="btn-header-settings" data-cursor="Configure Cloud AI Keys">
+        <span style="background: var(--yellow); color: #000; padding: 0.15rem 0.45rem; border-radius: 6px; font-size: 0.68rem; font-weight: 900; border: 1px solid #000;" id="nav-provider-badge">OLLAMA</span>
+        <span id="nav-model-name">⚙️ AI Settings</span>
+      </button>
       <a href="/app" class="btn-cta" data-cursor="Open Playground">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
         Launch Studio
@@ -936,6 +1066,167 @@ chmod +x run.sh
         }, 2000);
       });
     }
+
+    // --- MULTI-PROVIDER & API KEYS MANAGEMENT ---
+    const PROVIDER_CONFIGS = {
+      ollama: {
+        name: "Local Ollama",
+        badge: "OLLAMA",
+        requiresKey: false,
+        models: ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b", "qwen2.5:7b", "mistral:latest", "gemma2:2b"]
+      },
+      openai: {
+        name: "OpenAI",
+        badge: "OPENAI",
+        requiresKey: true,
+        placeholder: "sk-proj-...",
+        models: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo", "o3-mini"]
+      },
+      gemini: {
+        name: "Google Gemini",
+        badge: "GEMINI",
+        requiresKey: true,
+        placeholder: "AIzaSy...",
+        models: ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
+      },
+      openrouter: {
+        name: "OpenRouter",
+        badge: "OPENROUTER",
+        requiresKey: true,
+        placeholder: "sk-or-v1-...",
+        models: ["deepseek/deepseek-r1", "anthropic/claude-3.5-sonnet", "meta-llama/llama-3.3-70b-instruct", "google/gemini-2.0-flash-001", "qwen/qwen-2.5-72b-instruct"]
+      },
+      groq: {
+        name: "Groq Cloud",
+        badge: "GROQ",
+        requiresKey: true,
+        placeholder: "gsk_...",
+        models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]
+      },
+      anthropic: {
+        name: "Anthropic Claude",
+        badge: "CLAUDE",
+        requiresKey: true,
+        placeholder: "sk-ant-api03-...",
+        models: ["claude-3-5-haiku-20241022", "claude-3-5-sonnet-20241022", "claude-3-opus-20240229"]
+      }
+    };
+
+    let currentProvider = localStorage.getItem("mirag_provider") || "ollama";
+    let currentModel = localStorage.getItem("mirag_model") || "llama3.2:3b";
+    let savedApiKeys = JSON.parse(localStorage.getItem("mirag_api_keys") || "{}");
+
+    function syncHeaderModelDisplay() {
+      const cfg = PROVIDER_CONFIGS[currentProvider] || PROVIDER_CONFIGS.ollama;
+      const badge = document.getElementById("nav-provider-badge");
+      const disp = document.getElementById("nav-model-name");
+      if (badge) badge.innerText = cfg.badge;
+      if (disp) disp.innerText = currentModel || cfg.models[0];
+    }
+
+    function openModelSettingsModal() {
+      const pSelect = document.getElementById("setting-provider-select");
+      if (pSelect) pSelect.value = currentProvider;
+      handleProviderChange();
+      const mSelect = document.getElementById("setting-model-select");
+      if (mSelect && currentModel) mSelect.value = currentModel;
+      
+      const keyInput = document.getElementById("setting-api-key");
+      if (keyInput) keyInput.value = savedApiKeys[currentProvider] || "";
+      
+      const feedback = document.getElementById("key-test-feedback");
+      if (feedback) { feedback.style.display = 'none'; feedback.innerText = ''; }
+
+      document.getElementById("model-settings-modal").classList.add("active");
+    }
+
+    function closeModelSettingsModal() {
+      document.getElementById("model-settings-modal").classList.remove("active");
+    }
+
+    function handleProviderChange() {
+      const provider = document.getElementById("setting-provider-select").value;
+      const cfg = PROVIDER_CONFIGS[provider] || PROVIDER_CONFIGS.ollama;
+      
+      const mSelect = document.getElementById("setting-model-select");
+      if (mSelect) {
+        mSelect.innerHTML = cfg.models.map(m => `<option value="${m}">${m}</option>`).join('');
+      }
+
+      const keyContainer = document.getElementById("api-key-container");
+      const keyInput = document.getElementById("setting-api-key");
+      const keyLabel = document.getElementById("api-key-label");
+      
+      if (cfg.requiresKey) {
+        if (keyContainer) keyContainer.style.display = 'block';
+        if (keyLabel) keyLabel.innerText = `${cfg.name} API Key:`;
+        if (keyInput) {
+          keyInput.placeholder = cfg.placeholder || "Enter API key...";
+          keyInput.value = savedApiKeys[provider] || "";
+        }
+      } else {
+        if (keyContainer) keyContainer.style.display = 'none';
+      }
+    }
+
+    async function testCurrentKey() {
+      const provider = document.getElementById("setting-provider-select").value;
+      const model = document.getElementById("setting-model-select").value;
+      const apiKey = document.getElementById("setting-api-key")?.value?.trim() || "";
+      const feedback = document.getElementById("key-test-feedback");
+      const testBtn = document.getElementById("btn-test-key");
+
+      if (feedback) {
+        feedback.style.display = 'block';
+        feedback.style.color = '#3b82f6';
+        feedback.innerText = 'Testing connection with provider...';
+      }
+      if (testBtn) testBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/keys/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, api_key: apiKey, model })
+        });
+        const data = await res.json();
+        if (data.valid) {
+          feedback.style.color = '#16a34a';
+          feedback.innerText = '✅ ' + data.message;
+        } else {
+          feedback.style.color = '#dc2626';
+          feedback.innerText = '❌ ' + data.message;
+        }
+      } catch (err) {
+        feedback.style.color = '#dc2626';
+        feedback.innerText = '❌ Test failed: ' + err.message;
+      } finally {
+        if (testBtn) testBtn.disabled = false;
+      }
+    }
+
+    function saveModelSettings() {
+      const provider = document.getElementById("setting-provider-select").value;
+      const model = document.getElementById("setting-model-select").value;
+      const apiKey = document.getElementById("setting-api-key")?.value?.trim() || "";
+
+      currentProvider = provider;
+      currentModel = model;
+      if (apiKey) {
+        savedApiKeys[provider] = apiKey;
+      } else if (PROVIDER_CONFIGS[provider]?.requiresKey === false) {
+        delete savedApiKeys[provider];
+      }
+
+      localStorage.setItem("mirag_provider", currentProvider);
+      localStorage.setItem("mirag_model", currentModel);
+      localStorage.setItem("mirag_api_keys", JSON.stringify(savedApiKeys));
+
+      syncHeaderModelDisplay();
+      closeModelSettingsModal();
+    }
+
+    syncHeaderModelDisplay();
   </script>
 </body>
 </html>
