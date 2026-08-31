@@ -349,10 +349,10 @@ def fetch_provider_models(req: KeyTestRequest):
                 if res.status_code == 200:
                     models = [m.get("name") for m in res.json().get("models", []) if m.get("name")]
                     if models:
-                        return {{"provider": provider, "models": list(dict.fromkeys(models + ["llama3.2:3b", "deepseek-r1:7b", "qwen2.5:3b"]))}}
+                        return {{"provider": provider, "models": list(dict.fromkeys(models + ["qwen3.8-flash-next", "glm-5.3", "ornith-1.5", "granite4.2"]))}}
         except Exception:
             pass
-        return {{"provider": provider, "models": ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b", "qwen2.5:7b", "deepseek-r1:7b", "deepseek-r1:8b", "mistral:latest", "phi3.5:latest", "gemma2:2b"]}}
+        return {{"provider": provider, "models": ["qwen3.8-flash-next", "glm-5.3", "glm-5.3-flash", "ornith-1.5", "granite4.2", "qwen3.6", "deepseek-v4-flash", "llama3.2:3b", "llama3.2:1b", "qwen2.5:3b", "qwen2.5:7b", "mistral:latest"]}}
 
     if provider == "openai":
         if api_key:
@@ -366,7 +366,7 @@ def fetch_provider_models(req: KeyTestRequest):
                             return {{"provider": provider, "models": sorted(chat_models, reverse=True)}}
             except Exception:
                 pass
-        return {{"provider": provider, "models": ["gpt-4o", "gpt-4o-mini", "o3-mini", "gpt-4.5-preview", "o1", "o1-mini", "gpt-4-turbo", "gpt-3.5-turbo"]}}
+        return {{"provider": provider, "models": ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5", "gpt-5.5-pro", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.3-codex", "gpt-5.2", "gpt-4o", "gpt-4o-mini", "o3-mini"]}}
 
     if provider == "gemini":
         if api_key:
@@ -379,7 +379,23 @@ def fetch_provider_models(req: KeyTestRequest):
                             return {{"provider": provider, "models": gem_models}}
             except Exception:
                 pass
-        return {{"provider": provider, "models": ["gemini-2.0-flash", "gemini-2.0-flash-thinking-exp", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.5-flash-8b"]}}
+        return {{"provider": provider, "models": ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.5-flash-cyber", "gemini-3.1-pro", "gemini-3-deep-think", "gemini-omni", "gemini-omni-1.1-flash", "gemini-2.0-flash"]}}
+
+    if provider == "anthropic":
+        return {{"provider": provider, "models": ["claude-fable-5", "claude-opus-5", "claude-sonnet-5", "claude-mythos-5", "claude-opus-4.8", "claude-sonnet-4.6", "claude-opus-4.7", "claude-opus-4.6", "claude-haiku-4.5"]}}
+
+    if provider == "grok":
+        if api_key:
+            try:
+                with httpx.Client(timeout=5.0) as client:
+                    res = client.get("https://api.x.ai/v1/models", headers={{"Authorization": f"Bearer {{api_key}}"}})
+                    if res.status_code == 200:
+                        g_models = [m.get("id") for m in res.json().get("data", []) if m.get("id")]
+                        if g_models:
+                            return {{"provider": provider, "models": g_models}}
+            except Exception:
+                pass
+        return {{"provider": provider, "models": ["grok-4.6", "grok-4.5", "grok-4", "grok-4.1", "grok-beta", "grok-vision-beta"]}}
 
     if provider == "openrouter":
         try:
@@ -388,30 +404,14 @@ def fetch_provider_models(req: KeyTestRequest):
                 res = client.get("https://openrouter.ai/api/v1/models", headers=headers)
                 if res.status_code == 200:
                     or_models = [m.get("id") for m in res.json().get("data", []) if m.get("id")]
-                    filtered = [m for m in or_models if any(kw in m.lower() for kw in ["deepseek", "claude-3", "gpt-4", "gpt-5", "o1", "o3", "llama-3", "gemini-2", "qwen-2", "mistral"])]
+                    filtered = [m for m in or_models if any(kw in m.lower() for kw in ["gpt-5", "claude-", "opus-5", "sonnet-5", "gemini-3", "grok-4", "deepseek-v4", "glm-5", "minimax", "nemotron", "deepseek-r1", "llama-3"])]
                     if filtered:
-                        return {{"provider": provider, "models": filtered[:40]}}
+                        return {{"provider": provider, "models": filtered[:50]}}
         except Exception:
             pass
-        return {{"provider": provider, "models": ["deepseek/deepseek-r1", "deepseek/deepseek-chat", "anthropic/claude-3.7-sonnet", "anthropic/claude-3.5-sonnet", "meta-llama/llama-3.3-70b-instruct", "google/gemini-2.0-flash-001", "qwen/qwen-2.5-72b-instruct", "mistralai/mistral-large-2411", "openai/gpt-4o"]}}
+        return {{"provider": provider, "models": ["openrouter/auto", "openai/gpt-5.6-sol", "anthropic/claude-opus-5", "anthropic/claude-sonnet-5", "google/gemini-3.7-flash", "x-ai/grok-4.6", "deepseek/deepseek-v4-flash", "z-ai/glm-5.3", "minimax/minimax-m3", "nvidia/nemotron-3-ultra", "deepseek/deepseek-r1", "meta-llama/llama-3.3-70b-instruct"]}}
 
-    if provider == "groq":
-        if api_key:
-            try:
-                with httpx.Client(timeout=5.0) as client:
-                    res = client.get("https://api.groq.com/openai/v1/models", headers={{"Authorization": f"Bearer {{api_key}}"}})
-                    if res.status_code == 200:
-                        g_models = [m.get("id") for m in res.json().get("data", []) if m.get("id")]
-                        if g_models:
-                            return {{"provider": provider, "models": g_models}}
-            except Exception:
-                pass
-        return {{"provider": provider, "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "qwen-2.5-32b", "deepseek-r1-distill-llama-70b", "mixtral-8x7b-32768"]}}
-
-    if provider == "anthropic":
-        return {{"provider": provider, "models": ["claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]}}
-
-    return {{"provider": provider, "models": ["llama3.2:3b"]}}
+    return {{"provider": provider, "models": ["qwen3.8-flash-next"]}}
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_rag(request: Request):
