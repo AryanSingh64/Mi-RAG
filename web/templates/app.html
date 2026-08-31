@@ -1289,6 +1289,9 @@
       } else {
         if (keyContainer) keyContainer.style.display = 'none';
       }
+
+      const activeKey = (cfg.requiresKey ? (keyInput?.value?.trim() || savedApiKeys[provider] || "") : "");
+      autoFollowModels(provider, activeKey);
     }
 
     function toggleCustomModelInput() {
@@ -1304,12 +1307,40 @@
       }
     }
 
+    async function autoFollowModels(provider, apiKey) {
+      try {
+        const res = await fetch('/api/models/fetch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, api_key: apiKey })
+        });
+        const data = await res.json();
+        if (data.models && data.models.length > 0) {
+          const currentP = document.getElementById("setting-provider-select")?.value;
+          if (currentP === provider) {
+            const mSelect = document.getElementById("setting-model-select");
+            if (mSelect) {
+              const selectedVal = mSelect.value;
+              mSelect.innerHTML = data.models.map(m => `<option value="${m}">${m}</option>`).join('');
+              if (selectedVal && data.models.includes(selectedVal)) {
+                mSelect.value = selectedVal;
+              } else if (currentModel && data.models.includes(currentModel)) {
+                mSelect.value = currentModel;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        // Fallback to presets silently
+      }
+    }
+
     async function fetchLatestModels() {
       const provider = document.getElementById("setting-provider-select").value;
       const apiKey = document.getElementById("setting-api-key")?.value?.trim() || savedApiKeys[provider] || "";
       const fetchBtn = document.getElementById("btn-fetch-models");
       const originalText = fetchBtn.innerText;
-      fetchBtn.innerText = "⏳ Fetching...";
+      fetchBtn.innerText = "⏳ Syncing...";
       fetchBtn.disabled = true;
 
       try {
@@ -1325,7 +1356,7 @@
           if (data.models.includes(currentModel)) {
             mSelect.value = currentModel;
           }
-          fetchBtn.innerText = "✅ Updated";
+          fetchBtn.innerText = "✅ Auto-Synced (" + data.models.length + " Models)";
         } else {
           fetchBtn.innerText = "❌ None Found";
         }

@@ -81,7 +81,7 @@ class MultiProviderLLM:
 
     @classmethod
     def fetch_models(cls, provider: str, api_key: Optional[str] = None) -> List[str]:
-        """Dynamically queries the provider's API to fetch the latest available models."""
+        """Dynamically queries the provider's API or live catalogues to fetch latest models."""
         provider = (provider or "ollama").lower().strip()
         api_key = (api_key or "").strip()
 
@@ -91,9 +91,10 @@ class MultiProviderLLM:
                 preset_models = list(p["models"])
                 break
 
+        # 1. Local Ollama Auto-Discovery
         if provider == "ollama":
             try:
-                with httpx.Client(timeout=4.0) as client:
+                with httpx.Client(timeout=3.5) as client:
                     res = client.get("http://localhost:11434/api/tags")
                     if res.status_code == 200:
                         data = res.json()
@@ -104,77 +105,86 @@ class MultiProviderLLM:
                 pass
             return preset_models
 
-        if provider == "openai" and api_key:
-            try:
-                with httpx.Client(timeout=6.0) as client:
-                    res = client.get(
-                        "https://api.openai.com/v1/models",
-                        headers={"Authorization": f"Bearer {api_key}"}
-                    )
-                    if res.status_code == 200:
-                        data = res.json()
-                        all_ids = [m.get("id") for m in data.get("data", []) if m.get("id")]
-                        chat_keywords = ["gpt-4", "gpt-3.5", "o1", "o3", "chatgpt"]
-                        chat_models = [m for m in all_ids if any(k in m for k in chat_keywords) and not any(ex in m for ex in ["audio", "realtime", "transcription", "tts", "embedding"])]
-                        chat_models.sort(reverse=True)
-                        if chat_models:
-                            return list(dict.fromkeys(chat_models + preset_models))
-            except Exception:
-                pass
+        # 2. OpenAI Live Discovery (Key or Public Catalog)
+        if provider == "openai":
+            if api_key:
+                try:
+                    with httpx.Client(timeout=5.0) as client:
+                        res = client.get(
+                            "https://api.openai.com/v1/models",
+                            headers={"Authorization": f"Bearer {api_key}"}
+                        )
+                        if res.status_code == 200:
+                            data = res.json()
+                            all_ids = [m.get("id") for m in data.get("data", []) if m.get("id")]
+                            chat_keywords = ["gpt-5", "gpt-4", "gpt-3.5", "o1", "o3", "o4", "chatgpt"]
+                            chat_models = [m for m in all_ids if any(k in m for k in chat_keywords) and not any(ex in m for ex in ["audio", "realtime", "transcription", "tts", "embedding", "search", "whisper"])]
+                            chat_models.sort(reverse=True)
+                            if chat_models:
+                                return list(dict.fromkeys(preset_models + chat_models))
+                except Exception:
+                    pass
+            return preset_models
 
+        # 3. Google Gemini Live Discovery
+        if provider == "gemini":
+            if api_key:
+                try:
+                    with httpx.Client(timeout=5.0) as client:
+                        res = client.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}")
+                        if res.status_code == 200:
+                            data = res.json()
+                            gem_models = [
+                                m.get("name", "").replace("models/", "")
+                                for m in data.get("models", [])
+                                if "generateContent" in m.get("supportedGenerationMethods", [])
+                            ]
+                            if gem_models:
+                                return list(dict.fromkeys(preset_models + gem_models))
+                except Exception:
+                    pass
+            return preset_models
+
+        # 4. OpenRouter Live Dynamic Auto-Discovery (300+ public models without key!)
         if provider == "openrouter":
             try:
-                with httpx.Client(timeout=6.0) as client:
-                    headers = {}
-                    if api_key:
-                        headers["Authorization"] = f"Bearer {api_key}"
+                headers = {}
+                if api_key:
+                    headers["Authorization"] = f"Bearer {api_key}"
+                with httpx.Client(timeout=5.5) as client:
                     res = client.get("https://openrouter.ai/api/v1/models", headers=headers)
                     if res.status_code == 200:
                         data = res.json()
-                        or_models = [m.get("id") for m in data.get("data", []) if m.get("id")]
-                        if or_models:
-                            return list(dict.fromkeys(preset_models + or_models[:30]))
+                        raw_models = [m.get("id") for m in data.get("data", []) if m.get("id")]
+                        # Filter top featured models
+                        filtered = [m for m in raw_models if any(kw in m.lower() for kw in ["deepseek", "claude-3", "gpt-4", "gpt-5", "o1", "o3", "llama-3", "gemini-2", "qwen-2", "mistral"])]
+                        if filtered:
+                            return list(dict.fromkeys(preset_models + filtered[:40]))
             except Exception:
                 pass
+            return preset_models
 
-        if provider == "groq" and api_key:
-            try:
-                with httpx.Client(timeout=6.0) as client:
-                    res = client.get(
-                        "https://api.groq.com/openai/v1/models",
-                        headers={"Authorization": f"Bearer {api_key}"}
-                    )
-                    if res.status_code == 200:
-                        data = res.json()
-                        groq_models = [m.get("id") for m in data.get("data", []) if m.get("id")]
-                        if groq_models:
-                            return list(dict.fromkeys(groq_models + preset_models))
-            except Exception:
-                pass
+        # 5. Groq Cloud Live Discovery
+        if provider == "groq":
+            if api_key:
+                try:
+                    with httpx.Client(timeout=5.0) as client:
+                        res = client.get(
+                            "https://api.groq.com/openai/v1/models",
+                            headers={"Authorization": f"Bearer {api_key}"}
+                        )
+                        if res.status_code == 200:
+                            data = res.json()
+                            groq_models = [m.get("id") for m in data.get("data", []) if m.get("id")]
+                            if groq_models:
+                                return list(dict.fromkeys(preset_models + groq_models))
+                except Exception:
+                    pass
+            return preset_models
 
-        if provider == "gemini" and api_key:
-            try:
-                with httpx.Client(timeout=6.0) as client:
-                    res = client.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}")
-                    if res.status_code == 200:
-                        data = res.json()
-                        gem_models = [
-                            m.get("name", "").replace("models/", "")
-                            for m in data.get("models", [])
-                            if "generateContent" in m.get("supportedGenerationMethods", [])
-                        ]
-                        if gem_models:
-                            return list(dict.fromkeys(gem_models + preset_models))
-            except Exception:
-                pass
-
+        # 6. Anthropic Claude
         if provider == "anthropic":
-            return [
-                "claude-3-7-sonnet-20250219",
-                "claude-3-5-sonnet-20241022",
-                "claude-3-5-haiku-20241022",
-                "claude-3-opus-20240229"
-            ]
+            return preset_models
 
         return preset_models
 
