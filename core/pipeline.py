@@ -6,6 +6,7 @@ from core.guardrails.anti_hallucination import AntiHallucinationEngine, Grounded
 from core.guardrails.query_rewriter import QueryRewriter
 from core.ingestion.factory import DocumentParserFactory
 from core.llm.ollama_client import OllamaClient
+from core.llm.multi_provider import MultiProviderLLM
 from core.vectorstore.chroma_store import ChromaVectorStore
 
 
@@ -68,7 +69,10 @@ class RAGPipeline:
         self,
         user_question: str,
         top_k: int = 6,
-        history: Optional[List[Dict[str, str]]] = None
+        history: Optional[List[Dict[str, str]]] = None,
+        provider: str = "ollama",
+        model: Optional[str] = None,
+        api_key: Optional[str] = None
     ) -> GroundedAnswer:
         """
         Executes a query with spelling auto-correction, attention-guided reranking,
@@ -76,6 +80,9 @@ class RAGPipeline:
         """
         if history is not None:
             self.conversation_memory = history[-10:]
+
+        target_model = model or self.current_model
+        provider_name = (provider or "ollama").lower().strip()
 
         # 1. Handle casual greetings ("hi", "hello") politely
         greeting_reply = self.rewriter.is_conversational_greeting(user_question)
@@ -92,7 +99,7 @@ class RAGPipeline:
         # 2. Fix typos & expand query with conversation attention
         cleaned_question, search_query = self.rewriter.clean_and_expand_query(
             user_question,
-            model_name=self.current_model
+            model_name=target_model
         )
 
         # 3. Multi-strategy retrieval (corrected query + original query)
@@ -115,7 +122,7 @@ class RAGPipeline:
 
         # Print retrieved context live in terminal
         print("\n" + "="*60)
-        print(f"[*] QUERY: {user_question}")
+        print(f"[*] QUERY: {user_question} (Provider: {provider_name.upper()} | Model: {target_model})")
         if relevant_chunks:
             print(f"[*] ATTENTION-RERANKED CONTEXT ({len(relevant_chunks)} chunks):")
             for idx, chunk in enumerate(relevant_chunks, 1):
@@ -145,21 +152,24 @@ class RAGPipeline:
             conversation_history=self.conversation_memory
         )
 
-        # 6. Query Ollama with low temperature
+        # 6. Query LLM via MultiProvider dispatcher
         try:
-            llm_response = self.ollama.chat_response(
-                user_message=user_prompt,
+            llm_response = MultiProviderLLM.generate(
+                user_prompt=user_prompt,
                 system_prompt=system_prompt,
-                model=self.current_model,
-                temperature=0.1
+                provider=provider_name,
+                model=target_model,
+                api_key=api_key,
+                temperature=0.1,
+                ollama_url=self.ollama.base_url
             )
         except Exception as e:
             return GroundedAnswer(
-                answer=f"Error communicating with local Ollama: {str(e)}",
+                answer=f"Error communicating with {provider_name.upper()}: {str(e)}",
                 is_grounded=False,
                 confidence_score=0.0,
                 citations=relevant_chunks,
-                warning="Ollama connection failed. Is Ollama running?"
+                warning=f"{provider_name.upper()} connection note: {str(e)}"
             )
 
         # Record conversation turn in memory
@@ -191,7 +201,10 @@ class RAGPipeline:
         user_question: str,
         query_image_path: Path | str,
         top_k: int = 6,
-        history: Optional[List[Dict[str, str]]] = None
+        history: Optional[List[Dict[str, str]]] = None,
+        provider: str = "ollama",
+        model: Optional[str] = None,
+        api_key: Optional[str] = None
     ) -> GroundedAnswer:
         """
         Executes a Multimodal Visual Search & Query with memory and attention.
@@ -199,8 +212,11 @@ class RAGPipeline:
         if history is not None:
             self.conversation_memory = history[-10:]
 
+        target_model = model or self.current_model
+        provider_name = (provider or "ollama").lower().strip()
+
         image_path = Path(query_image_path)
-        print(f"\n[*] MULTIMODAL QUERY WITH ATTACHED IMAGE: {image_path.name}")
+        print(f"\n[*] MULTIMODAL QUERY WITH ATTACHED IMAGE: {image_path.name} (Provider: {provider_name.upper()})")
 
         # 1. Extract OCR text and Vision description of query image
         vision_parser = getattr(self.parser_factory, "vision_parser", getattr(self.parser_factory, "_image_parser", None))
@@ -249,21 +265,24 @@ class RAGPipeline:
             conversation_history=self.conversation_memory
         )
 
-        # 5. Query Ollama
+        # 5. Query LLM via MultiProvider dispatcher
         try:
-            llm_response = self.ollama.chat_response(
-                user_message=user_prompt,
+            llm_response = MultiProviderLLM.generate(
+                user_prompt=user_prompt,
                 system_prompt=system_prompt,
-                model=self.current_model,
-                temperature=0.1
+                provider=provider_name,
+                model=target_model,
+                api_key=api_key,
+                temperature=0.1,
+                ollama_url=self.ollama.base_url
             )
         except Exception as e:
             return GroundedAnswer(
-                answer=f"Error communicating with local Ollama: {str(e)}",
+                answer=f"Error communicating with {provider_name.upper()}: {str(e)}",
                 is_grounded=False,
                 confidence_score=0.0,
                 citations=relevant_chunks,
-                warning="Ollama connection failed. Is Ollama running?"
+                warning=f"{provider_name.upper()} connection note: {str(e)}"
             )
 
         # Record conversation turn in memory

@@ -74,10 +74,170 @@ collection = collections[0] if collections else chroma_client.get_or_create_coll
 # Server-side conversation memory buffer
 SERVER_MEMORY = []
 
+class KeyTestRequest(BaseModel):
+    provider: str
+    api_key: Optional[str] = None
+    model: Optional[str] = None
+
+class MultiProviderDispatcher:
+    DEFAULT_MODELS = {{
+        "ollama": "llama3.2:3b",
+        "openai": "gpt-4o-mini",
+        "gemini": "gemini-1.5-flash",
+        "openrouter": "deepseek/deepseek-r1",
+        "groq": "llama-3.3-70b-versatile",
+        "anthropic": "claude-3-5-haiku-20241022"
+    }}
+
+    @classmethod
+    def test_key(cls, provider: str, api_key: str, model: Optional[str] = None) -> dict:
+        provider = (provider or "ollama").lower().strip()
+        api_key = (api_key or "").strip()
+
+        if provider == "ollama":
+            try:
+                with httpx.Client(timeout=3.0) as client:
+                    res = client.get("http://localhost:11434/api/tags")
+                    if res.status_code == 200:
+                        return {{"valid": True, "message": "Ollama local engine is online and connected."}}
+                    return {{"valid": False, "message": f"Ollama returned status {{res.status_code}}."}}
+            except Exception as e:
+                return {{"valid": False, "message": f"Could not reach Ollama: {{str(e)}}"}}
+
+        if not api_key:
+            return {{"valid": False, "message": f"API key for {{provider}} cannot be empty."}}
+
+        target_model = model or cls.DEFAULT_MODELS.get(provider, "gpt-4o-mini")
+
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                if provider == "openai":
+                    res = client.post(
+                        "https://api.openai.com/v1/chat/completions",
+                        headers={{"Authorization": f"Bearer {{api_key}}", "Content-Type": "application/json"}},
+                        json={{"model": target_model, "messages": [{{"role": "user", "content": "ping"}}], "max_tokens": 5}}
+                    )
+                elif provider == "openrouter":
+                    res = client.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={{"Authorization": f"Bearer {{api_key}}", "Content-Type": "application/json", "HTTP-Referer": "https://mirag.me", "X-Title": "Mi:RAG"}},
+                        json={{"model": target_model, "messages": [{{"role": "user", "content": "ping"}}], "max_tokens": 5}}
+                    )
+                elif provider == "groq":
+                    res = client.post(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        headers={{"Authorization": f"Bearer {{api_key}}", "Content-Type": "application/json"}},
+                        json={{"model": target_model, "messages": [{{"role": "user", "content": "ping"}}], "max_tokens": 5}}
+                    )
+                elif provider == "gemini":
+                    clean_m = target_model.replace("models/", "")
+                    res = client.post(
+                        f"https://generativelanguage.googleapis.com/v1beta/models/{{clean_m}}:generateContent?key={{api_key}}",
+                        headers={{"Content-Type": "application/json"}},
+                        json={{"contents": [{{"parts": [{{"text": "ping"}}]}}], "generationConfig": {{"maxOutputTokens": 5}}}}
+                    )
+                elif provider == "anthropic":
+                    res = client.post(
+                        "https://api.anthropic.com/v1/messages",
+                        headers={{"x-api-key": api_key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"}},
+                        json={{"model": target_model, "max_tokens": 5, "messages": [{{"role": "user", "content": "ping"}}]}}
+                    )
+                else:
+                    return {{"valid": False, "message": f"Unsupported provider '{{provider}}'."}}
+
+                if res.status_code in [200, 201]:
+                    return {{"valid": True, "message": f"Valid API Key! Successfully connected to {{provider.upper()}} ({{target_model}})."}}
+                else:
+                    return {{"valid": False, "message": f"{{provider.upper()}} error ({{res.status_code}}): {{res.text[:150]}}"}}
+        except Exception as e:
+            return {{"valid": False, "message": f"Connection error: {{str(e)}}"}}
+
+    @classmethod
+    def generate(cls, user_prompt: str, system_prompt: str, provider: str, model: str, api_key: Optional[str] = None) -> str:
+        provider = (provider or "ollama").lower().strip()
+        model_name = model or cls.DEFAULT_MODELS.get(provider, "llama3.2:3b")
+
+        if provider == "ollama" or not api_key:
+            with httpx.Client(timeout=90.0) as client:
+                res = client.post(
+                    "http://localhost:11434/api/chat",
+                    json={{
+                        "model": model_name,
+                        "messages": [{{"role": "system", "content": system_prompt}}, {{"role": "user", "content": user_prompt}}],
+                        "stream": False,
+                        "options": {{"temperature": 0.1}}
+                    }}
+                )
+                res.raise_for_status()
+                return res.json().get("message", {{}}).get("content", "").strip()
+
+        if provider == "openai":
+            with httpx.Client(timeout=90.0) as client:
+                res = client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={{"Authorization": f"Bearer {{api_key}}", "Content-Type": "application/json"}},
+                    json={{"model": model_name, "messages": [{{"role": "system", "content": system_prompt}}, {{"role": "user", "content": user_prompt}}], "temperature": 0.1}}
+                )
+                res.raise_for_status()
+                return res.json()["choices"][0]["message"]["content"].strip()
+
+        if provider == "openrouter":
+            with httpx.Client(timeout=90.0) as client:
+                res = client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={{"Authorization": f"Bearer {{api_key}}", "Content-Type": "application/json", "HTTP-Referer": "https://mirag.me", "X-Title": "Mi:RAG"}},
+                    json={{"model": model_name, "messages": [{{"role": "system", "content": system_prompt}}, {{"role": "user", "content": user_prompt}}], "temperature": 0.1}}
+                )
+                res.raise_for_status()
+                return res.json()["choices"][0]["message"]["content"].strip()
+
+        if provider == "groq":
+            with httpx.Client(timeout=90.0) as client:
+                res = client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={{"Authorization": f"Bearer {{api_key}}", "Content-Type": "application/json"}},
+                    json={{"model": model_name, "messages": [{{"role": "system", "content": system_prompt}}, {{"role": "user", "content": user_prompt}}], "temperature": 0.1}}
+                )
+                res.raise_for_status()
+                return res.json()["choices"][0]["message"]["content"].strip()
+
+        if provider == "gemini":
+            with httpx.Client(timeout=90.0) as client:
+                clean_m = model_name.replace("models/", "")
+                full_text = f"System Instructions:\\n{{system_prompt}}\\n\\nUser Question:\\n{{user_prompt}}" if system_prompt else user_prompt
+                res = client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{{clean_m}}:generateContent?key={{api_key}}",
+                    headers={{"Content-Type": "application/json"}},
+                    json={{"contents": [{{"parts": [{{"text": full_text}}]}}], "generationConfig": {{"temperature": 0.1}}}}
+                )
+                res.raise_for_status()
+                data = res.json()
+                candidates = data.get("candidates", [])
+                if candidates and "content" in candidates[0]:
+                    return "".join(p.get("text", "") for p in candidates[0]["content"].get("parts", [])).strip()
+                return "Gemini returned empty response."
+
+        if provider == "anthropic":
+            with httpx.Client(timeout=90.0) as client:
+                payload = {{"model": model_name, "max_tokens": 4096, "temperature": 0.1, "system": system_prompt, "messages": [{{"role": "user", "content": user_prompt}}]}}
+                res = client.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={{"x-api-key": api_key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"}},
+                    json=payload
+                )
+                res.raise_for_status()
+                data = res.json()
+                return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text").strip()
+
+        raise ValueError(f"Unknown provider {{provider}}")
+
 class ChatRequest(BaseModel):
     message: str
     top_k: Optional[int] = 6
     history: Optional[List[Dict[str, Any]]] = None
+    provider: Optional[str] = "ollama"
+    model: Optional[str] = None
+    api_key: Optional[str] = None
 
 class Citation(BaseModel):
     source_file: str
@@ -186,48 +346,52 @@ async def chat_rag(request: Request):
     user_message = ""
     client_history = None
     top_k = 6
+    provider = "ollama"
+    model = None
+    api_key = None
 
     if "application/json" in content_type:
         try:
             data = await request.json()
-            user_message = str(data.get("message", "")).strip()
+            user_message = data.get("message", "")
             top_k = int(data.get("top_k", 6))
             client_history = data.get("history", None)
+            provider = str(data.get("provider", "ollama")).strip()
+            model = data.get("model", None)
+            api_key = data.get("api_key", None)
         except Exception:
             pass
     else:
         form = await request.form()
         user_message = str(form.get("message", "")).strip()
+        provider = str(form.get("provider", "ollama")).strip()
+        model = form.get("model", None)
+        api_key = form.get("api_key", None)
         try:
             top_k = int(form.get("top_k", 6))
         except Exception:
             top_k = 6
         
-        h_raw = form.get("history")
-        if h_raw:
+        hist_raw = form.get("history")
+        if hist_raw:
             try:
                 import json
-                client_history = json.loads(h_raw)
+                client_history = json.loads(hist_raw)
             except Exception:
                 pass
 
-        up_img = form.get("image")
-        if up_img and hasattr(up_img, "filename") and up_img.filename:
-            fname = f"query_{{uuid.uuid4().hex[:8]}}_{{up_img.filename}}"
+        uploaded_image = form.get("image")
+        if uploaded_image and hasattr(uploaded_image, "filename") and uploaded_image.filename:
+            fname = f"query_{{uuid.uuid4().hex[:8]}}_{{uploaded_image.filename}}"
             query_image_path = IMAGES_DIR / fname
             with open(query_image_path, "wb") as buffer:
-                shutil.copyfileobj(up_img.file, buffer)
+                shutil.copyfileobj(uploaded_image.file, buffer)
             query_image_url = f"/images/{{fname}}"
 
     effective_history = client_history if client_history is not None else SERVER_MEMORY
 
     if not user_message and not query_image_path:
         return ChatResponse(answer="Please enter a question or attach an image.", confidence_score=1.0, is_grounded=True, citations=[], images=[])
-
-    # Check for greetings
-    if user_message.lower() in ["hi", "hello", "hey", "greetings"]:
-        reply = "Hello! I am your standalone, 100% private grounded enterprise RAG assistant. How can I assist you with your indexed documents today?"
-        return ChatResponse(answer=reply, confidence_score=1.0, is_grounded=True, citations=[], images=[])
 
     query_vec = embedder.encode(user_message or "multimodal image analysis", convert_to_numpy=True).tolist()
     results = collection.query(query_embeddings=[query_vec], n_results=top_k, include=["documents", "metadatas", "distances"])
@@ -294,20 +458,19 @@ async def chat_rag(request: Request):
         f"FINISHED GROUNDED ANSWER:"
     )
 
-    payload = {{
-        "model": MODEL_NAME,
-        "messages": [{{"role": "system", "content": system_prompt}}, {{"role": "user", "content": user_prompt}}],
-        "stream": False,
-        "options": {{"temperature": 0.1, "num_ctx": 4096, "num_gpu": 99}}
-    }}
+    target_model = model or MODEL_NAME
+    provider_name = (provider or "ollama").lower().strip()
 
     try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            res = await client.post("http://localhost:11434/api/chat", json=payload)
-            res.raise_for_status()
-            ans_text = res.json().get("message", {{}}).get("content", "").strip()
+        ans_text = MultiProviderDispatcher.generate(
+            user_prompt=user_prompt,
+            system_prompt=system_prompt,
+            provider=provider_name,
+            model=target_model,
+            api_key=api_key
+        )
     except Exception as e:
-        ans_text = f"Local Ollama error: {{str(e)}}. Make sure Ollama is running (`ollama run {{MODEL_NAME}}`)."
+        ans_text = f"Error from {{provider_name.upper()}}: {{str(e)}}. Make sure your model/key settings are valid or local Ollama is active."
 
     matched_images = extract_relevant_images(user_message, reranked_chunks, is_image_query=bool(query_image_path))
 
@@ -326,6 +489,10 @@ async def chat_rag(request: Request):
         images=matched_images,
         query_image_url=query_image_url
     )
+
+@app.post("/api/keys/test")
+def test_key(req: KeyTestRequest):
+    return MultiProviderDispatcher.test_key(req.provider, req.api_key or "", req.model)
 
 @app.get("/images/{{filename}}")
 @app.get("/api/sessions/{{session_id}}/images/{{filename}}")

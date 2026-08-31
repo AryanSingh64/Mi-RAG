@@ -82,6 +82,27 @@ async def pull_model_stream(model: str):
     )
 
 
+from core.llm.multi_provider import MultiProviderLLM
+
+
+class KeyTestRequest(BaseModel):
+    provider: str
+    api_key: Optional[str] = None
+    model: Optional[str] = None
+
+
+@router.get("/providers")
+def get_providers():
+    """Returns available model providers, presets, and configuration options."""
+    return MultiProviderLLM.get_provider_presets()
+
+
+@router.post("/keys/test")
+def test_provider_key(req: KeyTestRequest):
+    """Tests validity of an API key against the provider's endpoint."""
+    return MultiProviderLLM.test_key(provider=req.provider, api_key=req.api_key or "", model=req.model)
+
+
 @router.get("/models")
 def get_available_models():
     """
@@ -209,6 +230,9 @@ async def chat_with_rag(session_id: str, request: Request):
     user_message = ""
     history = None
     top_k = 6
+    provider = "ollama"
+    model = None
+    api_key = None
 
     if "application/json" in content_type:
         try:
@@ -216,11 +240,17 @@ async def chat_with_rag(session_id: str, request: Request):
             user_message = data.get("message", "")
             top_k = int(data.get("top_k", 6))
             history = data.get("history", None)
+            provider = str(data.get("provider", "ollama")).strip()
+            model = data.get("model", None)
+            api_key = data.get("api_key", None)
         except Exception:
             pass
     else:
         form = await request.form()
         user_message = str(form.get("message", "")).strip()
+        provider = str(form.get("provider", "ollama")).strip()
+        model = form.get("model", None)
+        api_key = form.get("api_key", None)
         try:
             top_k = int(form.get("top_k", 6))
         except Exception:
@@ -248,13 +278,19 @@ async def chat_with_rag(session_id: str, request: Request):
                 user_question=user_message,
                 query_image_path=query_image_path,
                 top_k=top_k,
-                history=history
+                history=history,
+                provider=provider,
+                model=model,
+                api_key=api_key
             )
         else:
             answer = session.pipeline.query(
                 user_question=user_message,
                 top_k=top_k,
-                history=history
+                history=history,
+                provider=provider,
+                model=model,
+                api_key=api_key
             )
     except Exception as e:
         print(f"[!] Chat processing error: {e}")
