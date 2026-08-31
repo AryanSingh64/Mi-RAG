@@ -21,36 +21,71 @@ Write-Host ""
 
 function Print-Step($msg) {
     Write-Host -NoNewline " [*] $msg " -ForegroundColor Cyan
-    Start-Sleep -Milliseconds 120
+    Start-Sleep -Milliseconds 80
     Write-Host "[ OK ]" -ForegroundColor Green
 }
 
+function Safe-Exit {
+    Write-Host ""
+    Write-Host "-----------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host "Setup paused. The terminal window will stay open." -ForegroundColor DarkGray
+    Read-Host -Prompt "Press [Enter] to close"
+    return
+}
+
 # 2. Prerequisites Verification: Python 3.10+
-Print-Step "Checking Python 3.10+ installation..."
+Print-Step "Checking Python installation..."
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
     Write-Host ""
-    Write-Host " +-------------------------------------------------------------------------+" -ForegroundColor Red
-    Write-Host " |  [!] PREREQUISITE ERROR: Python is NOT detected in your PATH.           |" -ForegroundColor Red
-    Write-Host " |  Please download and install Python 3.10+ from https://www.python.org/  |" -ForegroundColor Yellow
-    Write-Host " |  (Make sure to check 'Add Python to PATH' during installation)          |" -ForegroundColor White
-    Write-Host " +-------------------------------------------------------------------------+" -ForegroundColor Red
+    Write-Host " ==========================================================================" -ForegroundColor Red
+    Write-Host "  [!] PREREQUISITE NOTICE: Python 3.10+ was not detected in your PATH.    " -ForegroundColor Yellow
+    Write-Host " ==========================================================================" -ForegroundColor Red
     Write-Host ""
-    Exit 1
+    Write-Host "  Option 1: Open official Python download page in browser" -ForegroundColor White
+    Write-Host "  Option 2: Install automatically via Windows Package Manager (winget)" -ForegroundColor White
+    Write-Host ""
+    
+    $choice = Read-Host -Prompt "  Select option [1/2] or press Enter to exit"
+    if ($choice -eq "1") {
+        Write-Host "  [*] Opening https://www.python.org/downloads/ in browser..." -ForegroundColor Cyan
+        Start-Process "https://www.python.org/downloads/"
+        Write-Host "  [!] Please run the installer, make sure to check 'Add Python to PATH', and run this command again." -ForegroundColor Yellow
+    } elseif ($choice -eq "2" -and (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Write-Host "  [*] Installing Python 3.11 via winget..." -ForegroundColor Cyan
+        winget install Python.Python.3.11 --accept-package-agreements --accept-source-agreements
+        Write-Host "  [OK] Python installed! Please restart your terminal and run this command again." -ForegroundColor Green
+    }
+    Safe-Exit
+    return
 }
 
 # 3. Prerequisites Verification: Ollama AI Engine
 Print-Step "Checking Ollama AI Engine installation..."
 if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
     Write-Host ""
-    Write-Host " +-------------------------------------------------------------------------+" -ForegroundColor Red
-    Write-Host " |  [!] PREREQUISITE ERROR: Ollama is NOT installed on your machine.       |" -ForegroundColor Red
-    Write-Host " |                                                                         |" -ForegroundColor Red
-    Write-Host " |  Mi:RAG requires Ollama to run local offline models with zero cost.     |" -ForegroundColor Yellow
-    Write-Host " |  1. Download and install Ollama from: https://ollama.com/download       |" -ForegroundColor Cyan
-    Write-Host " |  2. After installing, run this install command again in terminal!       |" -ForegroundColor White
-    Write-Host " +-------------------------------------------------------------------------+" -ForegroundColor Red
+    Write-Host " ==========================================================================" -ForegroundColor Red
+    Write-Host "  [!] PREREQUISITE NOTICE: Ollama is not installed on your machine.       " -ForegroundColor Yellow
+    Write-Host " ==========================================================================" -ForegroundColor Red
     Write-Host ""
-    Exit 1
+    Write-Host "  Mi:RAG uses Ollama to run high-speed, 100% private local AI models." -ForegroundColor DarkGray
+    Write-Host "  Zero cloud dependencies. Zero API subscription fees." -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  Option 1: Open official Ollama download page (https://ollama.com/download)" -ForegroundColor White
+    Write-Host "  Option 2: Install automatically via Windows Package Manager (winget)" -ForegroundColor White
+    Write-Host ""
+    
+    $choice = Read-Host -Prompt "  Select option [1/2] or press Enter to exit"
+    if ($choice -eq "1") {
+        Write-Host "  [*] Opening https://ollama.com/download in browser..." -ForegroundColor Cyan
+        Start-Process "https://ollama.com/download"
+        Write-Host "  [!] Please complete Ollama installation, then run this command again." -ForegroundColor Yellow
+    } elseif ($choice -eq "2" -and (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Write-Host "  [*] Installing Ollama via winget..." -ForegroundColor Cyan
+        winget install Ollama.Ollama --accept-package-agreements --accept-source-agreements
+        Write-Host "  [OK] Ollama installed! Please restart your terminal and run this command again." -ForegroundColor Green
+    }
+    Safe-Exit
+    return
 }
 
 # 4. Check / Auto-Start Ollama Service
@@ -85,15 +120,25 @@ if (Test-Path "$targetDir\run_factory.py") {
     $targetDir = (Get-Location).Path
     Write-Host " [*] Running from local repository at $targetDir" -ForegroundColor Cyan
 } else {
-    Write-Host -NoNewline " [*] Cloning repository to $targetDir... " -ForegroundColor Cyan
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        Write-Host ""
-        Write-Host " [!] Git not detected! Please install Git from https://git-scm.com/" -ForegroundColor Red
-        Exit 1
+    Write-Host -NoNewline " [*] Setting up repository in $targetDir... " -ForegroundColor Cyan
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        git clone --quiet https://github.com/AryanSingh64/Mi-RAG.git $targetDir
+        Set-Location $targetDir
+        Write-Host "[ CLONED ]" -ForegroundColor Green
+    } else {
+        # Fallback for users without git: Download and extract zip directly
+        Write-Host "[ DOWNLOADING ZIP ]" -ForegroundColor Yellow
+        $zipUrl = "https://github.com/AryanSingh64/Mi-RAG/archive/refs/heads/main.zip"
+        $zipPath = "$HOME\mirag_temp.zip"
+        Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath
+        Expand-Archive -Path $zipPath -DestinationPath "$HOME" -Force
+        Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+        if (Test-Path "$HOME\Mi-RAG-main") {
+            Move-Item -Path "$HOME\Mi-RAG-main" -Destination $targetDir -Force -ErrorAction SilentlyContinue
+        }
+        Set-Location $targetDir
+        Write-Host " [*] Extracted successfully!" -ForegroundColor Green
     }
-    git clone --quiet https://github.com/AryanSingh64/Mi-RAG.git $targetDir
-    Set-Location $targetDir
-    Write-Host "[ CLONED ]" -ForegroundColor Green
 }
 
 # 6. Virtual Environment Setup
@@ -107,7 +152,7 @@ if (-not (Test-Path "$targetDir\.venv\Scripts\python.exe")) {
 $hasDeps = & "$targetDir\.venv\Scripts\python.exe" -c "import uvicorn, fastapi, fitz, chromadb; print('OK')" 2>$null
 if ($hasDeps -ne "OK") {
     Write-Host ""
-    Write-Host " [*] Downloading & installing dependencies with live streaming progress:" -ForegroundColor Yellow
+    Write-Host " [*] Downloading & installing dependencies with live progress:" -ForegroundColor Yellow
     Write-Host " -----------------------------------------------------------------------" -ForegroundColor DarkGray
     
     # Try high-speed UV installer or standard pip with visual progress bar
@@ -139,7 +184,14 @@ Write-Host " |  100% Private  |  Zero API Costs  |  Hardware Accelerated|" -Fore
 Write-Host " +---------------------------------------------------------+" -ForegroundColor Red
 Write-Host ""
 
-# 9. Direct Native Launch
+# 9. Direct Native Launch with Error Protection
 Set-Location $targetDir
-& "$targetDir\.venv\Scripts\python.exe" "$targetDir\run_factory.py"
-
+try {
+    & "$targetDir\.venv\Scripts\python.exe" "$targetDir\run_factory.py"
+} catch {
+    Write-Host ""
+    Write-Host " ===========================================================" -ForegroundColor Red
+    Write-Host "  [!] Server stopped with note: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host " ===========================================================" -ForegroundColor Red
+    Safe-Exit
+}
