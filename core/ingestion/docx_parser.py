@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any, Optional
 from docx import Document
 from core.ingestion.base import BaseDocumentParser, ParsedDocument
 
@@ -9,7 +10,7 @@ class DocxDocumentParser(BaseDocumentParser):
     Extracts structured paragraphs and table cells.
     """
 
-    def parse(self, file_path: Path) -> ParsedDocument:
+    def parse(self, file_path: Path, progress_callback: Optional[Any] = None) -> ParsedDocument:
         file_path = Path(file_path)
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")

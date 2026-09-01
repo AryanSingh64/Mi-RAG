@@ -24,12 +24,13 @@ class BaseDocumentParser(ABC):
     """
 
     @abstractmethod
-    def parse(self, file_path: Path) -> ParsedDocument:
+    def parse(self, file_path: Path, progress_callback: Optional[Any] = None) -> ParsedDocument:
         """
         Parses a file and extracts clean text along with metadata.
         
         Args:
             file_path: Absolute or relative path to the file.
+            progress_callback: Optional callable(stage, current, total, diagrams) for live progress streaming.
             
         Returns:
             ParsedDocument containing extracted text and metadata.

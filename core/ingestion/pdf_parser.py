@@ -185,7 +185,7 @@ class PdfDocumentParser(BaseDocumentParser):
         page_content = f"[Page {p_idx}]\n" + "\n\n".join(page_sections)
         return page_content, page_diagram_urls
 
-    def parse(self, file_path: Path) -> ParsedDocument:
+    def parse(self, file_path: Path, progress_callback: Optional[Any] = None) -> ParsedDocument:
         file_path = Path(file_path)
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
@@ -199,6 +199,8 @@ class PdfDocumentParser(BaseDocumentParser):
             for page_num, page in enumerate(reader.pages, start=1):
                 native_text = (page.extract_text() or "").strip()
                 pages_text.append(f"[Page {page_num}]\n{native_text}")
+                if progress_callback:
+                    progress_callback("parsing", page_num, total_pages, 0)
             full_text = "\n\n".join(pages_text)
             return ParsedDocument(
                 filename=file_path.name,
@@ -222,7 +224,7 @@ class PdfDocumentParser(BaseDocumentParser):
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         # Parallel multi-core page processing
-        num_workers = min(12, max(2, (os.cpu_count() or 4) * 2))
+        num_workers = min(16, max(4, (os.cpu_count() or 4) * 2))
         doc_path_str = str(file_path.resolve())
 
         pages_results = [None] * total_pages
@@ -239,9 +241,6 @@ class PdfDocumentParser(BaseDocumentParser):
             for future in as_completed(future_to_idx):
                 idx = future_to_idx[future]
                 completed_count += 1
-                if completed_count % 100 == 0 or completed_count == total_pages:
-                    pct = (completed_count / total_pages) * 100
-                    print(f"  ⚡ [PDF Progress] Processed {completed_count}/{total_pages} pages ({pct:.1f}%) | Diagrams extracted: {len(extracted_diagrams)}", flush=True)
                 try:
                     page_text, diag_urls = future.result()
                     pages_results[idx] = page_text
@@ -249,6 +248,13 @@ class PdfDocumentParser(BaseDocumentParser):
                         extracted_diagrams.extend(diag_urls)
                 except Exception as e:
                     pages_results[idx] = f"[Page {idx + 1}]\n[Extraction error: {e}]"
+
+                if progress_callback and (completed_count % 25 == 0 or completed_count == total_pages):
+                    progress_callback("parsing", completed_count, total_pages, len(extracted_diagrams))
+
+                if completed_count % 100 == 0 or completed_count == total_pages:
+                    pct = (completed_count / total_pages) * 100
+                    print(f"  [PDF Progress] Processed {completed_count}/{total_pages} pages ({pct:.1f}%) | Diagrams extracted: {len(extracted_diagrams)}", flush=True)
 
         pages_text = [p for p in pages_results if p is not None]
         full_text = "\n\n".join(pages_text)

@@ -172,7 +172,7 @@ class VisionImageParser(BaseDocumentParser):
 
         return results
 
-    def parse(self, file_path: Path) -> ParsedDocument:
+    def parse(self, file_path: Path, progress_callback: Optional[Any] = None) -> ParsedDocument:
         """
         Parses an image document: extracts local OCR text + visual model descriptions in parallel.
         """
