@@ -3,7 +3,7 @@ import concurrent.futures
 import io
 import os
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 import numpy as np
 from PIL import Image
 from rapidocr_onnxruntime import RapidOCR
