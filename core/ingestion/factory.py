@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 from core.ingestion.base import BaseDocumentParser, ParsedDocument
 from core.ingestion.docx_parser import DocxDocumentParser
 from core.ingestion.pdf_parser import PdfDocumentParser
