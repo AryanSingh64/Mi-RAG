@@ -55,15 +55,23 @@ class DiagramDetector:
                 aspect = w / max(1.0, h)
                 area_pct = (area / page_area) * 100
 
-                # Strict geometric filter for real figures:
-                # - width >= 140, height >= 100 (filters out thin lines and small icons)
-                # - aspect ratio between 0.3 and 3.5 (filters out 1px line slivers)
-                # - area between 5% and 65% of page (filters out full-page slide backgrounds)
-                # - not positioned in top 5% (header banner) or bottom 8% (footer icon)
-                is_header_footer = (bbox.y1 > page_rect.height * 0.92) or (bbox.y0 < page_rect.height * 0.05 and h < 50)
+                # 1. Skip tiny icons / logos (width < 60 or height < 50 or area < 1.0%)
+                if w < 60 or h < 50 or area_pct < 1.0:
+                    continue
 
-                if (w >= 140 and h >= 100 and 0.3 <= aspect <= 3.5 and 5.0 <= area_pct <= 65.0 and not is_header_footer):
-                    img_rects.append(bbox)
+                # 2. Skip thin 1px horizontal / vertical divider lines (aspect > 6.0 or aspect < 0.15)
+                if aspect > 6.0 or aspect < 0.15:
+                    continue
+
+                # 3. Skip full-page background slide templates (area > 80%)
+                if area_pct > 80.0:
+                    continue
+
+                # 4. Skip tiny footer icons that touch bottom 8%
+                if h < 50 and bbox.y1 > page_rect.height * 0.92:
+                    continue
+
+                img_rects.append(bbox)
 
         # If no captions and no genuine images, skip
         if not caption_blocks and not img_rects:
