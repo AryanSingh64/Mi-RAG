@@ -227,7 +227,7 @@ async def upload_document(session_id: str, file: UploadFile = File(...)):
     try:
         chunks_indexed = session.pipeline.ingest_file(file_path)
         dur = time.perf_counter() - t0
-        session.indexed_files.append(file.filename)
+        session_manager.update_session_indexed_files(session_id, [file.filename])
         print(f"[INGESTION COMPLETE] {file.filename} -> {chunks_indexed} vectors indexed in {dur:.2f}s ({file_size_mb / max(dur, 0.001):.1f} MB/s)")
         return {
             "status": "success",

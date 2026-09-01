@@ -1197,6 +1197,8 @@
         console.warn("Memory clearance warning:", err);
       }
       conversationTurns = [];
+      storedChatMessages = [];
+      SafeStorage.removeItem("chat_" + sessionId);
       document.getElementById('chat-box').innerHTML = defaultGreetingHtml;
       if (window.innerWidth <= 860) toggleSidebar(false);
     }
@@ -1209,6 +1211,9 @@
         timeRemaining = data.time_remaining_seconds;
         startTimer();
 
+        // Safely record session in local storage for session tracking & history
+        recordCurrentSession(data);
+
         const filesContainer = document.getElementById('indexed-files-container');
         if (data.indexed_files && data.indexed_files.length > 0) {
           filesContainer.innerHTML = data.indexed_files.map(f => `
@@ -1219,7 +1224,12 @@
           `).join('');
         }
 
-        document.getElementById('chat-box').innerHTML = defaultGreetingHtml;
+        const saved = SafeStorage.getItem("chat_" + sessionId, []);
+        if (Array.isArray(saved) && saved.length > 0) {
+          loadChatFromStorage();
+        } else {
+          document.getElementById('chat-box').innerHTML = defaultGreetingHtml;
+        }
       } catch (err) {
         alert("Session is invalid or has expired!");
         window.location.href = '/';
@@ -1462,6 +1472,16 @@
           <div class="user-bubble">${userBubbleHtml}</div>
         </div>
       `;
+      storedChatMessages.push({
+        id: userMsgId,
+        role: 'user',
+        content: query || '[Visual Search Query]',
+        quotedSnippet: quotedToPass,
+        imageBase64: currentAttachedBase64,
+        timestamp: Date.now()
+      });
+      saveChatToStorage();
+
       userInput.value = '';
       
       const attachedFileToSend = currentAttachedFile;
@@ -1600,7 +1620,19 @@
         conversationTurns.push({ role: 'assistant', content: data.answer });
         if (conversationTurns.length > 12) conversationTurns = conversationTurns.slice(-12);
 
-        // Persist to Storage
+        // Persist to safe persistent storage
+        storedChatMessages.push({
+          id: botMsgId,
+          role: 'assistant',
+          query: query || '[Visual Search]',
+          content: data.answer,
+          isGrounded: data.is_grounded,
+          confidenceScore: data.confidence_score,
+          citations: data.citations || [],
+          images: data.images || [],
+          model: currentModel,
+          timestamp: Date.now()
+        });
         saveChatToStorage();
 
       } catch (err) {
@@ -1708,23 +1740,188 @@
       navigator.clipboard.writeText(contextMenuTargetText);
     }
 
-    function saveChatToStorage() {
-      try {
-        if (sessionId) {
-          sessionStorage.setItem("mirag_chat_" + sessionId, JSON.stringify(conversationTurns));
+    // --- SAFE & SECURE LOCAL STORAGE ENGINE ---
+    const STORAGE_KEY_PREFIX = "mirag_v1_";
+    let storedChatMessages = [];
+
+    const SafeStorage = {
+      isAvailable() {
+        try {
+          const test = "__test__";
+          localStorage.setItem(test, test);
+          localStorage.removeItem(test);
+          return true;
+        } catch (e) {
+          return false;
         }
+      },
+      getItem(key, fallback = null) {
+        if (!this.isAvailable()) return fallback;
+        try {
+          const item = localStorage.getItem(STORAGE_KEY_PREFIX + key);
+          return item ? JSON.parse(item) : fallback;
+        } catch (e) {
+          console.warn("Storage read error:", e);
+          return fallback;
+        }
+      },
+      setItem(key, value) {
+        if (!this.isAvailable()) return false;
+        try {
+          localStorage.setItem(STORAGE_KEY_PREFIX + key, JSON.stringify(value));
+          return true;
+        } catch (e) {
+          // If quota exceeded, perform safe pruning of old chat histories
+          console.warn("Storage write error, attempting safe prune:", e);
+          this.pruneOldStorage();
+          try {
+            localStorage.setItem(STORAGE_KEY_PREFIX + key, JSON.stringify(value));
+            return true;
+          } catch (e2) {
+            return false;
+          }
+        }
+      },
+      removeItem(key) {
+        if (!this.isAvailable()) return;
+        try {
+          localStorage.removeItem(STORAGE_KEY_PREFIX + key);
+        } catch (e) {}
+      },
+      pruneOldStorage() {
+        try {
+          const keys = Object.keys(localStorage).filter(k => k.startsWith(STORAGE_KEY_PREFIX + "chat_"));
+          if (keys.length > 8) {
+            // Remove the oldest 3 chat logs
+            keys.slice(0, 3).forEach(k => localStorage.removeItem(k));
+          }
+        } catch (e) {}
+      }
+    };
+
+    function recordCurrentSession(sessionData) {
+      if (!sessionId) return;
+      try {
+        const recent = SafeStorage.getItem("recent_sessions", []) || [];
+        const filtered = recent.filter(s => s.id !== sessionId);
+        filtered.unshift({
+          id: sessionId,
+          model: sessionData?.model_name || currentModel,
+          provider: currentProvider,
+          indexed_files: sessionData?.indexed_files || [],
+          created_at: Date.now(),
+          last_active: Date.now()
+        });
+        // Keep top 12 recent sessions
+        SafeStorage.setItem("recent_sessions", filtered.slice(0, 12));
       } catch (e) {}
     }
 
+    function saveChatToStorage() {
+      if (!sessionId) return;
+      SafeStorage.setItem("chat_" + sessionId, storedChatMessages);
+    }
+
     function loadChatFromStorage() {
-      try {
-        if (sessionId) {
-          const saved = sessionStorage.getItem("mirag_chat_" + sessionId);
-          if (saved) {
-            conversationTurns = JSON.parse(saved);
+      if (!sessionId) return;
+      const saved = SafeStorage.getItem("chat_" + sessionId, []);
+      if (Array.isArray(saved) && saved.length > 0) {
+        storedChatMessages = saved;
+        conversationTurns = [];
+        const chatBox = document.getElementById('chat-box');
+        if (chatBox) chatBox.innerHTML = '';
+
+        saved.forEach(msg => {
+          if (msg.role === 'user') {
+            conversationTurns.push({ role: 'user', content: msg.content });
+            let userBubbleHtml = '';
+            if (msg.quotedSnippet) {
+              userBubbleHtml += `<div class="user-quoted-preview">Replying to: "${escapeHtml(msg.quotedSnippet)}"</div>`;
+            }
+            if (msg.imageBase64) {
+              userBubbleHtml += `<div style="margin-bottom:0.5rem;"><img src="${msg.imageBase64}" style="max-width:180px; max-height:140px; border-radius:6px; border:1.5px solid #000; display:block;" onclick="openImageModal('${msg.imageBase64}', 'Attached Image')"></div>`;
+            }
+            userBubbleHtml += `<div>${formatMarkdown(msg.content)}</div>`;
+
+            const userRow = document.createElement('div');
+            userRow.className = 'msg-row user-row';
+            userRow.id = msg.id || ('user-' + Date.now());
+            userRow.innerHTML = `<div class="user-bubble">${userBubbleHtml}</div>`;
+            chatBox.appendChild(userRow);
+          } else if (msg.role === 'assistant') {
+            conversationTurns.push({ role: 'assistant', content: msg.content });
+            const botMsgId = msg.id || ('bot-' + Date.now());
+            botMessageMap[botMsgId] = {
+              query: msg.query || '[Visual Search]',
+              answer: msg.content,
+              model: msg.model || currentModel,
+              citations: msg.citations || []
+            };
+
+            let badgeHtml = msg.isGrounded 
+              ? `<div class="grounded-badge">Fact-Checked & Grounded (${Math.round((msg.confidenceScore || 1) * 100)}%)</div>`
+              : `<div class="grounded-badge" style="color:#000; background:#fca5a5;">No Direct Evidence Found</div>`;
+
+            let visualGalleryHtml = '';
+            if (msg.images && msg.images.length > 0) {
+              visualGalleryHtml = '<div class="visual-gallery"><div class="visual-gallery-title">Visual Evidence / Diagrams:</div><div class="visual-grid">' +
+                msg.images.map(img => `
+                  <div class="visual-card" onclick="openImageModal('${img.url}', 'Extracted from ${img.source_file}')">
+                    <img src="${img.url}" alt="${img.filename}" loading="lazy">
+                    <div class="visual-card-info">
+                      <span>${img.source_file}</span>
+                      <span style="color:var(--yellow);">${img.relevance}%</span>
+                    </div>
+                  </div>
+                `).join('') + '</div></div>';
+            }
+
+            let citationsHtml = '';
+            if (msg.citations && msg.citations.length > 0) {
+              citationsHtml = '<div class="citations">' + 
+                msg.citations.map(c => `<span class="citation-tag">${c.source_file} (${c.relevance || 0}%)</span>`).join('') + '</div>';
+            }
+
+            const upActive = msg.feedbackRating === 'thumbs_up' ? ' active-up' : '';
+            const downActive = msg.feedbackRating === 'thumbs_down' ? ' active-down' : '';
+
+            const actionsHtml = `
+              <div class="msg-action-row">
+                <button type="button" class="btn-action-icon${upActive}" onclick="submitMessageFeedback(this, '${botMsgId}', 'thumbs_up')" title="Accurate response">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                </button>
+                <button type="button" class="btn-action-icon${downActive}" onclick="submitMessageFeedback(this, '${botMsgId}', 'thumbs_down')" title="Inaccurate response">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
+                </button>
+                <button type="button" class="btn-action-icon" onclick="replyToBotMessage('${botMsgId}')" title="Reply / Quote">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>
+                </button>
+                <button type="button" class="btn-action-icon" onclick="copyMessageText('${botMsgId}')" title="Copy answer">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </button>
+              </div>
+            `;
+
+            const botRow = document.createElement('div');
+            botRow.className = 'msg-row bot-row';
+            botRow.id = botMsgId;
+            botRow.innerHTML = `
+              <div class="bot-body">
+                ${badgeHtml}
+                <div class="msg-content">${formatMarkdown(msg.content)}</div>
+                ${visualGalleryHtml}
+                ${citationsHtml}
+                ${actionsHtml}
+              </div>
+            `;
+            chatBox.appendChild(botRow);
+            renderMath(botRow);
           }
-        }
-      } catch (e) {}
+        });
+
+        const scrollArea = document.getElementById('chat-scroll-area');
+        if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
+      }
     }
     loadChatFromStorage();
 
