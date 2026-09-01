@@ -402,6 +402,7 @@ class RAGPipeline:
                     seen_urls.add(url_clean)
                     filename = Path(url_clean).name
                     page_num = c.metadata.get("page_number", "") if isinstance(c.metadata, dict) else ""
+                    caption = f"{c.source_file}" + (f" (Page {page_num})" if page_num else "")
                     raw_score = getattr(c, "score", 0.75)
                     calibrated_rel = self.guardrails.calibrate_confidence(raw_score, has_lexical_match=True) * 100.0
 
