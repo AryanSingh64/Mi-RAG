@@ -95,7 +95,8 @@ class AntiHallucinationEngine:
             "3. NEVER output raw internal labels, headers, or debug tags like '[Exact OCR Extracted Text]', '[Vision Model Analysis]', '[Image URL: ...]', or '[Source Document: ...]'. Speak naturally as an expert assistant.\n"
             "4. If explaining a diagram, chart, formula, or artwork, explain its meaning, key components, comparison results, and takeaways in clean, polished prose.\n"
             "5. Use clear Markdown (bold headers, bullet points, and clean paragraphs) so your answer is professional and easy to read.\n"
-            "6. Answer ONLY using the factual context provided. Do NOT hallucinate facts not in the context. If something is missing, state clearly that it is not present in the uploaded documents."
+            "6. Answer ONLY using the factual context provided. Do NOT hallucinate facts not in the context. If something is missing, state clearly that it is not present in the uploaded documents.\n"
+            "7. MATHEMATICAL & SCIENTIFIC SYMBOLS: Use clean LaTeX math delimiters for formulas, tolerances, and scientific quantities (e.g. `$1.25 \\pm 0.80$ cm`, `$\\times$`, `$\\approx$`, `$\\le$`, `$\\ge$`, `$\\alpha$`, `$\\beta$`, `$$ E = mc^2 $$`) so math renders crisply."
         )
 
     def build_user_prompt(
@@ -103,10 +104,11 @@ class AntiHallucinationEngine:
         query: str,
         context_chunks: List[SearchResult],
         user_image_context: Optional[str] = None,
-        conversation_history: Optional[List[Dict[str, str]]] = None
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+        feedback_exemplars: Optional[List[Dict[str, str]]] = None
     ) -> str:
         """
-        Formats retrieved chunks, conversation memory, and optional attached query image into clear context for the LLM.
+        Formats retrieved chunks, conversation memory, feedback exemplars, and optional attached query image into clear context for the LLM.
         """
         context_blocks = []
         for idx, chunk in enumerate(context_chunks, start=1):
@@ -131,11 +133,23 @@ class AntiHallucinationEngine:
             if turns:
                 history_block = "RECENT CONVERSATION MEMORY (PRIOR DIALOGUE TURNS):\n" + "\n".join(turns) + "\n\n"
 
+        exemplar_block = ""
+        if feedback_exemplars:
+            ex_items = []
+            for ex in feedback_exemplars[:2]:
+                q = ex.get("query", "").strip()
+                a = ex.get("answer", "").strip()
+                if q and a:
+                    ex_items.append(f"Query: {q}\nApproved Answer: {a}")
+            if ex_items:
+                exemplar_block = "USER-VERIFIED EXEMPLARY RESPONSES (FORMATTING & ACCURACY REFERENCE):\n" + "\n\n".join(ex_items) + "\n\n"
+
         return (
             f"KNOWLEDGE BASE CONTEXT:\n"
             f"{formatted_context}\n\n"
             f"{user_image_block}"
             f"{history_block}"
+            f"{exemplar_block}"
             f"USER QUERY: {query}\n\n"
             f"FINISHED GROUNDED ANSWER:"
         )

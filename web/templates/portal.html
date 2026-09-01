@@ -11,6 +11,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800;900&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   
+  <!-- KaTeX LaTeX Math & Scientific Symbol Engine -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  
   <style>
     :root {
       --bg: #090c15;
@@ -505,10 +510,108 @@
       font-weight: 800;
       color: #fff;
     }
-    .preview-hint {
-      font-size: 0.75rem;
-      color: var(--yellow);
+
+    /* Message Action Bar (Feedback 👍 / 👎 & Copy) */
+    .msg-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-top: 0.65rem;
+      padding-top: 0.45rem;
+      border-top: 1px dashed rgba(0, 0, 0, 0.15);
+    }
+    .btn-msg-action {
+      background: #f1f5f9;
+      border: 1.5px solid #000;
+      border-radius: 4px;
+      padding: 0.2rem 0.55rem;
+      font-size: 0.78rem;
+      font-family: 'Space Grotesk', sans-serif;
       font-weight: 700;
+      color: #0f172a;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      box-shadow: 1.5px 1.5px 0px #000;
+      transition: all 0.1s ease;
+      user-select: none;
+    }
+    .btn-msg-action:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 2px 2px 0px #000;
+      background: var(--yellow);
+    }
+    .btn-msg-action.active-up {
+      background: var(--green) !important;
+      color: #000 !important;
+      font-weight: 900;
+      box-shadow: 1px 1px 0px #000;
+    }
+    .btn-msg-action.active-down {
+      background: #f87171 !important;
+      color: #fff !important;
+      font-weight: 900;
+      box-shadow: 1px 1px 0px #000;
+    }
+
+    /* Right-Click Context Menu */
+    .chat-context-menu {
+      display: none;
+      position: fixed;
+      z-index: 100000;
+      background: #ffffff;
+      border: 2.5px solid #000000;
+      box-shadow: 3.5px 3.5px 0px #000000;
+      border-radius: 6px;
+      padding: 0.35rem;
+      min-width: 150px;
+    }
+    .context-menu-item {
+      padding: 0.45rem 0.75rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.82rem;
+      color: #0f172a;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      transition: all 0.1s ease;
+    }
+    .context-menu-item:hover {
+      background: var(--yellow);
+      color: #000000;
+    }
+
+    /* KaTeX Math & Typography Formatting */
+    .katex {
+      font-size: 1.05em !important;
+      color: inherit;
+    }
+    .katex-display {
+      margin: 0.6em 0 !important;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 0.25em 0;
+    }
+    .code-block {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      border: 1.5px solid #000;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      margin: 0.5rem 0;
+      overflow-x: auto;
+    }
+    .msg-content ul {
+      margin: 0.4rem 0 0.4rem 1.4rem;
+    }
+    .msg-content li {
+      margin-bottom: 0.25rem;
     }
 
     /* User Message Image Thumbnail */
@@ -799,13 +902,13 @@
         <div class="msg bot-msg">
           <div class="grounded-badge">Guardrails Active</div>
           <div class="msg-content">
-            Hello. This is your private multimodal RAG playground. You can test questions against your indexed documents, or <strong>attach an image</strong> (via the camera icon, drag-and-drop, or Ctrl+V) to perform reverse visual search and compare diagrams, art styles, and formulas!
+            Hello! This is your private multimodal RAG playground. Ask questions about your uploaded documents, formulas, or attach an image to search.
           </div>
         </div>
       </div>
 
       <div class="chat-input-container">
-        <!-- Attachment Preview Bar -->
+        <!-- Attachment Preview Bar (Minimal & Clean) -->
         <div id="image-preview-bar" class="image-preview-bar" style="display: none;">
           <div class="preview-thumbnail-wrapper">
             <img id="preview-thumb" src="" alt="Query Image">
@@ -813,7 +916,6 @@
           </div>
           <div class="preview-info">
             <span class="preview-filename" id="preview-name">image.png</span>
-            <span class="preview-hint">Visual Search Active • Comparing with Knowledge Base</span>
           </div>
         </div>
 
@@ -841,20 +943,6 @@
 
     <!-- Sidebar -->
     <div class="sidebar">
-      <!-- AI Model Engine & Cloud Keys Card -->
-      <div class="panel-card" style="border: 2px solid var(--yellow); box-shadow: 3px 3px 0px var(--yellow);">
-        <div class="panel-title" style="display: flex; align-items: center; justify-content: space-between;">
-          <span>⚙️ AI Engine & Keys</span>
-          <span class="provider-badge-icon" id="sidebar-provider-badge" style="background: var(--yellow); color: #000; font-size: 0.7rem;">OLLAMA</span>
-        </div>
-        <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 0.85rem; line-height: 1.45;">
-          Switch between 100% offline Ollama or connect your OpenAI, Gemini, OpenRouter, Groq, or Claude API keys.
-        </p>
-        <button type="button" onclick="openModelSettingsModal()" class="btn-settings-trigger" style="width: 100%; background: var(--yellow); color: #000; border: 2px solid #000; padding: 0.65rem; border-radius: 6px; font-weight: 900; font-family: 'Space Grotesk', sans-serif; cursor: pointer; box-shadow: 2px 2px 0px #000; text-transform: uppercase; font-size: 0.82rem; transition: all 0.1s ease;">
-          ⚙️ Change Model / API Key
-        </button>
-      </div>
-
       <div class="panel-card">
         <div class="panel-title">Standalone Package</div>
         <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1rem; line-height: 1.5;">
@@ -896,6 +984,15 @@
     </div>
   </div>
 
+  <div id="chat-context-menu" class="chat-context-menu">
+    <div class="context-menu-item" onclick="replyToSelectedMessage()">
+      <span>↩️</span> <span>Reply / Quote</span>
+    </div>
+    <div class="context-menu-item" onclick="copySelectedMessage()">
+      <span>📋</span> <span>Copy Text</span>
+    </div>
+  </div>
+
   <script>
     const pathParts = window.location.pathname.split('/');
     const sessionId = pathParts[pathParts.length - 1];
@@ -910,12 +1007,13 @@
     let currentAttachedFile = null;
     let currentAttachedBase64 = null;
     let conversationTurns = [];
+    const botMessageMap = {};
 
     const defaultGreetingHtml = `
       <div class="msg bot-msg">
         <div class="grounded-badge">Guardrails & Memory Active</div>
         <div class="msg-content">
-          Hello. This is your private multimodal RAG playground with <strong>multi-turn memory</strong>. Ask questions, explore follow-ups, or <strong>attach an image</strong> (via camera icon, drag-and-drop, or Ctrl+V) to search formulas, diagrams, and artwork!
+          Hello! This is your private multimodal RAG playground. Ask questions about your uploaded documents, formulas, or attach an image to search.
         </div>
       </div>
     `;
@@ -979,13 +1077,58 @@
     const attachModal = document.getElementById('attach-modal');
     const modalDropzone = document.getElementById('modal-dropzone');
 
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
     function formatMarkdown(text) {
       if (!text) return "";
-      return text
+      
+      const codeBlocks = [];
+      let formatted = text.replace(/```([\s\S]*?)```/g, (_, code) => {
+        const id = `__CODE_BLOCK_${codeBlocks.length}__`;
+        codeBlocks.push(`<pre class="code-block"><code>${escapeHtml(code.trim())}</code></pre>`);
+        return id;
+      });
+
+      const inlineCodes = [];
+      formatted = formatted.replace(/`([^`]+)`/g, (_, code) => {
+        const id = `__INLINE_CODE_${inlineCodes.length}__`;
+        inlineCodes.push(`<code>${escapeHtml(code)}</code>`);
+        return id;
+      });
+
+      formatted = formatted
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/`([^`]+)`/g, '<code>$1</code>')
-        .replace(/\n/g, '<br>');
+        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+      formatted = formatted.replace(/(?:^|\n)[*-]\s+(.+)/g, '\n<li>$1</li>');
+      formatted = formatted.replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>');
+
+      formatted = formatted.replace(/\n\n+/g, '<br><br>').replace(/\n/g, '<br>');
+
+      inlineCodes.forEach((ic, i) => { formatted = formatted.replace(`__INLINE_CODE_${i}__`, ic); });
+      codeBlocks.forEach((cb, i) => { formatted = formatted.replace(`__CODE_BLOCK_${i}__`, cb); });
+
+      return formatted;
+    }
+
+    function renderMath(element) {
+      if (window.renderMathInElement && element) {
+        try {
+          renderMathInElement(element, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false},
+              {left: '\\[', right: '\\]', display: true},
+              {left: '\\(', right: '\\)', display: false}
+            ],
+            throwOnError: false
+          });
+        } catch (e) {
+          console.warn("KaTeX render notice:", e);
+        }
+      }
     }
 
     function openImageModal(src, caption) {
@@ -1037,7 +1180,6 @@
       document.getElementById('query-file-input').value = '';
     }
 
-    // Direct Clipboard Image Pasting (Ctrl+V)
     window.addEventListener('paste', (e) => {
       const items = (e.clipboardData || e.originalEvent.clipboardData).items;
       for (let item of items) {
@@ -1050,7 +1192,6 @@
       }
     });
 
-    // Drag and drop onto modal dropzone
     if (modalDropzone) {
       modalDropzone.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -1068,7 +1209,6 @@
       });
     }
 
-    // --- MULTI-PROVIDER & API KEYS MANAGEMENT ---
     const PROVIDER_CONFIGS = {
       ollama: {
         name: "Local Ollama",
@@ -1102,33 +1242,32 @@
         badge: "GROK",
         requiresKey: true,
         placeholder: "xai-...",
-        models: ["grok-4.6", "grok-4.5", "grok-4", "grok-4.1", "grok-beta", "grok-vision-beta"]
+        models: ["grok-4.6", "grok-4.5", "grok-4", "grok-3-latest", "grok-3", "grok-3-mini", "grok-2-vision-1212", "grok-2-1212"]
       },
       openrouter: {
-        name: "OpenRouter",
-        badge: "OPENROUTER",
+        name: "OpenRouter Gateway",
+        badge: "ROUTER",
         requiresKey: true,
         placeholder: "sk-or-v1-...",
-        models: ["openrouter/auto", "openai/gpt-5.6-sol", "anthropic/claude-opus-5", "anthropic/claude-sonnet-5", "google/gemini-3.7-flash", "x-ai/grok-4.6", "deepseek/deepseek-v4-flash", "z-ai/glm-5.3", "minimax/minimax-m3", "nvidia/nemotron-3-ultra", "deepseek/deepseek-r1", "meta-llama/llama-3.3-70b-instruct"]
+        models: ["openrouter/auto", "openai/gpt-5.6-sol", "anthropic/claude-opus-5", "google/gemini-3.7-flash", "x-ai/grok-4.6", "deepseek/deepseek-v4-flash", "meta-llama/llama-3.3-70b-instruct"]
       }
     };
 
     let currentProvider = localStorage.getItem("mirag_provider") || "ollama";
-    let currentModel = localStorage.getItem("mirag_model") || "qwen3.8-flash-next";
-    let savedApiKeys = JSON.parse(localStorage.getItem("mirag_api_keys") || "{}");
+    let currentModel = localStorage.getItem("mirag_model") || "llama3.2:3b";
+    let savedApiKeys = {};
+    try {
+      savedApiKeys = JSON.parse(localStorage.getItem("mirag_api_keys") || "{}");
+    } catch (e) {
+      savedApiKeys = {};
+    }
 
     function syncHeaderModelDisplay() {
       const cfg = PROVIDER_CONFIGS[currentProvider] || PROVIDER_CONFIGS.ollama;
       const badge = document.getElementById("header-provider-badge");
       const disp = document.getElementById("active-model-display");
-      const sideBadge = document.getElementById("sidebar-provider-badge");
       if (badge) badge.innerText = cfg.badge;
       if (disp) disp.innerText = currentModel || cfg.models[0];
-      if (sideBadge) sideBadge.innerText = cfg.badge;
-    }
-
-    function openModelSettingsModal() {
-      const pSelect = document.getElementById("setting-provider-select");
       if (pSelect) pSelect.value = currentProvider;
       handleProviderChange();
       const mSelect = document.getElementById("setting-model-select");
@@ -1344,12 +1483,13 @@
         userMsgContent += `<div class="user-msg-img-container"><img src="${currentAttachedBase64}" class="user-msg-img" onclick="openImageModal('${currentAttachedBase64}', 'Your Attached Query Image')"></div>`;
       }
       if (query) {
-        userMsgContent += `<div>${query}</div>`;
+        userMsgContent += `<div>${formatMarkdown(query)}</div>`;
       } else {
         userMsgContent += `<div><em>[Visual Search Query]</em></div>`;
       }
 
-      chatBox.innerHTML += `<div class="msg user-msg">${userMsgContent}</div>`;
+      const userMsgId = 'user-' + Date.now();
+      chatBox.innerHTML += `<div class="msg user-msg" id="${userMsgId}">${userMsgContent}</div>`;
       userInput.value = '';
       
       const attachedFileToSend = currentAttachedFile;
@@ -1436,7 +1576,34 @@
             data.citations.map(c => `<span class="citation-tag">${c.source_file} (${c.relevance || 0}%)</span>`).join('') + '</div>';
         }
 
-        document.getElementById(botMsgId).innerHTML = badgeHtml + `<div class="msg-content">${formatMarkdown(data.answer)}</div>` + visualGalleryHtml + citationsHtml;
+        // Action bar with Feedback (👍 / 👎) & Copy
+        const actionsHtml = `
+          <div class="msg-actions">
+            <button type="button" class="btn-msg-action" onclick="submitMessageFeedback(this, '${botMsgId}', 'thumbs_up')" title="Accurate & helpful (Supervised Learning 👍)">
+              <span>👍</span> <span>Helpful</span>
+            </button>
+            <button type="button" class="btn-msg-action" onclick="submitMessageFeedback(this, '${botMsgId}', 'thumbs_down')" title="Inaccurate / needs improvement (👎)">
+              <span>👎</span> <span>Not helpful</span>
+            </button>
+            <button type="button" class="btn-msg-action" onclick="copyMessageText('${botMsgId}')" title="Copy answer text">
+              <span>📋</span> <span>Copy</span>
+            </button>
+          </div>
+        `;
+
+        const botElement = document.getElementById(botMsgId);
+        botElement.innerHTML = badgeHtml + `<div class="msg-content">${formatMarkdown(data.answer)}</div>` + visualGalleryHtml + citationsHtml + actionsHtml;
+
+        // Store message metadata for feedback recording
+        botMessageMap[botMsgId] = {
+          query: query || '[Visual Search]',
+          answer: data.answer,
+          model: currentModel,
+          citations: data.citations || []
+        };
+
+        // Render LaTeX Mathematical Symbols
+        renderMath(botElement);
 
         // Record turn into client conversation memory
         conversationTurns.push({ role: 'user', content: query || '[Visual Search]' });
@@ -1456,6 +1623,83 @@
       }
       chatBox.scrollTop = chatBox.scrollHeight;
     });
+
+    // Feedback Submission Engine
+    async function submitMessageFeedback(btn, botMsgId, rating) {
+      const meta = botMessageMap[botMsgId];
+      if (!meta) return;
+      
+      const parent = btn.closest('.msg-actions');
+      if (parent) {
+        parent.querySelectorAll('.btn-msg-action').forEach(b => {
+          b.classList.remove('active-up', 'active-down');
+        });
+      }
+      
+      if (rating === 'thumbs_up') {
+        btn.classList.add('active-up');
+      } else {
+        btn.classList.add('active-down');
+      }
+
+      try {
+        await fetch(`/api/sessions/${sessionId}/feedback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: meta.query,
+            answer: meta.answer,
+            rating: rating,
+            model: meta.model || currentModel,
+            citations: meta.citations || []
+          })
+        });
+      } catch (err) {
+        console.warn("Feedback recording notice:", err);
+      }
+    }
+
+    function copyMessageText(botMsgId) {
+      const meta = botMessageMap[botMsgId];
+      const textToCopy = meta ? meta.answer : document.getElementById(botMsgId)?.querySelector('.msg-content')?.innerText;
+      if (textToCopy) {
+        navigator.clipboard.writeText(textToCopy);
+      }
+    }
+
+    // Right-Click Context Menu Engine
+    let contextMenuTargetText = '';
+
+    chatBox.addEventListener('contextmenu', (e) => {
+      const msgEl = e.target.closest('.msg');
+      if (msgEl) {
+        e.preventDefault();
+        contextMenuTargetText = msgEl.querySelector('.msg-content')?.innerText || msgEl.innerText;
+        const menu = document.getElementById('chat-context-menu');
+        if (menu) {
+          menu.style.left = `${Math.min(e.clientX, window.innerWidth - 170)}px`;
+          menu.style.top = `${Math.min(e.clientY, window.innerHeight - 110)}px`;
+          menu.style.display = 'block';
+        }
+      }
+    });
+
+    document.addEventListener('click', () => {
+      const menu = document.getElementById('chat-context-menu');
+      if (menu) menu.style.display = 'none';
+    });
+
+    function replyToSelectedMessage() {
+      if (!contextMenuTargetText) return;
+      const cleanSnippet = contextMenuTargetText.split('\n')[0].slice(0, 80).trim();
+      userInput.value = `> ${cleanSnippet}...\n` + userInput.value;
+      userInput.focus();
+    }
+
+    function copySelectedMessage() {
+      if (!contextMenuTargetText) return;
+      navigator.clipboard.writeText(contextMenuTargetText);
+    }
 
     function saveChatToStorage() {
       try {

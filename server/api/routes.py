@@ -353,6 +353,48 @@ async def chat_with_rag(session_id: str, request: Request):
     }
 
 
+class FeedbackRequest(BaseModel):
+    query: str
+    answer: str
+    rating: str  # "thumbs_up" | "thumbs_down"
+    model: Optional[str] = None
+    citations: Optional[List[Any]] = None
+
+
+@router.post("/sessions/{session_id}/feedback")
+def submit_feedback(session_id: str, req: FeedbackRequest):
+    """Records user feedback (thumbs_up / thumbs_down) for continuous in-context learning and DPO dataset export."""
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session expired or not found.")
+    
+    entry = session.pipeline.record_feedback(
+        query=req.query,
+        answer=req.answer,
+        rating=req.rating,
+        model=req.model,
+        citations=req.citations
+    )
+    return {
+        "status": "success",
+        "message": f"Feedback recorded as {req.rating}",
+        "total_feedback": len(session.pipeline.feedback_store)
+    }
+
+
+@router.get("/sessions/{session_id}/feedback/export")
+def export_feedback(session_id: str):
+    """Exports all session feedback interactions formatted as a DPO / SFT training dataset."""
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session expired or not found.")
+    return {
+        "session_id": session_id,
+        "dataset": session.pipeline.feedback_store,
+        "total_items": len(session.pipeline.feedback_store)
+    }
+
+
 @router.post("/sessions/{session_id}/clear_memory")
 def clear_session_memory(session_id: str):
     """Resets the multi-turn conversational memory for a session."""

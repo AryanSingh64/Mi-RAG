@@ -49,6 +49,39 @@ class RAGPipeline:
         self.rewriter = QueryRewriter(ollama_client=self.ollama)
         self.current_model = ollama_model
         self.conversation_memory: List[Dict[str, str]] = []
+        self.feedback_store: List[Dict[str, Any]] = []
+
+    def record_feedback(self, query: str, answer: str, rating: str, model: Optional[str] = None, citations: Optional[List[Any]] = None) -> Dict[str, Any]:
+        """Stores user feedback (thumbs_up / thumbs_down) for continuous in-context learning and dataset export."""
+        import time
+        clean_cits = []
+        if citations:
+            for c in citations:
+                if isinstance(c, dict):
+                    clean_cits.append(c.get("source_file", str(c)))
+                elif hasattr(c, "source_file"):
+                    clean_cits.append(c.source_file)
+                else:
+                    clean_cits.append(str(c))
+
+        entry = {
+            "query": query.strip(),
+            "answer": answer.strip(),
+            "rating": rating,
+            "model": model or self.current_model,
+            "citations": clean_cits,
+            "timestamp": time.time()
+        }
+        self.feedback_store.append(entry)
+        print(f"[*] FEEDBACK RECORDED [{rating.upper()}]: Query '{query[:45]}...' -> {len(self.feedback_store)} feedback items in store")
+        return entry
+
+    def get_feedback_exemplars(self, current_query: str, max_exemplars: int = 2) -> List[Dict[str, str]]:
+        """Retrieves top verified thumbs_up exemplars for dynamic few-shot in-context learning."""
+        approved = [f for f in self.feedback_store if f.get("rating") == "thumbs_up"]
+        if not approved:
+            return []
+        return [{"query": item["query"], "answer": item["answer"]} for item in approved[-max_exemplars:]]
 
     def clear_memory(self) -> None:
         """Resets the multi-turn conversational dialogue memory."""
@@ -96,37 +129,24 @@ class RAGPipeline:
                 citations=[]
             )
 
-        # 2. Fix typos & expand query with conversation attention
-        cleaned_question, search_query = self.rewriter.clean_and_expand_query(
-            user_question,
-            model_name=target_model
-        )
+        # 2. Query Rewriting & Keyword Expansion
+        cleaned_question = self.rewriter.rewrite(user_question, history=self.conversation_memory)
 
-        # 3. Multi-strategy retrieval (corrected query + original query)
-        raw_results = self.vector_store.query(search_query, top_k=top_k)
-        if search_query != user_question:
-            direct_results = self.vector_store.query(user_question, top_k=top_k)
-            # Merge and deduplicate by text/source
-            seen = {r.text: r for r in raw_results}
-            for dr in direct_results:
-                if dr.text not in seen:
-                    raw_results.append(dr)
+        # 3. Retrieve Candidate Chunks from ChromaDB
+        candidate_chunks = self.vector_store.query(cleaned_question, top_k=top_k)
 
-        # 4. Filter and apply Attention-Guided Context Reranking
-        filtered_chunks = self.guardrails.filter_relevant_chunks(raw_results)
-        relevant_chunks = self.guardrails.apply_attention_reranking(
+        # 4. Attention-Guided Reranking with Conversational Context
+        relevant_chunks = self.guardrails.rerank_with_attention(
             query=cleaned_question,
-            chunks=filtered_chunks,
+            chunks=candidate_chunks,
             history=self.conversation_memory
         )
 
-        # Print retrieved context live in terminal
         print("\n" + "="*60)
-        print(f"[*] QUERY: {user_question} (Provider: {provider_name.upper()} | Model: {target_model})")
+        print(f"[*] RAG RETRIEVAL ENGINE: '{cleaned_question}' (Provider: {provider_name.upper()} | Model: {target_model})")
         if relevant_chunks:
-            print(f"[*] ATTENTION-RERANKED CONTEXT ({len(relevant_chunks)} chunks):")
             for idx, chunk in enumerate(relevant_chunks, 1):
-                preview = chunk.text.replace("\n", " ")[:140]
+                preview = chunk.text.replace("\n", " ")[:90]
                 print(f"  [{idx}] {chunk.source_file} (Similarity: {chunk.score*100:.1f}%) -> {preview}...")
         else:
             print("[!] No relevant chunks met the similarity threshold.")
@@ -144,12 +164,14 @@ class RAGPipeline:
                 warning="No relevant chunks met the threshold."
             )
 
-        # 5. Construct grounded prompt with conversation memory
+        # 5. Construct grounded prompt with conversation memory & feedback exemplars
         system_prompt = self.guardrails.build_grounded_system_prompt()
+        feedback_exemplars = self.get_feedback_exemplars(cleaned_question)
         user_prompt = self.guardrails.build_user_prompt(
             query=cleaned_question,
             context_chunks=relevant_chunks,
-            conversation_history=self.conversation_memory
+            conversation_history=self.conversation_memory,
+            feedback_exemplars=feedback_exemplars
         )
 
         # 6. Query LLM via MultiProvider dispatcher
@@ -256,13 +278,15 @@ class RAGPipeline:
             history=self.conversation_memory
         )
 
-        # 4. Construct prompt with user image analysis & conversation memory
+        # 4. Construct prompt with user image analysis & conversation memory & feedback exemplars
         system_prompt = self.guardrails.build_grounded_system_prompt()
+        feedback_exemplars = self.get_feedback_exemplars(effective_question)
         user_prompt = self.guardrails.build_user_prompt(
             query=effective_question,
             context_chunks=relevant_chunks,
             user_image_context=combined_summary,
-            conversation_history=self.conversation_memory
+            conversation_history=self.conversation_memory,
+            feedback_exemplars=feedback_exemplars
         )
 
         # 5. Query LLM via MultiProvider dispatcher
