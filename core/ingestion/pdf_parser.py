@@ -266,7 +266,7 @@ class PdfDocumentParser(BaseDocumentParser):
         doc.close()
 
         import os
-        from concurrent.futures import ThreadPoolExecutor
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
         # Parallel multi-core page processing
         num_workers = min(12, max(2, (os.cpu_count() or 4) * 2))
@@ -274,14 +274,21 @@ class PdfDocumentParser(BaseDocumentParser):
 
         pages_results = [None] * total_pages
         extracted_diagrams = []
+        completed_count = 0
+
+        print(f"[*] Parsing {total_pages} PDF pages across {num_workers} parallel workers...", flush=True)
 
         with ThreadPoolExecutor(max_workers=num_workers) as executor:
             future_to_idx = {
                 executor.submit(self._process_single_page, doc_path_str, i, clean_stem, total_pages): i
                 for i in range(total_pages)
             }
-            for future in future_to_idx:
+            for future in as_completed(future_to_idx):
                 idx = future_to_idx[future]
+                completed_count += 1
+                if completed_count % 100 == 0 or completed_count == total_pages:
+                    pct = (completed_count / total_pages) * 100
+                    print(f"  ⚡ [PDF Progress] Processed {completed_count}/{total_pages} pages ({pct:.1f}%) | Diagrams extracted: {len(extracted_diagrams)}", flush=True)
                 try:
                     page_text, diag_urls = future.result()
                     pages_results[idx] = page_text

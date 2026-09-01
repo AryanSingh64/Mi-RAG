@@ -67,9 +67,12 @@ class ChromaVectorStore:
                     clean_meta[k] = str(v)
             clean_metadatas.append(clean_meta)
 
-        # Batch upsert in chunks of 256 for optimal vector throughput
-        batch_size = 256
-        for i in range(0, len(chunks), batch_size):
+        # Batch upsert in chunks of 128 for optimal vector throughput
+        batch_size = 128 if getattr(self.embedder, "device", "cpu") in ("cuda", "mps") else 64
+        total_batches = (len(chunks) + batch_size - 1) // batch_size
+        print(f"[*] Storing & vectorizing {len(chunks)} chunks across {total_batches} batches on {getattr(self.embedder, 'device', 'cpu').upper()}...", flush=True)
+
+        for b_idx, i in enumerate(range(0, len(chunks), batch_size), start=1):
             b_chunks = chunks[i:i + batch_size]
             b_texts = [c.text for c in b_chunks]
             b_ids = [c.chunk_id for c in b_chunks]
@@ -85,6 +88,11 @@ class ChromaVectorStore:
                 documents=b_texts,
                 metadatas=b_metas
             )
+
+            if b_idx % 5 == 0 or b_idx == total_batches:
+                stored = min(i + batch_size, len(chunks))
+                pct = (stored / len(chunks)) * 100
+                print(f"  ⚡ [Vector Index] Indexed {stored}/{len(chunks)} chunks ({pct:.1f}%) | Batch {b_idx}/{total_batches}", flush=True)
 
     def query(self, query_text: str, top_k: int = 4) -> List[SearchResult]:
         """
