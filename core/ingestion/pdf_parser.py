@@ -19,41 +19,22 @@ from core.ingestion.base import BaseDocumentParser, ParsedDocument
 class DiagramDetector:
     """
     Intelligent Layout & Vector Diagram Detector using PyMuPDF.
-    Finds exact bounding boxes for vector graphics, figures, charts, tables,
-    and drawings + their surrounding captions (Fig 1, Figure 2, Diagram, etc.),
-    and crops ONLY the exact visual diagram rather than the entire page.
+    Finds exact bounding boxes for genuine figures, charts, architecture drawings,
+    and tables with captions, skipping slide borders, logos, and decorative lines.
     """
 
-    CAPTION_REGEX = re.compile(r"(fig(?:ure)?\.?\s*\d+|diagram\s*\d+|table\s*\d+|algorithm\s*\d+|architecture)", re.IGNORECASE)
+    CAPTION_REGEX = re.compile(r"(fig(?:ure)?\.?\s*\d+|diagram\s*\d+|table\s*\d+|algorithm\s*\d+|architecture|workflow)", re.IGNORECASE)
 
     @classmethod
     def detect_diagram_regions(cls, page: Any) -> List[Tuple[Any, str, str]]:
         """
-        Analyzes page drawings, images, and text blocks to return a list of:
-        (cropped_bbox, caption_text, diagram_type)
+        Analyzes page to return genuine diagrams: (cropped_bbox, caption_text, diagram_type)
+        Skips slide backgrounds, headers, and decorative shapes.
         """
         page_rect = page.rect
         diagrams = []
 
-        # 1. Collect all vector drawings bounding boxes
-        drawings = page.get_drawings()
-        drawing_rects = []
-        for d in drawings:
-            r = d.get("rect")
-            if r and r.is_valid and not r.is_empty:
-                # Filter out full-page borders or tiny decoration dots
-                if r.width > 20 and r.height > 20 and (r.width < page_rect.width * 0.95 or r.height < page_rect.height * 0.95):
-                    drawing_rects.append(r)
-
-        # 2. Collect embedded image bounding boxes
-        img_info_list = page.get_image_info(xrefs=True)
-        img_rects = []
-        for img_info in img_info_list:
-            bbox = fitz.Rect(img_info.get("bbox", (0, 0, 0, 0)))
-            if bbox.is_valid and not bbox.is_empty and bbox.width > 30 and bbox.height > 30:
-                img_rects.append(bbox)
-
-        # 3. Find Figure/Diagram captions in text blocks
+        # 1. Find Figure/Diagram captions in text blocks
         blocks = page.get_text("blocks")
         caption_blocks = []
         for b in blocks:
@@ -62,70 +43,42 @@ class DiagramDetector:
                 b_rect = fitz.Rect(b[:4])
                 caption_blocks.append((b_rect, text))
 
-        # 4. Group drawings and images into clustered diagram areas
-        all_visual_rects = drawing_rects + img_rects
-        clustered_regions = []
+        # 2. Collect embedded image bounding boxes (filter out tiny icons or full-slide backgrounds)
+        img_info_list = page.get_image_info(xrefs=True)
+        img_rects = []
+        for img_info in img_info_list:
+            bbox = fitz.Rect(img_info.get("bbox", (0, 0, 0, 0)))
+            if bbox.is_valid and not bbox.is_empty:
+                # Must be a prominent graphic (width >= 100, height >= 80) and not full-page slide background (< 85% area)
+                area = bbox.width * bbox.height
+                page_area = page_rect.width * page_rect.height
+                if bbox.width >= 100 and bbox.height >= 80 and (area < page_area * 0.85):
+                    img_rects.append(bbox)
 
-        for v_rect in all_visual_rects:
-            merged = False
-            for i, c_rect in enumerate(clustered_regions):
-                # If visual items are close to each other (within 35pt), merge their bounding box
-                expanded = fitz.Rect(c_rect).include_point((v_rect.x0 - 25, v_rect.y0 - 25))
-                expanded.include_point((v_rect.x1 + 25, v_rect.y1 + 25))
-                if expanded.intersects(v_rect) or c_rect.intersects(v_rect):
-                    clustered_regions[i] = c_rect | v_rect
-                    merged = True
-                    break
-            if not merged:
-                clustered_regions.append(v_rect)
+        # If no captions and no prominent images, skip (do not crop pure text or slide headers)
+        if not caption_blocks and not img_rects:
+            return []
 
-        # 5. Associate each diagram cluster with its nearest caption
-        used_captions = set()
-        for idx, d_rect in enumerate(clustered_regions):
-            if d_rect.width < 50 or d_rect.height < 40:
-                continue
-
+        # 3. Associate images with nearest captions
+        for idx, img_bbox in enumerate(img_rects[:2]):
             matched_caption = ""
-            best_dist = 150.0  # Max search distance for caption
-
-            for c_idx, (c_rect, c_text) in enumerate(caption_blocks):
-                # Distance between diagram bottom/top and caption
-                dist = min(
-                    abs(c_rect.y0 - d_rect.y1),  # Caption below diagram
-                    abs(d_rect.y0 - c_rect.y1),  # Caption above diagram
-                    abs(c_rect.y0 - d_rect.y0)
-                )
+            best_dist = 140.0
+            for c_rect, c_text in caption_blocks:
+                dist = min(abs(c_rect.y0 - img_bbox.y1), abs(img_bbox.y0 - c_rect.y1))
                 if dist < best_dist:
                     best_dist = dist
                     matched_caption = c_text
-                    used_captions.add(c_idx)
-                    # Include caption in diagram crop for complete context
-                    d_rect = d_rect | c_rect
 
-            # Add padding around diagram
             padded_rect = fitz.Rect(
-                max(0, d_rect.x0 - 15),
-                max(0, d_rect.y0 - 15),
-                min(page_rect.width, d_rect.x1 + 15),
-                min(page_rect.height, d_rect.y1 + 15)
+                max(0, img_bbox.x0 - 10),
+                max(0, img_bbox.y0 - 10),
+                min(page_rect.width, img_bbox.x1 + 10),
+                min(page_rect.height, img_bbox.y1 + 10)
             )
+            diag_name = matched_caption.split("\n")[0][:60] if matched_caption else f"Figure {idx + 1}"
+            diagrams.append((padded_rect, diag_name, "embedded_figure"))
 
-            diag_name = matched_caption.split("\n")[0][:60] if matched_caption else f"Diagram {idx + 1}"
-            diagrams.append((padded_rect, diag_name, "vector_diagram" if drawing_rects else "embedded_figure"))
-
-        # 6. Check for standalone captions without detected vector objects (e.g. text-only tables or subtle line drawings)
-        for c_idx, (c_rect, c_text) in enumerate(caption_blocks):
-            if c_idx not in used_captions:
-                # Expand region above or below caption
-                box_above = fitz.Rect(
-                    max(0, c_rect.x0 - 40),
-                    max(0, c_rect.y0 - 220),
-                    min(page_rect.width, c_rect.x1 + 40),
-                    min(page_rect.height, c_rect.y1 + 15)
-                )
-                diagrams.append((box_above, c_text.split("\n")[0][:60], "caption_region"))
-
-        return diagrams
+        return diagrams[:2]
 
 
 class PdfDocumentParser(BaseDocumentParser):

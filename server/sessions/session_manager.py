@@ -208,30 +208,31 @@ class SessionManager:
             except Exception as e:
                 print(f"[!] Error deleting session {session_id}: {e}")
 
-    def cleanup_expired_sessions(self):
-        """
-        Background cleaner to wipe expired sessions from memory and disk.
-        """
-        now = time.time()
-        # Scan in-memory
-        expired = [sid for sid, s in self.active_sessions.items() if s.is_expired]
-        for sid in expired:
-            self.delete_session(sid)
+    def set_progress(self, session_id: str, stage: str, current: int, total: int, diagrams: int = 0, status: str = "processing"):
+        """Updates live ingestion progress for real-time frontend streaming."""
+        pct = round((current / max(1, total)) * 100, 1) if total > 0 else 0.0
+        if not hasattr(self, "_progress_store"):
+            self._progress_store = {}
+        self._progress_store[session_id] = {
+            "status": status,
+            "stage": stage,
+            "current": current,
+            "total": total,
+            "percent": min(100.0, pct),
+            "diagrams": diagrams,
+            "updated_at": time.time()
+        }
 
-        # Scan on disk for orphaned expired sessions
-        try:
-            for session_path in self.base_dir.iterdir():
-                if session_path.is_dir():
-                    meta_file = session_path / "meta.json"
-                    if meta_file.exists():
-                        try:
-                            import json
-                            with open(meta_file, "r", encoding="utf-8") as f:
-                                meta = json.load(f)
-                            if now > meta.get("expires_at", 0):
-                                shutil.rmtree(session_path)
-                        except Exception:
-                            pass
-        except Exception as e:
-            print(f"[!] Cleanup disk scan warning: {e}")
+    def get_progress(self, session_id: str) -> Dict[str, Any]:
+        """Returns the current ingestion progress for a session."""
+        if not hasattr(self, "_progress_store"):
+            self._progress_store = {}
+        return self._progress_store.get(session_id, {
+            "status": "idle",
+            "stage": "Ready",
+            "current": 0,
+            "total": 0,
+            "percent": 0.0,
+            "diagrams": 0
+        })
 

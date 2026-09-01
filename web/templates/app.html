@@ -1263,22 +1263,10 @@
       progressContainer.style.display = 'block';
       resultBox.style.display = 'none';
 
-      ingestionStartTime = Date.now();
-      if (etaTimerInterval) clearInterval(etaTimerInterval);
-      etaTimerInterval = setInterval(() => {
-        const elapsedSec = (Date.now() - ingestionStartTime) / 1000;
-        const elapsedEl = document.getElementById('progress-elapsed');
-        const etaEl = document.getElementById('progress-eta');
-        if (elapsedEl) elapsedEl.innerText = formatDuration(elapsedSec);
-        if (currentPct > 10 && currentPct < 100 && elapsedSec > 1 && etaEl) {
-          const totalEstimatedSec = elapsedSec / (currentPct / 100);
-          const remainingSec = Math.max(1, totalEstimatedSec - elapsedSec);
-          etaEl.innerText = `~${formatDuration(remainingSec)}`;
-        }
-      }, 500);
+      let pollInterval = null;
 
       try {
-        updateProgress(10, "Initializing Parallel RAG Pipeline & Multi-Core Buffer...", "Buffer Init");
+        updateProgress(5, "Initializing Session...", "");
         
         const sessionRes = await fetch('/api/sessions/create', {
           method: 'POST',
@@ -1293,43 +1281,46 @@
         const session = await sessionRes.json();
         const sessionId = session.session_id;
 
+        // Start live server progress polling
+        pollInterval = setInterval(async () => {
+          try {
+            const pRes = await fetch(`/api/sessions/${sessionId}/progress`);
+            if (pRes.ok) {
+              const pData = await pRes.json();
+              if (pData.status === "processing") {
+                const diagInfo = pData.diagrams ? ` | ${pData.diagrams} diagrams extracted` : '';
+                const displayMsg = `${pData.stage || 'Processing'}${diagInfo}`;
+                updateProgress(Math.max(10, Math.min(98, pData.percent)), displayMsg, `${pData.percent}%`);
+              }
+            }
+          } catch (pErr) {}
+        }, 350);
+
         const total = selectedFiles.length;
         for (let i = 0; i < total; i++) {
           const file = selectedFiles[i];
           const fileSizeMb = (file.size / (1024 * 1024)).toFixed(1);
 
-          // Stage 1: Reading & Parsing
-          updateProgress(25, `Multi-Core Parsing: ${file.name} (${fileSizeMb} MB)...`, "~120 p/s");
-          await new Promise(r => setTimeout(r, 200));
-
-          // Stage 2: Diagram & Visual Isolation
-          updateProgress(50, `Isolating Diagrams, Architectural Figures & High-Res Crops...`, "~100+ p/s");
+          updateProgress(10, `Uploading ${file.name} (${fileSizeMb} MB)...`, "0%");
 
           const fd = new FormData();
           fd.append('file', file);
           
-          // Upload & execute server pipeline
-          const uploadPromise = fetch(`/api/sessions/${sessionId}/upload`, { method: 'POST', body: fd });
-          
-          // Stage 3: Embedding & ChromaDB Storage
-          const modelShortName = chosenEmbeddingModel.split('/').pop();
-          updateProgress(75, `Generating Dense Semantic Vector Embeddings (${modelShortName})...`, "GPU / CPU");
-          
-          const uploadRes = await uploadPromise;
+          const uploadRes = await fetch(`/api/sessions/${sessionId}/upload`, { method: 'POST', body: fd });
           const uploadData = await uploadRes.json();
           
-          const speedMetric = uploadData.elapsed_seconds ? `${(uploadData.chunks_indexed / Math.max(uploadData.elapsed_seconds, 0.1)).toFixed(0)} vec/s` : '~100+ p/s';
-          updateProgress(90, `Persisting ${uploadData.chunks_indexed || 'all'} Vectors to Local ChromaDB...`, speedMetric);
-          await new Promise(r => setTimeout(r, 250));
+          if (uploadData.error) {
+            throw new Error(uploadData.error);
+          }
         }
 
-        updateProgress(100, "Knowledge Base Ready • Hardware Accelerated", "Complete");
-        if (etaTimerInterval) clearInterval(etaTimerInterval);
+        if (pollInterval) clearInterval(pollInterval);
+        updateProgress(100, "Knowledge Base Ready", "100%");
         resultBox.style.display = 'block';
         portalLink.href = `/portal/${sessionId}`;
         buildBtn.disabled = false;
       } catch (err) {
-        if (etaTimerInterval) clearInterval(etaTimerInterval);
+        if (pollInterval) clearInterval(pollInterval);
         alert("Error: " + err.message);
         buildBtn.disabled = false;
         progressContainer.style.display = 'none';

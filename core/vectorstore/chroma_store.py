@@ -48,7 +48,7 @@ class ChromaVectorStore:
             metadata={"hnsw:space": "cosine"}
         )
 
-    def add_chunks(self, chunks: List[DocumentChunk]):
+    def add_chunks(self, chunks: List[DocumentChunk], progress_callback: Optional[Any] = None):
         """
         Embeds and stores document chunks in the vector collection in high-throughput batches.
         """
@@ -89,10 +89,14 @@ class ChromaVectorStore:
                 metadatas=b_metas
             )
 
+            stored = min(i + batch_size, len(chunks))
+            pct = (stored / len(chunks)) * 100
+
+            if progress_callback:
+                progress_callback("indexing", stored, len(chunks), 0)
+
             if b_idx % 5 == 0 or b_idx == total_batches:
-                stored = min(i + batch_size, len(chunks))
-                pct = (stored / len(chunks)) * 100
-                print(f"  ⚡ [Vector Index] Indexed {stored}/{len(chunks)} chunks ({pct:.1f}%) | Batch {b_idx}/{total_batches}", flush=True)
+                print(f"  [Vector Index] Indexed {stored}/{len(chunks)} chunks ({pct:.1f}%) | Batch {b_idx}/{total_batches}", flush=True)
 
     def query(self, query_text: str, top_k: int = 4) -> List[SearchResult]:
         """

@@ -37,7 +37,7 @@ class DocumentParserFactory:
         self.vision_parser = self._image_parser
         self.image_parser = self._image_parser
 
-    def parse_file(self, file_path: Path | str) -> ParsedDocument:
+    def parse_file(self, file_path: Path | str, progress_callback: Optional[Any] = None) -> ParsedDocument:
         """
         Identifies the file type and routes it to the corresponding parser.
         """
@@ -49,7 +49,7 @@ class DocumentParserFactory:
         elif ext in [".docx"]:
             return self._docx_parser.parse(path)
         elif ext in [".pdf"]:
-            return self._pdf_parser.parse(path)
+            return self._pdf_parser.parse(path, progress_callback=progress_callback)
         elif ext in [".png", ".jpg", ".jpeg", ".webp", ".bmp"]:
             return self._image_parser.parse(path)
         else:

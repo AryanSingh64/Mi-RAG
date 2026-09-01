@@ -208,6 +208,12 @@ def get_session_info(session_id: str):
     }
 
 
+@router.get("/sessions/{session_id}/progress")
+def get_session_progress(session_id: str):
+    """Returns live streaming progress of document parsing, diagram extraction, and vector indexing."""
+    return session_manager.get_progress(session_id)
+
+
 @router.post("/sessions/{session_id}/upload")
 async def upload_document(session_id: str, file: UploadFile = File(...)):
     """Uploads and ingests any supported document (PDF, DOCX, TXT, Image/OCR)."""
@@ -224,10 +230,24 @@ async def upload_document(session_id: str, file: UploadFile = File(...)):
     print(f"\n[INGESTION START] Session: {session_id} | File: {file.filename} ({file_size_mb:.2f} MB)")
     t0 = time.perf_counter()
 
+    session_manager.set_progress(session_id, stage="Initializing document...", current=0, total=100, diagrams=0)
+
+    def on_progress(stage: str, current: int, total: int, diagrams: int):
+        if stage == "parsing":
+            stage_label = f"Parsing pages ({current:,} / {total:,})"
+        elif stage == "chunking":
+            stage_label = "Creating semantic chunks..."
+        elif stage == "indexing":
+            stage_label = f"Vector indexing ({current:,} / {total:,} chunks)"
+        else:
+            stage_label = stage
+        session_manager.set_progress(session_id, stage=stage_label, current=current, total=total, diagrams=diagrams)
+
     try:
-        chunks_indexed = session.pipeline.ingest_file(file_path)
+        chunks_indexed = session.pipeline.ingest_file(file_path, progress_callback=on_progress)
         dur = time.perf_counter() - t0
         session_manager.update_session_indexed_files(session_id, [file.filename])
+        session_manager.set_progress(session_id, stage="Indexing Complete", current=100, total=100, status="complete")
         print(f"[INGESTION COMPLETE] {file.filename} -> {chunks_indexed} vectors indexed in {dur:.2f}s ({file_size_mb / max(dur, 0.001):.1f} MB/s)")
         return {
             "status": "success",
@@ -237,6 +257,7 @@ async def upload_document(session_id: str, file: UploadFile = File(...)):
             "total_files": len(session.indexed_files)
         }
     except Exception as e:
+        session_manager.set_progress(session_id, stage=f"Error: {str(e)}", current=0, total=100, status="error")
         print(f"[INGESTION ERROR] {file.filename}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process document: {str(e)}")
 

@@ -88,20 +88,22 @@ class RAGPipeline:
         self.conversation_memory = []
         print("[*] Conversational memory cleared.")
 
-    def ingest_file(self, file_path: Path | str) -> int:
+    def ingest_file(self, file_path: Path | str, progress_callback: Optional[Any] = None) -> int:
         """
         Parses a file (text, docx, PDF with images/OCR, standalone images),
         chunks it, and indexes it into ChromaDB.
         """
         fname = Path(file_path).name
         print(f"[*] Step 1/3: Parsing document & extracting diagrams: {fname}...", flush=True)
-        parsed_doc = self.parser_factory.parse_file(file_path)
+        parsed_doc = self.parser_factory.parse_file(file_path, progress_callback=progress_callback)
         
         print(f"[*] Step 2/3: Chunking document into semantic passages ({parsed_doc.metadata.get('total_pages', 1)} pages, {len(parsed_doc.text_content):,} characters)...", flush=True)
+        if progress_callback:
+            progress_callback("chunking", 1, 1, parsed_doc.metadata.get("diagram_count", 0))
         chunks = self.chunker.chunk_document(parsed_doc)
         
         print(f"[*] Step 3/3: Storing {len(chunks)} chunk vectors in ChromaDB with {self.embedding_model}...", flush=True)
-        self.vector_store.add_chunks(chunks)
+        self.vector_store.add_chunks(chunks, progress_callback=progress_callback)
         return len(chunks)
 
     def query(
