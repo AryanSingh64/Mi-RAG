@@ -209,6 +209,21 @@ class PdfDocumentParser(BaseDocumentParser):
 
             if native_text:
                 page_sections.append(native_text)
+            else:
+                # 4. Scanned Page OCR: If native digital text is empty or missing, run RapidOCR on page image
+                try:
+                    ocr_engine = self._get_ocr()
+                    if ocr_engine:
+                        pix = page.get_pixmap(dpi=120)
+                        img_bytes = pix.tobytes("png")
+                        ocr_res, _ = ocr_engine(img_bytes)
+                        if ocr_res:
+                            extracted_lines = [line[1] for line in ocr_res if len(line) > 1 and line[1]]
+                            if extracted_lines:
+                                ocr_text = "\n".join(extracted_lines)
+                                page_sections.append(f"[Scanned Slide OCR Text]:\n{ocr_text}")
+                except Exception:
+                    pass
 
             thread_doc.close()
         except Exception as err:

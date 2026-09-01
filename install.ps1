@@ -182,7 +182,7 @@ if ($detectedGpu) {
         Write-Host "  ultra-fast embedding computation, vector indexing, and multimodal RAG?" -ForegroundColor White
         Write-Host ""
         Write-Host "  Option 1: Yes, install CUDA GPU Acceleration (Recommended for $detectedGpu)" -ForegroundColor Green
-        Write-Host "  Option 2: No, use CPU only (Standard • Lightweight)" -ForegroundColor White
+        Write-Host "  Option 2: No, use CPU only (Standard and Lightweight)" -ForegroundColor White
         Write-Host ""
         $gpuChoice = Read-Host -Prompt "  Select option [1/2] (Default is 1)"
         if ($gpuChoice -ne "2") {
