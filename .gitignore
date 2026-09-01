@@ -21,6 +21,8 @@ chroma_db/
 /storage/
 /export/
 data/
+crazypdf/
+*.pdf
 *.zip
 *.tar.gz
 *.db

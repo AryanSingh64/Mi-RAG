@@ -20,7 +20,7 @@ class DiagramDetector:
     """
     Intelligent Layout & Vector Diagram Detector using PyMuPDF.
     Finds exact bounding boxes for genuine figures, charts, architecture drawings,
-    and tables with captions, skipping slide borders, logos, and decorative lines.
+    and tables with captions, skipping slide backgrounds, headers, and decorative shapes.
     """
 
     CAPTION_REGEX = re.compile(r"(fig(?:ure)?\.?\s*\d+|diagram\s*\d+|table\s*\d+|algorithm\s*\d+|architecture|workflow)", re.IGNORECASE)
@@ -29,9 +29,10 @@ class DiagramDetector:
     def detect_diagram_regions(cls, page: Any) -> List[Tuple[Any, str, str]]:
         """
         Analyzes page to return genuine diagrams: (cropped_bbox, caption_text, diagram_type)
-        Skips slide backgrounds, headers, and decorative shapes.
+        Skips slide backgrounds, headers, thin divider lines, and decorative shapes.
         """
         page_rect = page.rect
+        page_area = page_rect.width * page_rect.height
         diagrams = []
 
         # 1. Find Figure/Diagram captions in text blocks
@@ -43,19 +44,28 @@ class DiagramDetector:
                 b_rect = fitz.Rect(b[:4])
                 caption_blocks.append((b_rect, text))
 
-        # 2. Collect embedded image bounding boxes (filter out tiny icons or full-slide backgrounds)
+        # 2. Collect genuine standalone image bounding boxes
         img_info_list = page.get_image_info(xrefs=True)
         img_rects = []
         for img_info in img_info_list:
             bbox = fitz.Rect(img_info.get("bbox", (0, 0, 0, 0)))
             if bbox.is_valid and not bbox.is_empty:
-                # Must be a prominent graphic (width >= 100, height >= 80) and not full-page slide background (< 85% area)
-                area = bbox.width * bbox.height
-                page_area = page_rect.width * page_rect.height
-                if bbox.width >= 100 and bbox.height >= 80 and (area < page_area * 0.85):
+                w, h = bbox.width, bbox.height
+                area = w * h
+                aspect = w / max(1.0, h)
+                area_pct = (area / page_area) * 100
+
+                # Strict geometric filter for real figures:
+                # - width >= 140, height >= 100 (filters out thin lines and small icons)
+                # - aspect ratio between 0.3 and 3.5 (filters out 1px line slivers)
+                # - area between 5% and 65% of page (filters out full-page slide backgrounds)
+                # - not positioned in top 5% (header banner) or bottom 8% (footer icon)
+                is_header_footer = (bbox.y1 > page_rect.height * 0.92) or (bbox.y0 < page_rect.height * 0.05 and h < 50)
+
+                if (w >= 140 and h >= 100 and 0.3 <= aspect <= 3.5 and 5.0 <= area_pct <= 65.0 and not is_header_footer):
                     img_rects.append(bbox)
 
-        # If no captions and no prominent images, skip (do not crop pure text or slide headers)
+        # If no captions and no genuine images, skip
         if not caption_blocks and not img_rects:
             return []
 
@@ -107,15 +117,14 @@ class PdfDocumentParser(BaseDocumentParser):
         p_idx = page_num + 1
 
         try:
-            # Open per-thread PyMuPDF doc handle for thread-safe concurrent rendering
             thread_doc = fitz.open(doc_path)
             page = thread_doc[page_num]
 
             # 1. Native Digital Text (Instant extraction)
             native_text = (page.get_text() or "").strip()
 
-            # 2. Detect & Crop Exact Diagram Bounding Boxes (Vector charts, Figure captions, Drawings, & Embedded images)
-            diagram_regions = DiagramDetector.detect_diagram_regions(page)[:4]
+            # 2. Detect & Crop Genuine Diagrams (Only isolated real figures)
+            diagram_regions = DiagramDetector.detect_diagram_regions(page)[:2]
 
             for d_idx, (diag_bbox, caption, diag_type) in enumerate(diagram_regions, start=1):
                 clean_cap = "".join(c if c.isalnum() else "_" for c in caption[:25])
@@ -130,8 +139,7 @@ class PdfDocumentParser(BaseDocumentParser):
                 if self.output_images_dir:
                     target_path = self.output_images_dir / diag_filename
                     try:
-                        # 140 DPI JPEG crop for crisp diagram rendering & low disk footprint
-                        pix = page.get_pixmap(dpi=140, clip=diag_bbox)
+                        pix = page.get_pixmap(dpi=120, clip=diag_bbox)
                         pix.save(str(target_path), jpg_quality=85)
                         page_diagram_urls.append(img_url)
 
@@ -140,30 +148,15 @@ class PdfDocumentParser(BaseDocumentParser):
                             f"[Image URL: {img_url}]"
                         ]
                         page_sections.append("\n".join(diag_block))
-
                     except Exception:
                         pass
 
-            # 3. Fallback: If standalone image/drawing exists without isolated bounding box and page text is sparse
-            if not page_diagram_urls and len(page.get_images()) > 0 and len(native_text) < 200 and self.output_images_dir:
-                full_page_filename = f"{clean_stem}_page_{p_idx}.jpg"
-                full_page_url = (
-                    f"/api/sessions/{self.session_id}/images/{full_page_filename}"
-                    if self.session_id
-                    else f"/images/{full_page_filename}"
-                )
-                try:
-                    pix = page.get_pixmap(dpi=100)
-                    pix.save(str(self.output_images_dir / full_page_filename), jpg_quality=75)
-                    page_diagram_urls.append(full_page_url)
-                    page_sections.append(f"[Page {p_idx} Figure]\n[Image URL: {full_page_url}]")
-                except Exception:
-                    pass
-
-            if native_text:
+            if len(native_text) >= 35:
                 page_sections.append(native_text)
             else:
-                # 4. Scanned Page OCR: If native digital text is empty or missing, run RapidOCR on page image
+                # 3. Scanned / Sparse Page OCR: If native text is very short (<35 chars, e.g. logo only), run RapidOCR
+                if native_text:
+                    page_sections.append(native_text)
                 try:
                     ocr_engine = self._get_ocr()
                     if ocr_engine:
