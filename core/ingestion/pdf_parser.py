@@ -121,7 +121,7 @@ class PdfDocumentParser(BaseDocumentParser):
     def _process_single_page(self, doc_path: str, page_num: int, clean_stem: str, total_pages: int) -> Tuple[str, List[str]]:
         """Processes a single page in an isolated worker thread."""
         page_sections = []
-        page_diagram_urls = []
+        page_image_urls = []
         p_idx = page_num + 1
 
         try:
@@ -131,31 +131,31 @@ class PdfDocumentParser(BaseDocumentParser):
             # 1. Native Digital Text (Instant extraction)
             native_text = (page.get_text() or "").strip()
 
-            # 2. Detect & Crop Genuine Diagrams (Only isolated real figures)
-            diagram_regions = DiagramDetector.detect_diagram_regions(page)[:2]
+            # 2. Detect & Crop Genuine Images/Figures (Only isolated real figures)
+            image_regions = DiagramDetector.detect_diagram_regions(page)[:2]
 
-            for d_idx, (diag_bbox, caption, diag_type) in enumerate(diagram_regions, start=1):
+            for d_idx, (diag_bbox, caption, diag_type) in enumerate(image_regions, start=1):
                 clean_cap = "".join(c if c.isalnum() else "_" for c in caption[:25])
-                diag_filename = f"{clean_stem}_p{p_idx}_diag{d_idx}_{clean_cap}.jpg"
+                img_filename = f"{clean_stem}_p{p_idx}_img{d_idx}_{clean_cap}.jpg"
 
                 img_url = (
-                    f"/api/sessions/{self.session_id}/images/{diag_filename}"
+                    f"/api/sessions/{self.session_id}/images/{img_filename}"
                     if self.session_id
-                    else f"/images/{diag_filename}"
+                    else f"/images/{img_filename}"
                 )
 
                 if self.output_images_dir:
-                    target_path = self.output_images_dir / diag_filename
+                    target_path = self.output_images_dir / img_filename
                     try:
-                        pix = page.get_pixmap(dpi=120, clip=diag_bbox)
-                        pix.save(str(target_path), jpg_quality=85)
-                        page_diagram_urls.append(img_url)
+                        pix = page.get_pixmap(dpi=140, clip=diag_bbox)
+                        pix.save(str(target_path), jpg_quality=90)
+                        page_image_urls.append(img_url)
 
-                        diag_block = [
-                            f"[DIAGRAM / FIGURE: {caption}]",
+                        img_block = [
+                            f"[IMAGE / FIGURE: {caption}]",
                             f"[Image URL: {img_url}]"
                         ]
-                        page_sections.append("\n".join(diag_block))
+                        page_sections.append("\n".join(img_block))
                     except Exception:
                         pass
 
@@ -168,7 +168,7 @@ class PdfDocumentParser(BaseDocumentParser):
                 try:
                     ocr_engine = self._get_ocr()
                     if ocr_engine:
-                        pix = page.get_pixmap(dpi=120)
+                        pix = page.get_pixmap(dpi=140)
                         img_bytes = pix.tobytes("png")
                         ocr_res, _ = ocr_engine(img_bytes)
                         if ocr_res:
@@ -184,9 +184,15 @@ class PdfDocumentParser(BaseDocumentParser):
             page_sections.append(f"[Page {p_idx} parsing notice: {err}]")
 
         page_content = f"[Page {p_idx}]\n" + "\n\n".join(page_sections)
-        return page_content, page_diagram_urls
+        return page_content, page_image_urls
 
-    def parse(self, file_path: Path, progress_callback: Optional[Any] = None) -> ParsedDocument:
+    def parse(
+        self,
+        file_path: Path,
+        start_page: Optional[int] = None,
+        end_page: Optional[int] = None,
+        progress_callback: Optional[Any] = None
+    ) -> ParsedDocument:
         file_path = Path(file_path)
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
@@ -195,13 +201,19 @@ class PdfDocumentParser(BaseDocumentParser):
             # Safe Fallback to pypdf if pymupdf is not installed
             from pypdf import PdfReader
             reader = PdfReader(str(file_path))
-            total_pages = len(reader.pages)
+            total_doc_pages = len(reader.pages)
+            s_idx = max(0, (start_page - 1)) if start_page is not None else 0
+            e_idx = min(total_doc_pages, end_page) if end_page is not None else total_doc_pages
+            if s_idx >= e_idx:
+                s_idx, e_idx = 0, total_doc_pages
+
             pages_text = []
-            for page_num, page in enumerate(reader.pages, start=1):
+            for i, p_num in enumerate(range(s_idx, e_idx), start=1):
+                page = reader.pages[p_num]
                 native_text = (page.extract_text() or "").strip()
-                pages_text.append(f"[Page {page_num}]\n{native_text}")
+                pages_text.append(f"[Page {p_num + 1}]\n{native_text}")
                 if progress_callback:
-                    progress_callback("parsing", page_num, total_pages, 0)
+                    progress_callback("parsing", i, (e_idx - s_idx), 0)
             full_text = "\n\n".join(pages_text)
             return ParsedDocument(
                 filename=file_path.name,
@@ -210,7 +222,9 @@ class PdfDocumentParser(BaseDocumentParser):
                 text_content=full_text,
                 pages=pages_text,
                 metadata={
-                    "total_pages": total_pages,
+                    "total_pages": (e_idx - s_idx),
+                    "total_doc_pages": total_doc_pages,
+                    "page_range": f"{s_idx + 1}-{e_idx}",
                     "char_count": len(full_text),
                     "diagram_count": 0
                 }
@@ -218,8 +232,17 @@ class PdfDocumentParser(BaseDocumentParser):
 
         clean_stem = "".join(c if c.isalnum() else "_" for c in file_path.stem)
         doc = fitz.open(str(file_path))
-        total_pages = len(doc)
+        total_doc_pages = len(doc)
         doc.close()
+
+        # Handle 2-way page range slicing
+        s_idx = max(0, (start_page - 1)) if start_page is not None else 0
+        e_idx = min(total_doc_pages, end_page) if end_page is not None else total_doc_pages
+        if s_idx >= e_idx:
+            s_idx, e_idx = 0, total_doc_pages
+        
+        page_indices = list(range(s_idx, e_idx))
+        total_to_process = len(page_indices)
 
         import os
         from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -228,34 +251,36 @@ class PdfDocumentParser(BaseDocumentParser):
         num_workers = min(16, max(4, (os.cpu_count() or 4) * 2))
         doc_path_str = str(file_path.resolve())
 
-        pages_results = [None] * total_pages
-        extracted_diagrams = []
+        pages_results = [None] * total_to_process
+        extracted_images = []
         completed_count = 0
 
-        print(f"[*] Parsing {total_pages} PDF pages across {num_workers} parallel workers...", flush=True)
+        range_label = f"Pages {s_idx + 1} to {e_idx} of {total_doc_pages}" if (s_idx > 0 or e_idx < total_doc_pages) else f"all {total_doc_pages} pages"
+        print(f"[*] Parsing {range_label} across {num_workers} parallel workers...", flush=True)
 
         with ThreadPoolExecutor(max_workers=num_workers) as executor:
-            future_to_idx = {
-                executor.submit(self._process_single_page, doc_path_str, i, clean_stem, total_pages): i
-                for i in range(total_pages)
+            future_to_slot = {
+                executor.submit(self._process_single_page, doc_path_str, page_i, clean_stem, total_doc_pages): slot
+                for slot, page_i in enumerate(page_indices)
             }
-            for future in as_completed(future_to_idx):
-                idx = future_to_idx[future]
+            for future in as_completed(future_to_slot):
+                slot = future_to_slot[future]
                 completed_count += 1
                 try:
-                    page_text, diag_urls = future.result()
-                    pages_results[idx] = page_text
-                    if diag_urls:
-                        extracted_diagrams.extend(diag_urls)
+                    page_text, img_urls = future.result()
+                    pages_results[slot] = page_text
+                    if img_urls:
+                        extracted_images.extend(img_urls)
                 except Exception as e:
-                    pages_results[idx] = f"[Page {idx + 1}]\n[Extraction error: {e}]"
+                    page_actual_num = page_indices[slot] + 1
+                    pages_results[slot] = f"[Page {page_actual_num}]\n[Extraction error: {e}]"
 
-                if progress_callback and (completed_count % 25 == 0 or completed_count == total_pages):
-                    progress_callback("parsing", completed_count, total_pages, len(extracted_diagrams))
+                if progress_callback and (completed_count % 25 == 0 or completed_count == total_to_process):
+                    progress_callback("parsing", completed_count, total_to_process, len(extracted_images))
 
-                if completed_count % 100 == 0 or completed_count == total_pages:
-                    pct = (completed_count / total_pages) * 100
-                    print(f"  [PDF Progress] Processed {completed_count}/{total_pages} pages ({pct:.1f}%) | Diagrams extracted: {len(extracted_diagrams)}", flush=True)
+                if completed_count % 100 == 0 or completed_count == total_to_process:
+                    pct = (completed_count / total_to_process) * 100
+                    print(f"  [PDF Progress] Processed {completed_count}/{total_to_process} pages ({pct:.1f}%) | Images extracted: {len(extracted_images)}", flush=True)
 
         pages_text = [p for p in pages_results if p is not None]
         full_text = "\n\n".join(pages_text)
@@ -267,8 +292,10 @@ class PdfDocumentParser(BaseDocumentParser):
             text_content=full_text,
             pages=pages_text,
             metadata={
-                "total_pages": total_pages,
+                "total_pages": total_to_process,
+                "total_doc_pages": total_doc_pages,
+                "page_range": f"{s_idx + 1}-{e_idx}",
                 "char_count": len(full_text),
-                "diagram_count": len(extracted_diagrams)
+                "diagram_count": len(extracted_images)
             }
         )

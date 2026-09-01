@@ -88,16 +88,32 @@ class RAGPipeline:
         self.conversation_memory = []
         print("[*] Conversational memory cleared.")
 
-    def ingest_file(self, file_path: Path | str, progress_callback: Optional[Any] = None) -> int:
+    def ingest_file(
+        self,
+        file_path: Path | str,
+        start_page: Optional[int] = None,
+        end_page: Optional[int] = None,
+        progress_callback: Optional[Any] = None
+    ) -> int:
         """
         Parses a file (text, docx, PDF with images/OCR, standalone images),
         chunks it, and indexes it into ChromaDB.
         """
         fname = Path(file_path).name
-        print(f"[*] Step 1/3: Parsing document & extracting diagrams: {fname}...", flush=True)
-        parsed_doc = self.parser_factory.parse_file(file_path, progress_callback=progress_callback)
+        print(f"[*] Step 1/3: Parsing document & extracting images: {fname}...", flush=True)
+        parsed_doc = self.parser_factory.parse_file(
+            file_path,
+            start_page=start_page,
+            end_page=end_page,
+            progress_callback=progress_callback
+        )
         
-        print(f"[*] Step 2/3: Chunking document into semantic passages ({parsed_doc.metadata.get('total_pages', 1)} pages, {len(parsed_doc.text_content):,} characters)...", flush=True)
+        page_info = f"({parsed_doc.metadata.get('total_pages', 1)} pages analyzed"
+        if "total_doc_pages" in parsed_doc.metadata:
+            page_info += f" of {parsed_doc.metadata['total_doc_pages']}"
+        page_info += f", {len(parsed_doc.text_content):,} characters)"
+
+        print(f"[*] Step 2/3: Chunking document into semantic passages {page_info}...", flush=True)
         if progress_callback:
             progress_callback("chunking", 1, 1, parsed_doc.metadata.get("diagram_count", 0))
         chunks = self.chunker.chunk_document(parsed_doc)

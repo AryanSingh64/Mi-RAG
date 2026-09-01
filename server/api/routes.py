@@ -215,8 +215,13 @@ def get_session_progress(session_id: str):
 
 
 @router.post("/sessions/{session_id}/upload")
-async def upload_document(session_id: str, file: UploadFile = File(...)):
-    """Uploads and ingests any supported document (PDF, DOCX, TXT, Image/OCR)."""
+async def upload_document(
+    session_id: str,
+    file: UploadFile = File(...),
+    start_page: Optional[int] = Form(None),
+    end_page: Optional[int] = Form(None)
+):
+    """Uploads and ingests any supported document (PDF, DOCX, TXT, Image/OCR) with optional page range."""
     import time
     session = session_manager.get_session(session_id)
     if not session:
@@ -227,7 +232,8 @@ async def upload_document(session_id: str, file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
 
     file_size_mb = file_path.stat().st_size / (1024 * 1024)
-    print(f"\n[INGESTION START] Session: {session_id} | File: {file.filename} ({file_size_mb:.2f} MB)")
+    range_str = f" [Pages {start_page} to {end_page}]" if (start_page or end_page) else ""
+    print(f"\n[INGESTION START] Session: {session_id} | File: {file.filename} ({file_size_mb:.2f} MB){range_str}")
     t0 = time.perf_counter()
 
     session_manager.set_progress(session_id, stage="Initializing document...", current=0, total=100, diagrams=0)
@@ -244,7 +250,12 @@ async def upload_document(session_id: str, file: UploadFile = File(...)):
         session_manager.set_progress(session_id, stage=stage_label, current=current, total=total, diagrams=diagrams)
 
     try:
-        chunks_indexed = session.pipeline.ingest_file(file_path, progress_callback=on_progress)
+        chunks_indexed = session.pipeline.ingest_file(
+            file_path,
+            start_page=start_page,
+            end_page=end_page,
+            progress_callback=on_progress
+        )
         dur = time.perf_counter() - t0
         session_manager.update_session_indexed_files(session_id, [file.filename])
         session_manager.set_progress(session_id, stage="Indexing Complete", current=100, total=100, status="complete")
