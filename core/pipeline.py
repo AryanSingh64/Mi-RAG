@@ -129,16 +129,26 @@ class RAGPipeline:
                 citations=[]
             )
 
-        # 2. Query Rewriting & Keyword Expansion
-        cleaned_question = self.rewriter.rewrite(user_question, history=self.conversation_memory)
+        # 2. Fix typos & expand query with conversation attention
+        cleaned_question, search_query = self.rewriter.clean_and_expand_query(
+            user_question,
+            model_name=target_model
+        )
 
-        # 3. Retrieve Candidate Chunks from ChromaDB
-        candidate_chunks = self.vector_store.query(cleaned_question, top_k=top_k)
+        # 3. Multi-strategy retrieval (corrected query + original query)
+        raw_results = self.vector_store.query(search_query, top_k=top_k)
+        if search_query != user_question:
+            direct_results = self.vector_store.query(user_question, top_k=top_k)
+            seen = {r.text: r for r in raw_results}
+            for dr in direct_results:
+                if dr.text not in seen:
+                    raw_results.append(dr)
 
-        # 4. Attention-Guided Reranking with Conversational Context
-        relevant_chunks = self.guardrails.rerank_with_attention(
+        # 4. Filter and apply Attention-Guided Context Reranking
+        filtered_chunks = self.guardrails.filter_relevant_chunks(raw_results)
+        relevant_chunks = self.guardrails.apply_attention_reranking(
             query=cleaned_question,
-            chunks=candidate_chunks,
+            chunks=filtered_chunks,
             history=self.conversation_memory
         )
 
