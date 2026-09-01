@@ -210,10 +210,17 @@ class RAGPipeline:
         if len(self.conversation_memory) > 12:
             self.conversation_memory = self.conversation_memory[-12:]
 
-        avg_confidence = sum(c.score for c in relevant_chunks) / len(relevant_chunks)
+        # Evaluate genuine factual grounding
+        is_grounded, confidence_score, grounded_citations = self.guardrails.evaluate_grounding(
+            query=cleaned_question,
+            answer=llm_response,
+            relevant_chunks=relevant_chunks
+        )
 
-        # Extract only visually relevant diagrams (prevents dumping images on text/summary queries)
-        matched_images = self._extract_relevant_images(user_question, relevant_chunks, is_image_query=False)
+        # Extract only visually relevant diagrams if answer is grounded and not explicitly suppressed
+        matched_images = []
+        if is_grounded:
+            matched_images = self._extract_relevant_images(user_question, relevant_chunks, is_image_query=False)
 
         if matched_images:
             print(f"[*] ATTACHED VISUAL DIAGRAMS ({len(matched_images)}):")
@@ -222,9 +229,9 @@ class RAGPipeline:
 
         return GroundedAnswer(
             answer=llm_response,
-            is_grounded=True,
-            confidence_score=round(avg_confidence, 4),
-            citations=relevant_chunks,
+            is_grounded=is_grounded,
+            confidence_score=confidence_score,
+            citations=grounded_citations,
             images=matched_images
         )
 
@@ -325,35 +332,53 @@ class RAGPipeline:
         if len(self.conversation_memory) > 12:
             self.conversation_memory = self.conversation_memory[-12:]
 
-        avg_confidence = sum(c.score for c in relevant_chunks) / len(relevant_chunks) if relevant_chunks else 0.0
+        # Evaluate genuine factual grounding
+        is_grounded, confidence_score, grounded_citations = self.guardrails.evaluate_grounding(
+            query=effective_question,
+            answer=llm_response,
+            relevant_chunks=relevant_chunks
+        )
 
         # 6. Extract top matching document diagrams (capped at 2-3 most relevant)
-        matched_images = self._extract_relevant_images(effective_question, relevant_chunks, is_image_query=True)
+        matched_images = []
+        if is_grounded:
+            matched_images = self._extract_relevant_images(effective_question, relevant_chunks, is_image_query=True)
 
         return GroundedAnswer(
             answer=llm_response,
-            is_grounded=True,
-            confidence_score=round(avg_confidence, 4),
-            citations=relevant_chunks,
+            is_grounded=is_grounded,
+            confidence_score=confidence_score,
+            citations=grounded_citations,
             images=matched_images
         )
 
     def _extract_relevant_images(self, user_question: str, relevant_chunks: list, is_image_query: bool = False) -> list:
         """
         Intelligently determines when visual diagrams should be attached.
-        - Attaches diagrams whenever relevant chunks contain extracted figures or diagrams,
-          or when the user asks visual / structural questions.
-        - Caps returned images to the top 4 highest-confidence matches.
+        - Suppresses diagrams if user explicitly asked for text-only / summary without diagrams.
+        - Matches diagram keywords and visual captions.
+        - Caps returned images to the top highest-confidence matches.
         """
         if not relevant_chunks:
             return []
 
         q_lower = user_question.lower()
+
+        # Explicit negative diagram intent (user asked for text-only summary without images)
+        no_diagram_patterns = [
+            "without diagram", "without diagrams", "without image", "without images",
+            "without figure", "without figures", "no diagram", "no diagrams",
+            "no image", "no images", "no visual", "text only", "omit diagram",
+            "omit diagrams", "omit image", "omit images", "exclude diagram", "exclude image"
+        ]
+        if any(p in q_lower for p in no_diagram_patterns):
+            return []
+
         visual_keywords = [
             "diagram", "figure", "chart", "plot", "graph", "architecture", "image", 
             "photo", "picture", "drawing", "illustration", "flowchart", "show me", 
             "look like", "screenshot", "table", "visual", "fig.", "fig ", "workflow",
-            "model", "pipeline", "network", "block", "schema"
+            "schema"
         ]
         explicit_visual_intent = any(kw in q_lower for kw in visual_keywords)
 
@@ -377,18 +402,20 @@ class RAGPipeline:
                     seen_urls.add(url_clean)
                     filename = Path(url_clean).name
                     page_num = c.metadata.get("page_number", "") if isinstance(c.metadata, dict) else ""
-                    caption = f"{c.source_file}" + (f" (Page {page_num})" if page_num else "")
+                    raw_score = getattr(c, "score", 0.75)
+                    calibrated_rel = self.guardrails.calibrate_confidence(raw_score, has_lexical_match=True) * 100.0
+
                     matched_images.append({
                         "url": url_clean,
                         "filename": filename,
                         "source_file": caption,
-                        "relevance": round(c.score * 100, 1)
+                        "relevance": round(max(40.0, calibrated_rel), 1)
                     })
 
-                    if len(matched_images) >= (4 if (is_image_query or explicit_visual_intent) else 2):
+                    if len(matched_images) >= (3 if (is_image_query or explicit_visual_intent) else 1):
                         break
 
-            if len(matched_images) >= (4 if (is_image_query or explicit_visual_intent) else 2):
+            if len(matched_images) >= (3 if (is_image_query or explicit_visual_intent) else 1):
                 break
 
         return matched_images

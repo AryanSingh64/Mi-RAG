@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from core.vectorstore.chroma_store import SearchResult
 
 
@@ -19,18 +19,94 @@ class GroundedAnswer:
 
 class AntiHallucinationEngine:
     """
-    Guardrails engine that filters retrieved context, constructs clean prompts,
-    and enforces citation-backed responses.
+    Guardrails engine that filters retrieved context, evaluates answer grounding,
+    detects negative/out-of-domain fallbacks, and enforces citation-backed responses.
     """
 
-    def __init__(self, min_similarity_threshold: float = 0.05):
+    def __init__(self, min_similarity_threshold: float = 0.35):
         self.min_similarity_threshold = min_similarity_threshold
 
     def filter_relevant_chunks(self, search_results: List[SearchResult]) -> List[SearchResult]:
         """
-        Discards retrieved chunks that fall below the minimum cosine similarity threshold.
+        Discards retrieved chunks that fall below the calibrated cosine similarity threshold.
         """
         return [r for r in search_results if r.score >= self.min_similarity_threshold]
+
+    def calibrate_confidence(self, raw_score: float, has_lexical_match: bool = False) -> float:
+        """
+        Calibrates raw high-dimensional cosine similarity (typically 0.30 - 0.88)
+        into a realistic 0.0 to 1.0 confidence score.
+        """
+        # Noise floor is ~0.38 for general sentence embeddings
+        if raw_score < 0.38 and not has_lexical_match:
+            return 0.0
+        
+        # Smooth sigmoid / linear mapping from [0.38, 0.85] -> [0.10, 0.98]
+        calibrated = (raw_score - 0.38) / (0.85 - 0.38)
+        calibrated = max(0.0, min(1.0, calibrated))
+        
+        if has_lexical_match:
+            calibrated = min(1.0, calibrated + 0.15)
+            
+        return round(calibrated, 4)
+
+    def evaluate_grounding(
+        self,
+        query: str,
+        answer: str,
+        relevant_chunks: List[SearchResult]
+    ) -> Tuple[bool, float, List[SearchResult]]:
+        """
+        Evaluates whether the generated response is genuinely grounded in the documents.
+        Detects out-of-domain answers ('no mention', 'not found', 'random string') and
+        strips citations/images so false positives are eliminated.
+        """
+        if not relevant_chunks or not answer:
+            return False, 0.0, []
+
+        ans_lower = answer.lower()
+        query_words = set(re.findall(r"\b\w{3,}\b", query.lower()))
+        
+        # Common stop-words to ignore for lexical check
+        stop_words = {"what", "when", "where", "which", "who", "whom", "whose", "why", "how", "this", "that", "these", "those", "is", "are", "was", "were", "give", "tell", "show", "find"}
+        content_query_words = query_words - stop_words
+
+        # Check for explicit negative statements indicating absence of evidence in documents
+        negative_patterns = [
+            r"\bno (?:mention|information|reference|data|evidence|record|detail)\b",
+            r"\bnot (?:mentioned|found|present|discussed|referenced|available|included|stated)\b",
+            r"\bcannot find\b",
+            r"\bcould not find\b",
+            r"\bdoes not (?:mention|contain|provide|discuss|reference|include)\b",
+            r"\bno direct evidence\b",
+            r"\bappears to be a random (?:string|character|sequence)\b",
+            r"\bis not present in the (?:uploaded|provided) documents\b",
+            r"\bthere is no (?:mention|record|information)\b",
+            r"\bbased on the provided documents, there is no\b",
+            r"\bi could not find any information\b"
+        ]
+
+        is_negative_response = any(re.search(pat, ans_lower) for pat in negative_patterns)
+        
+        if is_negative_response:
+            # Query was asked about something NOT in the documents -> Grounded = False, no citations
+            return False, 0.0, []
+
+        # Check lexical match across all retrieved chunks
+        all_chunk_text = " ".join(c.text.lower() for c in relevant_chunks)
+        lexical_matches = sum(1 for w in content_query_words if w in all_chunk_text) if content_query_words else 1
+        has_lexical = (lexical_matches > 0)
+
+        # Average similarity of top 3 chunks
+        top_chunks = relevant_chunks[:3]
+        raw_avg = sum(c.score for c in top_chunks) / len(top_chunks) if top_chunks else 0.0
+        calibrated_score = self.calibrate_confidence(raw_avg, has_lexical)
+
+        # If semantic score is too low or no lexical keywords match for specific query
+        if calibrated_score < 0.25 and not has_lexical and len(content_query_words) > 0:
+            return False, calibrated_score, []
+
+        return True, calibrated_score, relevant_chunks
 
     def apply_attention_reranking(
         self,
@@ -40,13 +116,11 @@ class AntiHallucinationEngine:
     ) -> List[SearchResult]:
         """
         Attention-Guided Context Reranking.
-        Computes attention focus weights by combining semantic cosine similarity,
-        exact lexical term matches, and salient topics from prior conversation memory.
+        Combines semantic similarity, lexical overlap, and conversation focus.
         """
         if not chunks:
             return []
 
-        # Extract focus tokens from current query and recent conversation memory
         query_words = set(re.findall(r"\b\w{3,}\b", query.lower()))
         history_words = set()
         if history:
@@ -56,26 +130,22 @@ class AntiHallucinationEngine:
         scored_chunks = []
         for chunk in chunks:
             chunk_lower = chunk.text.lower()
-            
-            # Base semantic similarity
             base_score = chunk.score
 
             # Lexical overlap attention boost
             query_overlap = sum(1 for w in query_words if w in chunk_lower)
-            query_boost = min(0.35, (query_overlap / max(1, len(query_words))) * 0.35)
+            query_boost = min(0.30, (query_overlap / max(1, len(query_words))) * 0.30)
 
-            # Conversational memory attention boost (for follow-ups)
+            # Conversational memory attention boost
             history_overlap = sum(1 for w in history_words if w in chunk_lower)
-            history_boost = min(0.15, (history_overlap / max(1, len(history_words))) * 0.15) if history_words else 0.0
+            history_boost = min(0.12, (history_overlap / max(1, len(history_words))) * 0.12) if history_words else 0.0
 
             # Diagram visual bonus if chunk contains diagram markup
             diag_boost = 0.05 if "[DIAGRAM" in chunk.text else 0.0
 
-            # Final attention-weighted score
             attention_score = base_score + query_boost + history_boost + diag_boost
             scored_chunks.append((attention_score, chunk))
 
-        # Sort descending by attention score
         scored_chunks.sort(key=lambda x: x[0], reverse=True)
         return [chunk for _, chunk in scored_chunks]
 

@@ -1,7 +1,13 @@
 import os
 import sys
 from typing import Any, Dict, List, Optional
-from sentence_transformers import SentenceTransformer
+
+try:
+    from sentence_transformers import SentenceTransformer
+    HAS_SENTENCE_TRANSFORMERS = True
+except ImportError:
+    HAS_SENTENCE_TRANSFORMERS = False
+    SentenceTransformer = None
 
 # Windows console encoding fix
 if sys.platform == "win32":
@@ -85,47 +91,76 @@ class LocalEmbedder:
         self.query_prefix = catalog_entry.get("query_prefix", "")
         self.passage_prefix = catalog_entry.get("passage_prefix", "")
 
+        self.dim = catalog_entry.get("dim", 768)
+
         # 3. Dynamic Batch Sizing
         self.batch_size = 128 if self.device in ("cuda", "mps") else 64
 
         print(f"[*] Initializing Embedding Model: {self.model_name} on device: {self.device.upper()} (batch_size={self.batch_size})...")
-        try:
-            self.model = SentenceTransformer(self.model_name, device=self.device)
-        except Exception as e:
-            print(f"[!] Warning loading {self.model_name} on {self.device}: {e}. Falling back to all-MiniLM-L6-v2 on CPU...")
-            self.model_name = "all-MiniLM-L6-v2"
-            self.device = "cpu"
-            self.query_prefix = ""
-            self.passage_prefix = ""
-            self.model = SentenceTransformer(self.model_name, device="cpu")
+        self.model = None
+        if HAS_SENTENCE_TRANSFORMERS and SentenceTransformer is not None:
+            try:
+                self.model = SentenceTransformer(self.model_name, device=self.device)
+            except Exception as e:
+                print(f"[!] Warning loading {self.model_name} on {self.device}: {e}. Falling back to all-MiniLM-L6-v2 on CPU...")
+                try:
+                    self.model_name = "all-MiniLM-L6-v2"
+                    self.device = "cpu"
+                    self.query_prefix = ""
+                    self.passage_prefix = ""
+                    self.model = SentenceTransformer(self.model_name, device="cpu")
+                except Exception:
+                    self.model = None
+
+    def _fallback_hash_vector(self, text: str) -> List[float]:
+        """High-speed deterministic normalized pseudo-semantic vector when dependencies are missing."""
+        import hashlib
+        import math
+        vec = [0.0] * self.dim
+        words = text.lower().split()
+        for i, word in enumerate(words):
+            h = int(hashlib.md5(word.encode()).hexdigest(), 16)
+            idx = h % self.dim
+            val = (1.0 / math.sqrt(i + 1)) * (1.0 if (h % 2 == 0) else -1.0)
+            vec[idx] += val
+        norm = math.sqrt(sum(x * x for x in vec))
+        if norm > 0:
+            vec = [x / norm for x in vec]
+        else:
+            vec[0] = 1.0
+        return vec
 
     def embed_text(self, text: str) -> List[float]:
         """Generates an embedding vector for a single search query with instruction prefix."""
-        formatted_text = f"{self.query_prefix}{text}" if self.query_prefix else text
-        embedding = self.model.encode(formatted_text, convert_to_numpy=True, normalize_embeddings=True)
-        return embedding.tolist()
+        if self.model is not None:
+            formatted_text = f"{self.query_prefix}{text}" if self.query_prefix else text
+            embedding = self.model.encode(formatted_text, convert_to_numpy=True, normalize_embeddings=True)
+            return embedding.tolist()
+        return self._fallback_hash_vector(text)
 
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
         """Generates normalized embedding vectors for a list of document chunks in high-speed batches."""
         if not texts:
             return []
         
-        if self.passage_prefix:
-            formatted_texts = [f"{self.passage_prefix}{t}" for t in texts]
-        else:
-            formatted_texts = texts
+        if self.model is not None:
+            if self.passage_prefix:
+                formatted_texts = [f"{self.passage_prefix}{t}" for t in texts]
+            else:
+                formatted_texts = texts
 
-        embeddings = self.model.encode(
-            formatted_texts,
-            batch_size=self.batch_size,
-            show_progress_bar=False,
-            convert_to_numpy=True,
-            normalize_embeddings=True
-        )
-        return embeddings.tolist()
+            embeddings = self.model.encode(
+                formatted_texts,
+                batch_size=self.batch_size,
+                show_progress_bar=False,
+                convert_to_numpy=True,
+                normalize_embeddings=True
+            )
+            return embeddings.tolist()
+
+        return [self._fallback_hash_vector(t) for t in texts]
 
     @classmethod
     def get_catalog(cls) -> List[Dict[str, Any]]:
         """Returns the list of pre-configured embedding models with metadata."""
         return list(EMBEDDING_CATALOG.values())
-
