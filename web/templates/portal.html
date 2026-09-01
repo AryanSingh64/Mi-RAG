@@ -77,7 +77,7 @@
       transform: translate(16px, 14px) scale(1);
     }
 
-    /* --- LEFT SIDEBAR (ChatGPT Layout Style) --- */
+    /* --- LEFT SIDEBAR --- */
     .portal-sidebar {
       width: 260px;
       background: var(--sidebar-bg);
@@ -90,10 +90,10 @@
       transition: transform 0.2s ease, width 0.2s ease;
     }
     .sidebar-header {
-      padding: 1.1rem 1.1rem 0.8rem;
+      padding: 1.1rem 1.1rem 0.9rem;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
       border-bottom: 1.5px solid #1a233a;
     }
     .sidebar-brand {
@@ -105,26 +105,6 @@
     .sidebar-logo-img {
       height: 32px;
       object-fit: contain;
-    }
-    .btn-new-chat {
-      background: var(--yellow);
-      color: #000;
-      border: 1.5px solid #000;
-      border-radius: 6px;
-      padding: 0.35rem 0.65rem;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.78rem;
-      font-weight: 800;
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-      text-decoration: none;
-      box-shadow: 2px 2px 0px #000;
-      transition: all 0.1s ease;
-    }
-    .btn-new-chat:hover {
-      transform: translate(-1px, -1px);
-      box-shadow: 3px 3px 0px #000;
     }
 
     .sidebar-scroll {
@@ -148,7 +128,7 @@
     .sidebar-menu-list {
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
+      gap: 0.35rem;
     }
     .sidebar-nav-item {
       display: flex;
@@ -169,10 +149,35 @@
       color: #fff;
       border-color: #222d45;
     }
-    .sidebar-nav-item.active {
-      background: #1e2842;
-      color: var(--yellow);
-      border-color: #334155;
+
+    /* Standalone Export Button with Vibrant Contrasting Yellow */
+    .sidebar-export-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.6rem 0.8rem;
+      border-radius: 6px;
+      background: var(--yellow);
+      color: #000;
+      text-decoration: none;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 900;
+      border: 1.5px solid #000;
+      box-shadow: 2.5px 2.5px 0px #000;
+      transition: all 0.1s ease;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-top: 0.2rem;
+    }
+    .sidebar-export-btn:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 3.5px 3.5px 0px #000;
+      background: #fde047;
+    }
+    .sidebar-export-btn svg {
+      stroke: #000;
     }
 
     .doc-pill-item {
@@ -187,9 +192,16 @@
       overflow: hidden;
       text-overflow: ellipsis;
       margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .doc-pill-item svg {
+      flex-shrink: 0;
+      color: var(--yellow);
     }
 
-    /* Sidebar Footer User Profile */
+    /* Sidebar Footer User Profile (Dynamic) */
     .sidebar-footer {
       padding: 0.85rem 1rem;
       border-top: 1.5px solid #1a233a;
@@ -245,7 +257,7 @@
       display: inline-block;
     }
 
-    /* --- MAIN CHAT WORKSPACE (Centered Reading Feed) --- */
+    /* --- MAIN CHAT WORKSPACE (Full Width) --- */
     .portal-main {
       flex: 1;
       display: flex;
@@ -258,7 +270,7 @@
 
     .top-header {
       height: 56px;
-      padding: 0 1.75rem;
+      padding: 0 2rem;
       border-bottom: 2px solid #000;
       background: rgba(13, 18, 32, 0.95);
       backdrop-filter: blur(8px);
@@ -328,22 +340,21 @@
     .pulse-dot { width: 7px; height: 7px; background: var(--pink); border-radius: 50%; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-    /* Chat Messages Container */
+    /* Chat Messages Full Width Scroll Container */
     .chat-scroll-area {
       flex: 1;
       overflow-y: auto;
-      padding: 1.5rem 1rem 8rem;
+      padding: 1.5rem 2.5rem 9rem;
       scroll-behavior: smooth;
       display: flex;
       flex-direction: column;
-      align-items: center;
+      align-items: stretch;
     }
     .chat-container {
       width: 100%;
-      max-width: 820px;
       display: flex;
       flex-direction: column;
-      gap: 1.75rem;
+      gap: 1.5rem;
     }
 
     /* --- MESSAGE ROWS --- */
@@ -358,26 +369,37 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* User Message (Right-aligned Pill with Dark-Pink Accent) */
+    /* User Message: Original Contrasting Pink Bubble with Crisp Shadow */
     .msg-row.user-row {
       align-items: flex-end;
     }
     .user-bubble {
-      background: #500724;
-      color: #fdf2f8;
-      border: 1.5px solid #db2777;
+      background: var(--pink);
+      color: #ffffff;
+      border: 2px solid #000000;
       border-radius: 18px 18px 4px 18px;
-      padding: 0.75rem 1.25rem;
+      padding: 0.7rem 1.25rem;
       font-size: 0.95rem;
       line-height: 1.55;
-      font-weight: 600;
-      box-shadow: 2.5px 2.5px 0px #000;
+      font-weight: 700;
+      box-shadow: 3px 3px 0px #000000;
       max-width: 80%;
       word-break: break-word;
     }
-    .user-bubble strong { color: var(--yellow); }
 
-    /* Assistant Message (Clean, Unboxed Markdown directly on canvas) */
+    /* Quoted Message Header inside user message bubble */
+    .user-quoted-preview {
+      background: rgba(0, 0, 0, 0.25);
+      border-left: 3px solid var(--yellow);
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #ffe4e6;
+    }
+
+    /* Assistant Message */
     .msg-row.bot-row {
       align-items: flex-start;
     }
@@ -388,20 +410,23 @@
       line-height: 1.7;
     }
 
+    /* Compact Fact-Checked / Grounded Match Badge */
     .grounded-badge {
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
-      font-size: 0.74rem;
+      gap: 0.3rem;
+      font-size: 0.68rem;
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 800;
       color: #000;
       background: var(--green);
-      border: 1.5px solid #000;
-      padding: 0.15rem 0.55rem;
-      border-radius: 4px;
+      border: 1px solid #000;
+      padding: 0.12rem 0.5rem;
+      border-radius: 3px;
       box-shadow: 1.5px 1.5px 0px #000;
-      margin-bottom: 0.6rem;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
 
     .msg-content {
@@ -409,15 +434,15 @@
       line-height: 1.7;
       color: #f1f5f9;
     }
-    .msg-content p { margin-bottom: 0.75rem; }
+    .msg-content p { margin-bottom: 0.65rem; }
     .msg-content p:last-child { margin-bottom: 0; }
     .msg-content strong { color: #ffffff; font-weight: 800; }
     .msg-content em { color: var(--yellow); }
     .msg-content ul, .msg-content ol {
-      margin: 0.5rem 0 0.75rem 1.4rem;
+      margin: 0.4rem 0 0.65rem 1.4rem;
     }
     .msg-content li {
-      margin-bottom: 0.35rem;
+      margin-bottom: 0.3rem;
     }
     .msg-content code {
       font-family: 'JetBrains Mono', monospace;
@@ -453,7 +478,7 @@
       padding: 0.25em 0;
     }
 
-    /* --- MINIMAL ACTION ICON BAR (Thumbs Up, Down, Reply, Copy, More) --- */
+    /* --- MINIMAL ACTION ICON BAR (Thumbs Up, Down, Reply, Copy) --- */
     .msg-action-row {
       display: inline-flex;
       align-items: center;
@@ -566,23 +591,73 @@
       font-family: 'JetBrains Mono', monospace;
     }
 
-    /* --- BOTTOM INPUT CONTAINER (Floating Capsule) --- */
+    /* --- BOTTOM INPUT CONTAINER (Full Width Floating Capsule) --- */
     .portal-bottom-bar {
       position: absolute;
       bottom: 0;
       left: 0;
       right: 0;
-      padding: 1rem 1.5rem 1.5rem;
-      background: linear-gradient(to top, #090c15 70%, transparent 100%);
+      padding: 1rem 2.5rem 1.5rem;
+      background: linear-gradient(to top, #090c15 75%, transparent 100%);
       display: flex;
       flex-direction: column;
-      align-items: center;
+      align-items: stretch;
       z-index: 15;
     }
     .input-capsule-wrapper {
       width: 100%;
-      max-width: 820px;
       position: relative;
+    }
+
+    /* WhatsApp/Discord Style Quoted Reply Banner (Image 4) */
+    .reply-preview-dock {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      background: #12192c;
+      border-left: 4px solid var(--pink);
+      border-top: 1.5px solid #222d45;
+      border-right: 1.5px solid #222d45;
+      border-radius: 12px 12px 0 0;
+      padding: 0.55rem 1rem;
+      margin-bottom: -4px;
+      box-shadow: 2px 2px 0px #000;
+      animation: slideUp 0.15s ease;
+    }
+    .reply-preview-text-box {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      overflow: hidden;
+    }
+    .reply-preview-label {
+      font-size: 0.74rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      color: var(--pink);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .reply-preview-content {
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .btn-cancel-reply {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.1rem;
+      font-weight: 900;
+      cursor: pointer;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+    }
+    .btn-cancel-reply:hover {
+      color: #fff;
+      background: #1f2a42;
     }
 
     /* Minimal Attachment Preview Bar */
@@ -648,9 +723,12 @@
       background: #141b2d;
       border: 2px solid #000;
       border-radius: 28px;
-      padding: 0.4rem 0.6rem 0.4rem 1rem;
+      padding: 0.45rem 0.7rem 0.45rem 1.1rem;
       box-shadow: 3px 3px 0px #000;
       transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .input-form-capsule.has-dock {
+      border-radius: 0 0 28px 28px;
     }
     .input-form-capsule:focus-within {
       border-color: var(--yellow);
@@ -850,6 +928,12 @@
       .top-header {
         padding: 0 1rem;
       }
+      .chat-scroll-area {
+        padding: 1rem 1rem 8rem;
+      }
+      .portal-bottom-bar {
+        padding: 0.75rem 1rem 1rem;
+      }
     }
   </style>
 
@@ -882,7 +966,9 @@
       </div>
       <div class="modal-body">
         <div class="modal-dropzone" id="modal-dropzone" onclick="document.getElementById('query-file-input').click()">
-          <div style="font-size: 2rem; margin-bottom: 0.5rem;">📷</div>
+          <div style="margin-bottom: 0.5rem;">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          </div>
           <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.95rem;"><strong>Click to Upload</strong>, <strong>Drag & Drop</strong>, or <strong>Paste (Ctrl+V)</strong></div>
           <div style="font-size: 0.78rem; color: #64748b; margin-top: 0.35rem;">Supports PNG, JPG, JPEG, WEBP • Math Sheets • Diagrams • Charts</div>
         </div>
@@ -908,10 +994,6 @@
       <a href="/" class="sidebar-brand">
         <img src="/static/assets/logo.png" class="sidebar-logo-img" alt="Mi:RAG">
       </a>
-      <a href="/" class="btn-new-chat" title="Create a new RAG session">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        <span>New</span>
-      </a>
     </div>
 
     <div class="sidebar-scroll">
@@ -922,8 +1004,8 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
             <span>Studio Home</span>
           </a>
-          <a href="#" id="download-zip-btn" class="sidebar-nav-item" title="Download standalone bundle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <a href="#" id="download-zip-btn" class="sidebar-export-btn" title="Download standalone bundle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
             <span>Export Standalone</span>
           </a>
           <div class="sidebar-nav-item" onclick="clearMemory()" title="Reset session dialogue memory">
@@ -943,9 +1025,9 @@
 
     <div class="sidebar-footer">
       <div class="user-profile">
-        <div class="user-avatar">AS</div>
+        <div class="user-avatar" id="sidebar-user-avatar">US</div>
         <div class="user-info">
-          <span class="user-name">ARYAN SINGH</span>
+          <span class="user-name" id="sidebar-user-name">Local User</span>
           <span class="user-status">Online</span>
         </div>
       </div>
@@ -970,12 +1052,12 @@
       </div>
     </header>
 
-    <!-- Chat Messages Scroll Feed -->
+    <!-- Chat Messages Scroll Feed (Full Width) -->
     <div class="chat-scroll-area" id="chat-scroll-area">
       <div class="chat-container" id="chat-box">
         <div class="msg-row bot-row">
           <div class="bot-body">
-            <div class="grounded-badge">Guardrails & Memory Active</div>
+            <div class="grounded-badge">Fact-Checked & Grounded</div>
             <div class="msg-content">
               Hello! This is your private multimodal RAG playground. Ask questions about your indexed documents, scientific papers, or attach an image to reverse search.
             </div>
@@ -987,6 +1069,15 @@
     <!-- Bottom Fixed Input Bar -->
     <div class="portal-bottom-bar">
       <div class="input-capsule-wrapper">
+        <!-- WhatsApp / Discord Style Quoted Reply Dock -->
+        <div id="reply-preview-dock" class="reply-preview-dock">
+          <div class="reply-preview-text-box">
+            <span class="reply-preview-label" id="reply-preview-label">Replying to Assistant</span>
+            <span class="reply-preview-content" id="reply-preview-content">Snippet...</span>
+          </div>
+          <button type="button" class="btn-cancel-reply" onclick="cancelQuotedReply()" title="Cancel reply">✕</button>
+        </div>
+
         <!-- Minimal Attachment Preview -->
         <div id="image-preview-bar" class="image-preview-bar" style="display: none;">
           <div class="preview-thumbnail-wrapper">
@@ -1033,11 +1124,25 @@
     let currentAttachedBase64 = null;
     let conversationTurns = [];
     const botMessageMap = {};
+    let activeQuotedSnippet = null;
+
+    // Dynamic User Name Setup
+    function initUserProfile() {
+      const storedName = localStorage.getItem("mirag_user_name") || "Aryan Singh";
+      const nameEl = document.getElementById("sidebar-user-name");
+      const avatarEl = document.getElementById("sidebar-user-avatar");
+      if (nameEl) nameEl.innerText = storedName;
+      if (avatarEl) {
+        const initials = storedName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "US";
+        avatarEl.innerText = initials;
+      }
+    }
+    initUserProfile();
 
     const defaultGreetingHtml = `
       <div class="msg-row bot-row">
         <div class="bot-body">
-          <div class="grounded-badge">Guardrails & Memory Active</div>
+          <div class="grounded-badge">Fact-Checked & Grounded</div>
           <div class="msg-content">
             Hello! This is your private multimodal RAG playground. Ask questions about your indexed documents, scientific papers, or attach an image to reverse search.
           </div>
@@ -1067,7 +1172,10 @@
         const filesContainer = document.getElementById('indexed-files-container');
         if (data.indexed_files && data.indexed_files.length > 0) {
           filesContainer.innerHTML = data.indexed_files.map(f => `
-            <div class="doc-pill-item" title="${f}">📄 ${f}</div>
+            <div class="doc-pill-item" title="${f}">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              <span>${f}</span>
+            </div>
           `).join('');
         }
 
@@ -1104,6 +1212,8 @@
     const previewName = document.getElementById('preview-name');
     const attachModal = document.getElementById('attach-modal');
     const modalDropzone = document.getElementById('modal-dropzone');
+    const replyDock = document.getElementById('reply-preview-dock');
+    const replyContent = document.getElementById('reply-preview-content');
 
     function escapeHtml(str) {
       return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -1266,6 +1376,22 @@
     }
     syncHeaderModelDisplay();
 
+    // Quoted Reply Management (WhatsApp/Discord Style)
+    function setQuotedReply(text) {
+      if (!text) return;
+      activeQuotedSnippet = text.trim().slice(0, 140);
+      replyContent.innerText = activeQuotedSnippet;
+      replyDock.style.display = 'flex';
+      chatForm.classList.add('has-dock');
+      userInput.focus();
+    }
+
+    function cancelQuotedReply() {
+      activeQuotedSnippet = null;
+      replyDock.style.display = 'none';
+      chatForm.classList.remove('has-dock');
+    }
+
     chatForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const query = userInput.value.trim();
@@ -1273,21 +1399,27 @@
 
       if (!query && !hasImage) return;
 
-      // Render user message row
-      let userMsgContent = '';
+      const quotedToPass = activeQuotedSnippet;
+      cancelQuotedReply();
+
+      // Render user message row with vibrant contrasting pink bubble
+      let userBubbleHtml = '';
+      if (quotedToPass) {
+        userBubbleHtml += `<div class="user-quoted-preview">Replying to: "${escapeHtml(quotedToPass)}"</div>`;
+      }
       if (currentAttachedBase64) {
-        userMsgContent += `<div style="margin-bottom:0.5rem;"><img src="${currentAttachedBase64}" style="max-width:180px; max-height:140px; border-radius:6px; border:1px solid #000; display:block;" onclick="openImageModal('${currentAttachedBase64}', 'Attached Image')"></div>`;
+        userBubbleHtml += `<div style="margin-bottom:0.5rem;"><img src="${currentAttachedBase64}" style="max-width:180px; max-height:140px; border-radius:6px; border:1.5px solid #000; display:block;" onclick="openImageModal('${currentAttachedBase64}', 'Attached Image')"></div>`;
       }
       if (query) {
-        userMsgContent += `<div>${formatMarkdown(query)}</div>`;
+        userBubbleHtml += `<div>${formatMarkdown(query)}</div>`;
       } else {
-        userMsgContent += `<div><em>[Visual Search Query]</em></div>`;
+        userBubbleHtml += `<div><em>[Visual Search Query]</em></div>`;
       }
 
       const userMsgId = 'user-' + Date.now();
       chatBox.innerHTML += `
         <div class="msg-row user-row" id="${userMsgId}">
-          <div class="user-bubble">${userMsgContent}</div>
+          <div class="user-bubble">${userBubbleHtml}</div>
         </div>
       `;
       userInput.value = '';
@@ -1301,8 +1433,8 @@
       chatBox.innerHTML += `
         <div class="msg-row bot-row" id="${botMsgId}">
           <div class="bot-body">
-            <div class="grounded-badge" style="background:var(--yellow); color:#000;">Querying ${providerLabel}...</div>
-            <div class="msg-content" style="color:#94a3b8;">Searching knowledge base with grounded guardrails...</div>
+            <div class="grounded-badge" style="background:var(--yellow); color:#000;">Searching Knowledge Base...</div>
+            <div class="msg-content" style="color:#94a3b8;">Searching and analyzing with verified grounding...</div>
           </div>
         </div>
       `;
@@ -1316,10 +1448,11 @@
         let res;
         const recentHistory = conversationTurns.slice(-8);
         const activeKey = savedApiKeys[currentProvider] || "";
+        const effectiveMessage = quotedToPass ? `[Context: In response to "${quotedToPass}"]\n${query}` : query;
 
         if (attachedFileToSend) {
           const fd = new FormData();
-          fd.append('message', query);
+          fd.append('message', effectiveMessage);
           fd.append('top_k', 6);
           fd.append('image', attachedFileToSend);
           fd.append('history', JSON.stringify(recentHistory));
@@ -1335,7 +1468,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              message: query,
+              message: effectiveMessage,
               top_k: 6,
               history: recentHistory,
               provider: currentProvider,
@@ -1358,8 +1491,8 @@
         }
 
         let badgeHtml = data.is_grounded 
-          ? `<div class="grounded-badge">Grounded Match (${Math.round(data.confidence_score * 100)}% Confidence)</div>`
-          : `<div class="grounded-badge" style="color:#000; background:#fca5a5;">No Evidence Found</div>`;
+          ? `<div class="grounded-badge">Fact-Checked & Grounded (${Math.round(data.confidence_score * 100)}%)</div>`
+          : `<div class="grounded-badge" style="color:#000; background:#fca5a5;">No Direct Evidence Found</div>`;
 
         // Render interactive visual image gallery if present
         let visualGalleryHtml = '';
@@ -1382,23 +1515,20 @@
             data.citations.map(c => `<span class="citation-tag">${c.source_file} (${c.relevance || 0}%)</span>`).join('') + '</div>';
         }
 
-        // Minimal Action Icon Row (Thumbs up, down, reply, copy, more)
+        // Minimal Action Icon Row (Thumbs up, down, reply, copy)
         const actionsHtml = `
           <div class="msg-action-row">
-            <button type="button" class="btn-action-icon" onclick="submitMessageFeedback(this, '${botMsgId}', 'thumbs_up')" title="Good response (👍)">
+            <button type="button" class="btn-action-icon" onclick="submitMessageFeedback(this, '${botMsgId}', 'thumbs_up')" title="Accurate response">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
             </button>
-            <button type="button" class="btn-action-icon" onclick="submitMessageFeedback(this, '${botMsgId}', 'thumbs_down')" title="Bad response (👎)">
+            <button type="button" class="btn-action-icon" onclick="submitMessageFeedback(this, '${botMsgId}', 'thumbs_down')" title="Inaccurate response">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
             </button>
-            <button type="button" class="btn-action-icon" onclick="replyToBotMessage('${botMsgId}')" title="Reply / Quote (↩️)">
+            <button type="button" class="btn-action-icon" onclick="replyToBotMessage('${botMsgId}')" title="Reply / Quote">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>
             </button>
-            <button type="button" class="btn-action-icon" onclick="copyMessageText('${botMsgId}')" title="Copy (📋)">
+            <button type="button" class="btn-action-icon" onclick="copyMessageText('${botMsgId}')" title="Copy answer">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-            </button>
-            <button type="button" class="btn-action-icon" onclick="toggleMessageDetails('${botMsgId}')" title="More options (...)">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
             </button>
           </div>
         `;
@@ -1487,9 +1617,7 @@
       const meta = botMessageMap[botMsgId];
       const text = meta ? meta.answer : document.getElementById(botMsgId)?.querySelector('.msg-content')?.innerText;
       if (text) {
-        const cleanSnippet = text.split('\n')[0].slice(0, 80).trim();
-        userInput.value = `> ${cleanSnippet}...\n` + userInput.value;
-        userInput.focus();
+        setQuotedReply(text);
       }
     }
 
@@ -1499,12 +1627,6 @@
       if (textToCopy) {
         navigator.clipboard.writeText(textToCopy);
       }
-    }
-
-    function toggleMessageDetails(botMsgId) {
-      const meta = botMessageMap[botMsgId];
-      if (!meta) return;
-      alert(`Model: ${meta.model}\nSources Cited: ${meta.citations.length}\nSession: ${sessionId}`);
     }
 
     // Right-Click Context Menu Engine
@@ -1531,9 +1653,7 @@
 
     function replyToSelectedMessage() {
       if (!contextMenuTargetText) return;
-      const cleanSnippet = contextMenuTargetText.split('\n')[0].slice(0, 80).trim();
-      userInput.value = `> ${cleanSnippet}...\n` + userInput.value;
-      userInput.focus();
+      setQuotedReply(contextMenuTargetText);
     }
 
     function copySelectedMessage() {
