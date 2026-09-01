@@ -148,9 +148,54 @@ if (-not (Test-Path "$targetDir\.venv\Scripts\python.exe")) {
     Write-Host "[ CREATED ]" -ForegroundColor Green
 }
 
-# 7. Dependencies Verification & Visual Live Progress Installation
+# 7. Hardware & GPU Acceleration Detection
+$detectedGpu = $null
+try {
+    $videoControllers = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue
+    foreach ($vc in $videoControllers) {
+        if ($vc.Name -match "NVIDIA") {
+            $detectedGpu = $vc.Name
+            break
+        }
+    }
+} catch {}
+
+if (-not $detectedGpu -and (Get-Command nvidia-smi -ErrorAction SilentlyContinue)) {
+    try {
+        $smiOut = nvidia-smi --query-gpu=name --format=csv,noheader 2>$null
+        if ($smiOut) { $detectedGpu = $smiOut.Trim() }
+    } catch {}
+}
+
+$installCuda = $false
+$hasTorchCuda = & "$targetDir\.venv\Scripts\python.exe" -c "import torch; print('CUDA' if torch.cuda.is_available() else 'CPU')" 2>$null
+
+if ($detectedGpu) {
+    if ($hasTorchCuda -eq "CUDA") {
+        Write-Host " [*] Hardware Acceleration: $detectedGpu [ CUDA ENABLED ]" -ForegroundColor Green
+    } else {
+        Write-Host ""
+        Write-Host " ==========================================================================" -ForegroundColor DarkGreen
+        Write-Host "  [⚡] NVIDIA GPU DETECTED: $detectedGpu" -ForegroundColor Yellow
+        Write-Host " ==========================================================================" -ForegroundColor DarkGreen
+        Write-Host "  Would you like to install PyTorch with CUDA GPU acceleration for" -ForegroundColor White
+        Write-Host "  ultra-fast embedding computation, vector indexing, and multimodal RAG?" -ForegroundColor White
+        Write-Host ""
+        Write-Host "  Option 1: Yes, install CUDA GPU Acceleration (Recommended for $detectedGpu)" -ForegroundColor Green
+        Write-Host "  Option 2: No, use CPU only (Standard • Lightweight)" -ForegroundColor White
+        Write-Host ""
+        $gpuChoice = Read-Host -Prompt "  Select option [1/2] (Default is 1)"
+        if ($gpuChoice -ne "2") {
+            $installCuda = $true
+        }
+    }
+} else {
+    Write-Host " [*] Hardware Architecture: Standard Multi-Core CPU Mode [ ACTIVE ]" -ForegroundColor DarkGray
+}
+
+# 8. Dependencies Verification & Visual Live Progress Installation
 $hasDeps = & "$targetDir\.venv\Scripts\python.exe" -c "import uvicorn, fastapi, fitz, chromadb; print('OK')" 2>$null
-if ($hasDeps -ne "OK") {
+if ($hasDeps -ne "OK" -or ($installCuda -and $hasTorchCuda -ne "CUDA")) {
     Write-Host ""
     Write-Host " [*] Downloading & installing dependencies with live progress:" -ForegroundColor Yellow
     Write-Host " -----------------------------------------------------------------------" -ForegroundColor DarkGray
@@ -161,6 +206,16 @@ if ($hasDeps -ne "OK") {
         & "$targetDir\.venv\Scripts\uv.exe" pip install -r "$targetDir\requirements.txt"
     } else {
         & "$targetDir\.venv\Scripts\python.exe" -m pip install --progress-bar on -r "$targetDir\requirements.txt"
+    }
+
+    if ($installCuda) {
+        Write-Host ""
+        Write-Host " [*] Installing CUDA-accelerated PyTorch (cu121)..." -ForegroundColor Cyan
+        if (Test-Path "$targetDir\.venv\Scripts\uv.exe") {
+            & "$targetDir\.venv\Scripts\uv.exe" pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+        } else {
+            & "$targetDir\.venv\Scripts\python.exe" -m pip install --progress-bar on torch torchvision --index-url https://download.pytorch.org/whl/cu121
+        }
     }
     
     Write-Host " -----------------------------------------------------------------------" -ForegroundColor DarkGray
