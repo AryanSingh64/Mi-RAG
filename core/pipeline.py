@@ -38,6 +38,7 @@ class RAGPipeline:
             session_id=self.session_id
         )
         self.chunker = RecursiveChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+        self.embedding_model = embedding_model
         self.embedder = LocalEmbedder(model_name=embedding_model)
         self.vector_store = ChromaVectorStore(
             persist_directory=persist_directory,

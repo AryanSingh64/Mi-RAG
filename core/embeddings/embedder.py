@@ -97,20 +97,32 @@ class LocalEmbedder:
         self.batch_size = 128 if self.device in ("cuda", "mps") else 64
 
         print(f"[*] Initializing Embedding Model: {self.model_name} on device: {self.device.upper()} (batch_size={self.batch_size})...")
-        self.model = None
         if HAS_SENTENCE_TRANSFORMERS and SentenceTransformer is not None:
             try:
-                self.model = SentenceTransformer(self.model_name, device=self.device)
+                model_kwargs = {"torch_dtype": "float16"} if self.device == "cuda" else {}
+                self.model = SentenceTransformer(
+                    self.model_name,
+                    device=self.device,
+                    model_kwargs=model_kwargs,
+                    trust_remote_code=True
+                )
             except Exception as e:
-                print(f"[!] Warning loading {self.model_name} on {self.device}: {e}. Falling back to all-MiniLM-L6-v2 on CPU...")
+                print(f"[!] Notice loading {self.model_name} with float16 on {self.device}: {e}. Retrying default...")
                 try:
-                    self.model_name = "all-MiniLM-L6-v2"
-                    self.device = "cpu"
-                    self.query_prefix = ""
-                    self.passage_prefix = ""
-                    self.model = SentenceTransformer(self.model_name, device="cpu")
-                except Exception:
-                    self.model = None
+                    self.model = SentenceTransformer(self.model_name, device=self.device, trust_remote_code=True)
+                except Exception as e2:
+                    print(f"[!] Warning loading {self.model_name} on {self.device}: {e2}. Falling back to all-MiniLM-L6-v2 on {self.device}...")
+                    try:
+                        self.model_name = "all-MiniLM-L6-v2"
+                        self.query_prefix = ""
+                        self.passage_prefix = ""
+                        self.model = SentenceTransformer(self.model_name, device=self.device)
+                    except Exception:
+                        try:
+                            self.device = "cpu"
+                            self.model = SentenceTransformer(self.model_name, device="cpu")
+                        except Exception:
+                            self.model = None
 
     def _fallback_hash_vector(self, text: str) -> List[float]:
         """High-speed deterministic normalized pseudo-semantic vector when dependencies are missing."""
