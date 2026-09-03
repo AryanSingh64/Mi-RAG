@@ -67,8 +67,8 @@ if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
     Write-Host "  [!] PREREQUISITE NOTICE: Ollama is not installed on your machine.       " -ForegroundColor Yellow
     Write-Host " ==========================================================================" -ForegroundColor Red
     Write-Host ""
-    Write-Host "  Mi:RAG uses Ollama to run high-speed, 100% private local AI models." -ForegroundColor DarkGray
-    Write-Host "  Zero cloud dependencies. Zero API subscription fees." -ForegroundColor DarkGray
+    Write-Host "  Mi:RAG uses Ollama to run high-speed, local-first AI models." -ForegroundColor DarkGray
+    Write-Host "  Zero mandatory cloud dependencies. Zero API subscription fees." -ForegroundColor DarkGray
     Write-Host ""
     Write-Host "  Option 1: Open official Ollama download page (https://ollama.com/download)" -ForegroundColor White
     Write-Host "  Option 2: Install automatically via Windows Package Manager (winget)" -ForegroundColor White
@@ -201,25 +201,60 @@ if ($hasDeps -ne "OK" -or ($installCuda -and $hasTorchCuda -ne "CUDA")) {
     Write-Host " -----------------------------------------------------------------------" -ForegroundColor DarkGray
     
     # Try high-speed UV installer or standard pip with visual progress bar
-    & "$targetDir\.venv\Scripts\python.exe" -m pip install --quiet uv 2>$null
-    if (Test-Path "$targetDir\.venv\Scripts\uv.exe") {
+    $uvInstalled = $false
+    try {
+        & "$targetDir\.venv\Scripts\python.exe" -m pip install --quiet uv 2>$null
+        if (Test-Path "$targetDir\.venv\Scripts\uv.exe") { $uvInstalled = $true }
+    } catch {}
+
+    $depsInstalled = $false
+    if ($uvInstalled) {
         & "$targetDir\.venv\Scripts\uv.exe" pip install -r "$targetDir\requirements.txt"
-    } else {
-        & "$targetDir\.venv\Scripts\python.exe" -m pip install --progress-bar on -r "$targetDir\requirements.txt"
+        if ($LASTEXITCODE -eq 0) {
+            $depsInstalled = $true
+        } else {
+            Write-Host " [!] Accelerated installer encountered network/DNS error. Retrying with standard pip..." -ForegroundColor Yellow
+        }
+    }
+
+    if (-not $depsInstalled) {
+        & "$targetDir\.venv\Scripts\python.exe" -m pip install --retries 5 --timeout 60 --progress-bar on -r "$targetDir\requirements.txt"
     }
 
     if ($installCuda) {
         Write-Host ""
         Write-Host " [*] Installing CUDA-accelerated PyTorch (cu121)..." -ForegroundColor Cyan
-        if (Test-Path "$targetDir\.venv\Scripts\uv.exe") {
+        $cudaInstalled = $false
+        if ($uvInstalled) {
             & "$targetDir\.venv\Scripts\uv.exe" pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-        } else {
-            & "$targetDir\.venv\Scripts\python.exe" -m pip install --progress-bar on torch torchvision --index-url https://download.pytorch.org/whl/cu121
+            if ($LASTEXITCODE -eq 0) { $cudaInstalled = $true }
+        }
+        if (-not $cudaInstalled) {
+            & "$targetDir\.venv\Scripts\python.exe" -m pip install --retries 5 --timeout 60 --progress-bar on torch torchvision --index-url https://download.pytorch.org/whl/cu121
         }
     }
     
     Write-Host " -----------------------------------------------------------------------" -ForegroundColor DarkGray
-    Write-Host " [OK] All dependencies installed successfully!" -ForegroundColor Green
+    
+    # Verify critical dependencies actually installed
+    $verifyDeps = & "$targetDir\.venv\Scripts\python.exe" -c "import uvicorn, fastapi, fitz, chromadb; print('OK')" 2>$null
+    if ($verifyDeps -eq "OK") {
+        Write-Host " [OK] All dependencies installed successfully!" -ForegroundColor Green
+    } else {
+        Write-Host ""
+        Write-Host " ==========================================================================" -ForegroundColor Red
+        Write-Host "  [!] WARNING: Core Dependencies Incomplete (Network / DNS Error)" -ForegroundColor Yellow
+        Write-Host " ==========================================================================" -ForegroundColor Red
+        Write-Host "  Package download failed because your system cannot reach PyPI servers" -ForegroundColor White
+        Write-Host "  (files.pythonhosted.org). This is usually caused by an unstable Wi-Fi" -ForegroundColor White
+        Write-Host "  connection, VPN, or restrictive college/hostel/office DNS." -ForegroundColor White
+        Write-Host ""
+        Write-Host "  Quick Fix:" -ForegroundColor Yellow
+        Write-Host "  1. Switch your Windows DNS to Cloudflare (1.1.1.1) or Google (8.8.8.8)." -ForegroundColor White
+        Write-Host "  2. Once connected, re-run this command in terminal:" -ForegroundColor White
+        Write-Host "     cd $targetDir ; .\.venv\Scripts\python.exe -m pip install -r requirements.txt" -ForegroundColor Cyan
+        Write-Host ""
+    }
 }
 
 # 8. Automatic Port Freeing & Launch Banner
@@ -232,10 +267,19 @@ try {
     }
 } catch {}
 
+# Pre-launch check: verify uvicorn exists before attempting to run
+$canLaunch = & "$targetDir\.venv\Scripts\python.exe" -c "import uvicorn; print('OK')" 2>$null
+if ($canLaunch -ne "OK") {
+    Write-Host ""
+    Write-Host " [!] Cannot launch Mi:RAG Studio because core packages (uvicorn) are not yet installed." -ForegroundColor Red
+    Write-Host "     Please resolve the network connection issue above and re-run the installer." -ForegroundColor Yellow
+    Safe-Exit
+}
+
 Write-Host ""
 Write-Host " +---------------------------------------------------------+" -ForegroundColor Red
 Write-Host " |  Mi:RAG Studio is launching on http://localhost:8000    |" -ForegroundColor Yellow
-Write-Host " |  100% Private  |  Zero API Costs  |  Hardware Accelerated|" -ForegroundColor White
+Write-Host " |  Local-First  |  Zero API Costs  |  Hardware Accelerated|" -ForegroundColor White
 Write-Host " +---------------------------------------------------------+" -ForegroundColor Red
 Write-Host ""
 
