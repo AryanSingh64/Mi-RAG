@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Mi:RAG Docs — Multimodal RAG Engine Architecture & Guide</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="description" content="Technical documentation and engineering guide for Mi:RAG (mirag multimodal rag), an autonomous, zero-budget, 100% private local multimodal RAG engine.">
+  <meta name="description" content="Technical documentation and engineering guide for Mi:RAG, an autonomous, local-first multimodal RAG engine with zero mandatory API costs and optional cloud fallbacks.">
   <meta name="keywords" content="mirag, mirag multimodal rag, mirag multimodel rag, mi rag, multimodal rag docs, local multimodal rag, offline rag, ollama rag, chromadb, pdf diagram extraction, turnkey rag">
   <meta name="author" content="Aryan Singh">
   <meta name="robots" content="index, follow, max-image-preview:large">
@@ -15,7 +15,7 @@
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://mirag.me/docs">
   <meta property="og:title" content="Mi:RAG Documentation — Multimodal RAG Engine Guide">
-  <meta property="og:description" content="Technical architecture, local hardware profiles, multimodal diagram parsing, and REST API reference for Mi:RAG (mirag multimodal rag).">
+  <meta property="og:description" content="Technical architecture, local hardware profiles, multimodal diagram parsing, and REST API reference for Mi:RAG. Local-first on-device processing with optional cloud model support.">
   <meta property="og:image" content="https://mirag.me/static/assets/landing_hero.jpg">
   <meta property="og:site_name" content="Mi:RAG">
 
@@ -549,9 +549,9 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
         GitHub
       </a>
-      <a href="/app" class="btn-cta" data-cursor="Open Playground">
+      <a href="http://localhost:8000" id="docs-launch-studio-btn" class="btn-cta" data-cursor="Open Local Studio" target="_blank" rel="noopener">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-        Launch Studio
+        Open Studio (localhost:8000)
       </a>
     </nav>
   </header>
@@ -598,9 +598,9 @@
           </a>
         </li>
         <li>
-          <a href="#standalone" class="sidebar-link" data-cursor="Offline Export">
+          <a href="#standalone" class="sidebar-link" data-cursor="Standalone Export">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            Turnkey Standalone Export
+            Standalone Export
           </a>
         </li>
       </ul>
@@ -630,7 +630,7 @@
         <span class="card-badge">QUICKSTART</span>
         <h1 class="docs-title">1-Line Setup & CLI Installation</h1>
         <p class="docs-p">
-          Mi:RAG is an autonomous, multimodal local RAG generator. It indexes PDFs, Word documents, and images entirely on your local machine with zero external cloud subscriptions or API keys required.
+          Mi:RAG is an autonomous, multimodal local-first RAG generator. It indexes PDFs, Word documents, and images on your machine with zero mandatory API costs. By default, it runs locally with Ollama and on-device embeddings, while offering optional cloud API fallbacks (OpenAI, Gemini, Groq, Claude) whenever you want higher reasoning capabilities.
         </p>
 
         <h2 class="docs-h2">
@@ -763,9 +763,9 @@ python run_factory.py</pre>
       <!-- Anti-Hallucination & Privacy -->
       <article class="docs-card" id="guardrails">
         <span class="card-badge green">PRIVACY & GUARDRAILS</span>
-        <h1 class="docs-title">Anti-Hallucination & Local Privacy Directives</h1>
+        <h1 class="docs-title">Anti-Hallucination & Local-First Privacy</h1>
         <p class="docs-p">
-          Cloud models frequently reject identity documents (passports, tax filings, resumes) due to public cloud restrictions. Mi:RAG is strictly on-premise and applies verifiable citation verification.
+          Cloud models frequently reject sensitive or proprietary documents due to third-party data transmission policies. Mi:RAG provides a local-first pipeline where document chunking, visual layout detection, and vector indexing always remain private on your machine, with optional BYOK cloud models for synthesis.
         </p>
 
         <h2 class="docs-h2">Anti-Hallucination Verification</h2>
@@ -779,7 +779,7 @@ python run_factory.py</pre>
         <span class="card-badge">DEPLOYMENT</span>
         <h1 class="docs-title">Turnkey Standalone Export</h1>
         <p class="docs-p">
-          Once your knowledge base is indexed in the factory studio, you can export a self-contained ZIP bundle that operates entirely offline with zero configuration:
+          Once your knowledge base is indexed in the factory studio, you can export a self-contained ZIP bundle that operates standalone on local hardware with zero external dependencies:
         </p>
 
         <h2 class="docs-h2">What's Inside the Exported Bundle:</h2>
@@ -936,6 +936,22 @@ chmod +x run.sh
         }, 2000);
       });
     }
+
+    // Intelligent Studio link detection
+    (function() {
+      const studioBtn = document.getElementById('docs-launch-studio-btn');
+      if (studioBtn) {
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          studioBtn.href = '/app';
+          studioBtn.removeAttribute('target');
+          studioBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Launch Studio';
+        } else {
+          studioBtn.href = 'http://localhost:8000';
+          studioBtn.target = '_blank';
+          studioBtn.title = 'Opens your local desktop studio on http://localhost:8000';
+        }
+      }
+    })();
   </script>
 </body>
 </html>

@@ -1,10 +1,10 @@
 # Mi:RAG
 
-**Autonomous, zero-budget, 100% offline Multimodal RAG Engine & Turnkey Package Exporter.**
+**Autonomous, local-first Multimodal RAG Engine & Turnkey Package Exporter (Zero Mandatory API Costs • Optional Cloud APIs).**
 
 ![Mi:RAG Hero Preview](docs/assets/landing_hero.jpg)
 
-Mi:RAG indexes your documents (PDFs, Word documents, images) on your local machine, extracts text, tables, formulas, and visual diagrams, and exports a standalone offline assistant bundle that runs anywhere with zero cloud dependencies or API keys.
+Mi:RAG indexes your documents (PDFs, Word documents, images) on your local machine, extracts text, tables, formulas, and visual diagrams, and exports a standalone assistant bundle. By default, it runs with zero cloud dependencies using local Ollama models and ChromaDB, with optional support for Bring-Your-Own-Key cloud LLMs (OpenAI, Gemini, Groq, Claude).
 
 ---
 
@@ -16,7 +16,7 @@ Mi:RAG indexes your documents (PDFs, Word documents, images) on your local machi
 - **Multi-Turn Memory & Attention**: Context retention across follow-up queries with client-side persistence and reset controls.
 - **Anti-Hallucination Guardrails**: Cross-references every LLM claim against retrieved source chunks with confidence scoring.
 - **Turnkey Standalone Export**: Generates a self-contained ZIP bundle with pre-indexed ChromaDB, FastAPI microservice, and 1-click execution scripts (`run.bat` / `run.sh`).
-- **Zero Cloud Leakage**: All inference, vector storage, and processing execute on-premise on your local hardware.
+- **Local-First & Private**: All document parsing, embedding creation, and vector retrieval run strictly on your machine. Optional cloud LLM synthesis via BYOK.
 
 ---
 
