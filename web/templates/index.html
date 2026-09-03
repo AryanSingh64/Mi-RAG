@@ -61,6 +61,9 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="image" href="/static/assets/03_chrome_shape.webp" type="image/webp" fetchpriority="high">
+  <link rel="preload" as="image" href="/static/assets/04_chrome_shape.webp" type="image/webp" fetchpriority="high">
+  <link rel="preload" as="image" href="/static/assets/logo.webp" type="image/webp" fetchpriority="high">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Space+Grotesk:wght@600;700;800;900&family=Anton&family=Syne:wght@800;900&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
   
   <style>
@@ -234,7 +237,11 @@
       position: relative;
       min-height: 94vh;
       width: 100%;
-      background: url('/static/assets/skytextured.jpg') no-repeat center center;
+      background: #090c15 url('/static/assets/skytextured.webp') no-repeat center center;
+      background-image: image-set(
+        url('/static/assets/skytextured.webp') type('image/webp'),
+        url('/static/assets/skytextured.jpg') type('image/jpeg')
+      );
       background-size: cover;
       display: flex;
       flex-direction: column;
@@ -262,6 +269,13 @@
       z-index: 2;
       animation: floatShapeReverse 7s ease-in-out infinite;
       filter: drop-shadow(0 15px 25px rgba(0,0,0,0.35));
+    }
+
+    .floating-shape-left img,
+    .floating-shape-right img {
+      width: 100%;
+      height: auto;
+      display: block;
     }
 
     @keyframes floatShape {
@@ -988,11 +1002,249 @@
         transform: none;
       }
 
-      .subfooter-credits {
-        flex-direction: column;
-        gap: 0.75rem;
-        text-align: center;
-      }
+    /* ========================================================= */
+    /* NEO-BRUTALIST SKELETON LOADER SCREEN                      */
+    /* ========================================================= */
+    .neo-skeleton-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 999999;
+      background: #090c15;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1.5px, transparent 1.5px);
+      background-size: 24px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding: 1.75rem 3.5rem;
+      pointer-events: all;
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+    }
+
+    .neo-skeleton-screen.loaded {
+      opacity: 0;
+      transform: scale(0.99) translateY(-10px);
+      pointer-events: none;
+    }
+
+    /* Skeleton Base Shimmer */
+    .sk-el {
+      background: linear-gradient(90deg, #131929 0%, #222c44 50%, #131929 100%);
+      background-size: 200% 100%;
+      animation: neoSkeletonShimmer 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      border: 2px solid #000000;
+      box-shadow: 3px 3px 0px #000000;
+      border-radius: 6px;
+    }
+
+    @keyframes neoSkeletonShimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* Skeleton Header */
+    .sk-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 3.5rem;
+    }
+
+    .sk-logo {
+      width: 140px;
+      height: 48px;
+      border-radius: 8px;
+    }
+
+    .sk-nav {
+      display: flex;
+      gap: 1.25rem;
+      background: #0f1523;
+      padding: 0.5rem 1.25rem;
+      border: 2px solid #000;
+      border-radius: 100px;
+      box-shadow: 3px 3px 0px #000;
+    }
+
+    .sk-pill {
+      width: 75px;
+      height: 20px;
+      border-radius: 100px;
+      border: none;
+      box-shadow: none;
+    }
+
+    .sk-btn-head {
+      width: 155px;
+      height: 46px;
+      background: linear-gradient(90deg, #3d3504 0%, #ffe814 50%, #3d3504 100%);
+      background-size: 200% 100%;
+      border-radius: 8px;
+    }
+
+    /* Skeleton Hero */
+    .sk-hero {
+      max-width: 920px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 1.15rem;
+    }
+
+    .sk-badge {
+      width: 280px;
+      height: 32px;
+      border-radius: 100px;
+    }
+
+    .sk-title-1 {
+      width: 82%;
+      max-width: 720px;
+      height: 64px;
+      border-radius: 8px;
+    }
+
+    .sk-title-2 {
+      width: 68%;
+      max-width: 580px;
+      height: 64px;
+      border-radius: 8px;
+    }
+
+    .sk-desc-1 {
+      width: 75%;
+      max-width: 640px;
+      height: 20px;
+      margin-top: 0.5rem;
+    }
+
+    .sk-desc-2 {
+      width: 55%;
+      max-width: 480px;
+      height: 20px;
+    }
+
+    .sk-cli-box {
+      width: 100%;
+      max-width: 540px;
+      height: 60px;
+      margin: 0.75rem 0;
+      border: 2.5px solid #000;
+      box-shadow: 6px 6px 0px #000;
+      background: #0f1523;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1rem;
+    }
+
+    .sk-cli-prompt {
+      width: 52%;
+      height: 22px;
+    }
+
+    .sk-cli-copy {
+      width: 110px;
+      height: 36px;
+      background: linear-gradient(90deg, #44001c 0%, #ff2d87 50%, #44001c 100%);
+      background-size: 200% 100%;
+    }
+
+    .sk-actions {
+      display: flex;
+      gap: 1.25rem;
+      margin-top: 0.25rem;
+    }
+
+    .sk-btn-primary {
+      width: 190px;
+      height: 52px;
+      background: linear-gradient(90deg, #3d3504 0%, #ffe814 50%, #3d3504 100%);
+      background-size: 200% 100%;
+    }
+
+    .sk-btn-secondary {
+      width: 160px;
+      height: 52px;
+    }
+
+    /* Skeleton Live Progress Bar Card (Neo-Brutalist) */
+    .sk-status-card {
+      margin-top: 1.5rem;
+      background: #0f1523;
+      border: 2.5px solid #000;
+      box-shadow: 5px 5px 0px #000;
+      border-radius: 8px;
+      padding: 0.85rem 1.25rem;
+      width: 100%;
+      max-width: 440px;
+    }
+
+    .sk-status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.65rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #94a3b8;
+    }
+
+    .sk-status-row .sk-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #2be26c;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #2be26c;
+      margin-right: 0.45rem;
+      animation: skPulse 0.8s ease-in-out infinite;
+    }
+
+    @keyframes skPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.85); }
+    }
+
+    .sk-track {
+      width: 100%;
+      height: 12px;
+      background: #192033;
+      border: 1.5px solid #000;
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .sk-fill {
+      height: 100%;
+      width: 18%;
+      background: repeating-linear-gradient(
+        45deg,
+        #2be26c,
+        #2be26c 10px,
+        #22b856 10px,
+        #22b856 20px
+      );
+      transition: width 0.15s ease;
+      box-shadow: 0 0 10px rgba(43, 226, 108, 0.4);
+    }
+
+    @media (max-width: 768px) {
+      .neo-skeleton-screen { padding: 1.25rem; }
+      .sk-header { margin-bottom: 2rem; }
+      .sk-nav { display: none; }
+      .sk-title-1, .sk-title-2 { height: 42px; width: 95%; }
+      .sk-actions { flex-direction: column; width: 100%; align-items: center; }
+      .sk-btn-primary, .sk-btn-secondary { width: 100%; max-width: 320px; }
+      .sk-cli-box { width: 100%; }
     }
   </style>
 
@@ -1004,6 +1256,48 @@
 </head>
 <body>
 
+  <!-- Neo-Brutalist Skeleton Screen Loader -->
+  <div id="neo-skeleton-loader" class="neo-skeleton-screen" aria-hidden="true">
+    <div class="sk-header">
+      <div class="sk-el sk-logo"></div>
+      <div class="sk-nav">
+        <div class="sk-el sk-pill"></div>
+        <div class="sk-el sk-pill"></div>
+        <div class="sk-el sk-pill"></div>
+        <div class="sk-el sk-pill"></div>
+      </div>
+      <div class="sk-el sk-btn-head"></div>
+    </div>
+
+    <div class="sk-hero">
+      <div class="sk-el sk-badge"></div>
+      <div class="sk-el sk-title-1"></div>
+      <div class="sk-el sk-title-2"></div>
+      <div class="sk-el sk-desc-1"></div>
+      <div class="sk-el sk-desc-2"></div>
+
+      <div class="sk-cli-box">
+        <div class="sk-el sk-cli-prompt"></div>
+        <div class="sk-el sk-cli-copy"></div>
+      </div>
+
+      <div class="sk-actions">
+        <div class="sk-el sk-btn-primary"></div>
+        <div class="sk-el sk-btn-secondary"></div>
+      </div>
+
+      <div class="sk-status-card">
+        <div class="sk-status-row">
+          <span><span class="sk-indicator"></span>SYSTEM INIT // ASSETS COMPUTE</span>
+          <span id="sk-progress-pct">0%</span>
+        </div>
+        <div class="sk-track">
+          <div id="sk-progress-bar" class="sk-fill"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Multi-User Figma Nametag (Desktop) -->
   <div id="figma-nametag">Aryan</div>
 
@@ -1014,12 +1308,21 @@
 
   <!-- Hero Section -->
   <section class="hero-container">
-    <img src="/static/assets/03_chrome_shape.png" class="floating-shape-left" alt="3D Shape" data-cursor="3D Accent">
-    <img src="/static/assets/04_chrome_shape.png" class="floating-shape-right" alt="3D Ribbon" data-cursor="3D Ribbon">
+    <picture class="floating-shape-left" data-cursor="3D Accent">
+      <source srcset="/static/assets/03_chrome_shape.webp" type="image/webp">
+      <img src="/static/assets/03_chrome_shape.png" alt="3D Chrome Shape" width="130" height="130" fetchpriority="high" decoding="async">
+    </picture>
+    <picture class="floating-shape-right" data-cursor="3D Ribbon">
+      <source srcset="/static/assets/04_chrome_shape.webp" type="image/webp">
+      <img src="/static/assets/04_chrome_shape.png" alt="3D Chrome Ribbon" width="145" height="145" fetchpriority="high" decoding="async">
+    </picture>
 
     <header>
       <a href="/" class="brand-link" data-cursor="Mi:RAG Home">
-        <img src="/static/assets/logo.png" class="brand-logo-img" alt="Mi:RAG Logo">
+        <picture>
+          <source srcset="/static/assets/logo.webp" type="image/webp">
+          <img src="/static/assets/logo.png" class="brand-logo-img" alt="Mi:RAG Logo" width="140" height="42" fetchpriority="high">
+        </picture>
       </a>
 
       <nav class="nav-pill-container">
@@ -1255,6 +1558,43 @@
         }
       });
     }
+
+    // Neo-Brutalist Skeleton Loader dismissal with dynamic progress
+    (function() {
+      const loader = document.getElementById('neo-skeleton-loader');
+      const progressBar = document.getElementById('sk-progress-bar');
+      const progressPct = document.getElementById('sk-progress-pct');
+      if (!loader) return;
+
+      let progress = 22;
+      const interval = setInterval(() => {
+        if (progress < 90) {
+          progress += Math.floor(Math.random() * 12) + 6;
+          if (progress > 90) progress = 90;
+          if (progressBar) progressBar.style.width = progress + '%';
+          if (progressPct) progressPct.innerText = progress + '%';
+        }
+      }, 35);
+
+      function hideLoader() {
+        clearInterval(interval);
+        if (progressBar) progressBar.style.width = '100%';
+        if (progressPct) progressPct.innerText = '100%';
+        setTimeout(() => {
+          loader.classList.add('loaded');
+          setTimeout(() => {
+            if (loader.parentNode) loader.parentNode.removeChild(loader);
+          }, 400);
+        }, 120);
+      }
+
+      if (document.readyState === 'complete') {
+        hideLoader();
+      } else {
+        window.addEventListener('load', hideLoader);
+        setTimeout(hideLoader, 650); // High-speed fallback safety gate
+      }
+    })();
   </script>
 </body>
 </html>
