@@ -723,64 +723,89 @@
   <!-- Multi-User Figma Nametag (Desktop) -->
   <div id="figma-nametag">Studio</div>
 
-  <!-- AI Model Engine & Cloud API Settings Modal -->
+  <!-- Settings Modal (Local Model First + Advanced Cloud Settings Inside) -->
   <div id="model-settings-modal" class="custom-modal" onclick="closeModelSettingsModal()">
     <div class="modal-card" onclick="event.stopPropagation()">
       <div class="modal-header">
-        <div class="modal-title">⚙️ AI Model Engine & API Providers</div>
+        <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>Settings</span>
+        </div>
         <button type="button" class="modal-close" onclick="closeModelSettingsModal()">✕</button>
       </div>
       <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
-        <div style="font-size: 0.82rem; color: #475569; line-height: 1.45; font-weight: 600; background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 0.75rem; border-radius: 6px;">
-          🔒 <strong>Local-First Architecture</strong>: By default, Mi:RAG runs locally via Ollama with zero mandatory API costs. You can optionally connect your own API keys (OpenAI, Gemini, Claude, Groq, OpenRouter) for cloud inference. Document parsing, visual layout detection, and vector indexing always remain private on your machine.
-        </div>
-
-        <div id="modal-mode-banner" style="display: flex; align-items: center; justify-content: space-between; background: #dcfce7; border: 1.5px solid #16a34a; border-radius: 6px; padding: 0.6rem 0.85rem; font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; font-weight: 800; color: #166534;">
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span id="modal-mode-icon" style="font-size: 1.1rem;">⚡</span>
-            <span id="modal-mode-text">100% OFFLINE CAPABLE: Runs completely on-device with zero internet connection required.</span>
+        <!-- 1. Normal Settings: Local Model (Ollama) -->
+        <div style="background: #f8fafc; border: 2px solid #000; box-shadow: 2px 2px 0px #000; border-radius: 8px; padding: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem;">
+            <label style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.9rem; color: #0f172a; margin: 0;">Local Model (Ollama)</label>
+            <span id="local-engine-pill" style="font-size: 0.72rem; font-weight: 800; background: var(--green); color: #000; padding: 0.15rem 0.5rem; border: 1.5px solid #000; border-radius: 4px;">Offline Ready</span>
+          </div>
+          <div style="margin-bottom: 0.6rem;">
+            <select id="setting-local-model-select" style="width: 100%; padding: 0.65rem; border: 2px solid #000; border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: 2px 2px 0px #000;">
+              <!-- Local Ollama options -->
+            </select>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: #64748b; font-weight: 600;">
+            <span>Runs completely on-device. No internet required.</span>
+            <button type="button" onclick="closeModelSettingsModal(); document.getElementById('btn-open-hub').click();" style="background: none; border: none; color: #0f172a; font-weight: 800; text-decoration: underline; cursor: pointer; padding: 0; font-size: 0.78rem;">Download more</button>
           </div>
         </div>
 
-        <div>
-          <label style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Active Provider:</label>
-          <select id="setting-provider-select" onchange="handleProviderChange()" style="width: 100%; padding: 0.65rem; border: var(--border); border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: var(--shadow);">
-            <optgroup label="⚡ Local & 100% Offline (Zero-Cost / Private)">
-              <option value="ollama" selected>⚡ Local Ollama (Offline Engine - Default)</option>
-            </optgroup>
-            <optgroup label="🌐 Advanced: Cloud Providers (Internet Required)">
-              <option value="openai">🟢 OpenAI (GPT-5.6 Sol, GPT-5.5, GPT-5.4, GPT-4o)</option>
-              <option value="gemini">🔵 Google Gemini (Gemini 3.7 Flash, 3.6 Flash, 3.1 Pro)</option>
-              <option value="anthropic">🟣 Anthropic Claude (Claude Opus 5, Sonnet 5, Fable 5)</option>
-              <option value="grok">🔴 xAI Grok (Grok 4.6, Grok 4.5, Grok 4)</option>
-              <option value="openrouter">🌐 OpenRouter — Multi-Model Gateway (300+ Live Models)</option>
-            </optgroup>
-          </select>
-        </div>
+        <!-- 2. Inside popup: Advanced Settings (Configure API Models) -->
+        <div style="border: 2px solid #000; box-shadow: 2px 2px 0px #000; border-radius: 8px; overflow: hidden; background: #fff;">
+          <button type="button" onclick="toggleAdvancedSettings()" id="btn-toggle-advanced" style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: #f1f5f9; border: none; cursor: pointer; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; color: #0f172a; text-align: left;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span>Advanced Settings (Cloud & API Models)</span>
+              <span id="adv-active-pill" style="display: none; font-size: 0.68rem; background: var(--yellow); color: #000; padding: 0.1rem 0.45rem; border: 1px solid #000; border-radius: 3px; font-weight: 800;">Active</span>
+            </div>
+            <span id="adv-arrow" style="font-size: 0.8rem; font-weight: 900; transition: transform 0.2s ease;">▼</span>
+          </button>
 
-        <div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-            <label style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; color: #0f172a;">Model Selection:</label>
-            <button type="button" onclick="fetchLatestModels()" id="btn-fetch-models" style="background: var(--yellow); border: 1.5px solid #000; box-shadow: 1.5px 1.5px 0px #000; padding: 0.2rem 0.6rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.72rem; border-radius: 4px; cursor: pointer; transition: all 0.1s ease;">🔄 Fetch Latest Models</button>
-          </div>
-          <select id="setting-model-select" style="width: 100%; padding: 0.65rem; border: var(--border); border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: var(--shadow);"></select>
-        </div>
+          <div id="advanced-settings-panel" style="display: none; padding: 1rem; border-top: 2px solid #000; flex-direction: column; gap: 0.85rem;">
+            <div style="font-size: 0.78rem; color: #475569; font-weight: 600; line-height: 1.4;">
+              Connect external AI providers for cloud inference. Requires an active internet connection and your own API key.
+            </div>
 
-        <div>
-          <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
-            <input type="checkbox" id="check-custom-model" onchange="toggleCustomModelInput()" style="cursor: pointer; width: 14px; height: 14px;">
-            <label for="check-custom-model" style="font-size: 0.78rem; font-weight: 700; color: #475569; cursor: pointer;">Or enter custom model ID (e.g. gpt-4.5-preview, claude-3-7-sonnet-20250219)</label>
-          </div>
-          <input type="text" id="setting-custom-model" placeholder="Enter exact model ID..." style="display: none; width: 100%; padding: 0.55rem; border: var(--border); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; box-shadow: var(--shadow);">
-        </div>
+            <div>
+              <label style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; margin-bottom: 0.35rem; color: #0f172a;">Cloud Provider:</label>
+              <select id="setting-provider-select" onchange="handleProviderChange()" style="width: 100%; padding: 0.65rem; border: 2px solid #000; border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.85rem; background: #fff; box-shadow: 2px 2px 0px #000;">
+                <option value="ollama">Local Ollama (Use local model above)</option>
+                <option value="openai">OpenAI (GPT-5, GPT-4o)</option>
+                <option value="gemini">Google Gemini (Gemini 3.7 Flash, 3.1 Pro)</option>
+                <option value="anthropic">Anthropic Claude (Claude Opus 5, Sonnet 5)</option>
+                <option value="grok">xAI Grok (Grok 4.6)</option>
+                <option value="openrouter">OpenRouter Gateway (300+ Models)</option>
+              </select>
+            </div>
 
-        <div id="api-key-container" style="display: none;">
-          <label id="api-key-label" style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Provider API Key:</label>
-          <div style="display: flex; gap: 0.5rem;">
-            <input type="password" id="setting-api-key" placeholder="Enter API key..." style="flex: 1; padding: 0.65rem; border: var(--border); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; box-shadow: var(--shadow);">
-            <button type="button" onclick="testCurrentKey()" id="btn-test-key" style="background: var(--yellow); border: var(--border); box-shadow: var(--shadow); padding: 0.65rem 0.9rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; border-radius: 6px; cursor: pointer;">Test Key</button>
+            <div id="cloud-model-container" style="display: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                <label style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; color: #0f172a;">Cloud Model:</label>
+                <button type="button" onclick="fetchLatestModels()" id="btn-fetch-models" style="background: var(--yellow); border: 1.5px solid #000; box-shadow: 1.5px 1.5px 0px #000; padding: 0.15rem 0.55rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.7rem; border-radius: 4px; cursor: pointer;">Fetch Models</button>
+              </div>
+              <select id="setting-model-select" style="width: 100%; padding: 0.65rem; border: 2px solid #000; border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.85rem; background: #fff; box-shadow: 2px 2px 0px #000;"></select>
+            </div>
+
+            <div id="custom-model-container" style="display: none;">
+              <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem;">
+                <input type="checkbox" id="check-custom-model" onchange="toggleCustomModelInput()" style="cursor: pointer; width: 14px; height: 14px;">
+                <label for="check-custom-model" style="font-size: 0.76rem; font-weight: 700; color: #475569; cursor: pointer;">Custom model ID</label>
+              </div>
+              <input type="text" id="setting-custom-model" placeholder="Enter model ID..." style="display: none; width: 100%; padding: 0.55rem; border: 2px solid #000; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; box-shadow: 2px 2px 0px #000;">
+            </div>
+
+            <div id="api-key-container" style="display: none;">
+              <label id="api-key-label" style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; margin-bottom: 0.35rem; color: #0f172a;">API Key:</label>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="password" id="setting-api-key" placeholder="Enter API key..." style="flex: 1; padding: 0.65rem; border: 2px solid #000; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; box-shadow: 2px 2px 0px #000;">
+                <button type="button" onclick="testCurrentKey()" id="btn-test-key" style="background: var(--yellow); border: 2px solid #000; box-shadow: 2px 2px 0px #000; padding: 0.65rem 0.9rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.8rem; border-radius: 6px; cursor: pointer;">Test</button>
+              </div>
+              <div id="key-test-feedback" style="margin-top: 0.4rem; font-size: 0.76rem; font-weight: 700; display: none;"></div>
+            </div>
           </div>
-          <div id="key-test-feedback" style="margin-top: 0.5rem; font-size: 0.78rem; font-weight: 700; display: none;"></div>
         </div>
 
         <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem; border-top: 2px solid #000; padding-top: 1rem;">
@@ -803,11 +828,14 @@
     </div>
 
     <div style="display: flex; align-items: center; gap: 0.75rem;">
-      <button type="button" onclick="openModelSettingsModal()" class="btn-header-settings" id="btn-header-settings" data-cursor="Configure Cloud AI Keys">
-        <span class="provider-pill-badge" id="nav-provider-badge">OLLAMA</span>
-        <span id="nav-model-name">⚙️ Models & API Keys</span>
+      <button type="button" onclick="openModelSettingsModal()" class="btn-header-settings" id="btn-header-settings" data-cursor="Settings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span>Settings</span>
       </button>
-      <div class="status-pill-head" id="engine-status-pill">LOCAL-FIRST ENGINE READY</div>
+      <div class="status-pill-head" id="engine-status-pill">OFFLINE READY</div>
     </div>
   </header>
 
@@ -836,9 +864,8 @@
       <form id="rag-form">
         <div class="controls-grid">
           <div class="input-group">
-            <div class="label-row" style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="label-row">
               <label class="label" for="model-select">Text LLM Model</label>
-              <button type="button" onclick="openModelSettingsModal()" style="background: #fff; border: 1.5px solid #000; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.72rem; padding: 0.15rem 0.5rem; border-radius: 4px; box-shadow: 1px 1px 0px #000; cursor: pointer;">⚙️ Advanced (Cloud)</button>
             </div>
             <select id="model-select">
               <option value="llama3.2:3b">llama3.2:3b (Loading...)</option>
@@ -861,12 +888,12 @@
               <span style="font-size: 0.72rem; font-weight: 800; background: var(--green); color: #000; padding: 0.15rem 0.5rem; border: 1.5px solid #000; border-radius: 4px; box-shadow: 1.5px 1.5px 0px #000;">GPU AUTO-ACCELERATED</span>
             </div>
             <select id="embedding-select" onchange="handleEmbeddingChange()" style="font-family: 'Space Grotesk', sans-serif; font-weight: 700;">
-              <option value="BAAI/bge-base-en-v1.5" selected>⚡ BAAI/bge-base-en-v1.5 (Recommended • 768-dim • SOTA Accuracy)</option>
-              <option value="all-MiniLM-L6-v2">🚀 all-MiniLM-L6-v2 (Ultra-Fast • 384-dim • Low Memory)</option>
-              <option value="BAAI/bge-m3">🌐 BAAI/bge-m3 (Multilingual • 1024-dim • 8192 Token Context)</option>
-              <option value="BAAI/bge-large-en-v1.5">🔬 BAAI/bge-large-en-v1.5 (Deep Reasoning • 1024-dim)</option>
-              <option value="nomic-ai/nomic-embed-text-v1.5">📑 nomic-ai/nomic-embed-text-v1.5 (8192 Long-Context • 768-dim)</option>
-              <option value="custom">⚙️ Enter Custom HuggingFace Model ID...</option>
+              <option value="BAAI/bge-base-en-v1.5" selected>BAAI/bge-base-en-v1.5 (Recommended • 768-dim • SOTA Accuracy)</option>
+              <option value="all-MiniLM-L6-v2">all-MiniLM-L6-v2 (Ultra-Fast • 384-dim • Low Memory)</option>
+              <option value="BAAI/bge-m3">BAAI/bge-m3 (Multilingual • 1024-dim • 8192 Token Context)</option>
+              <option value="BAAI/bge-large-en-v1.5">BAAI/bge-large-en-v1.5 (Deep Reasoning • 1024-dim)</option>
+              <option value="nomic-ai/nomic-embed-text-v1.5">nomic-ai/nomic-embed-text-v1.5 (8192 Long-Context • 768-dim)</option>
+              <option value="custom">Enter Custom HuggingFace Model ID...</option>
             </select>
             <input type="text" id="custom-embedding-input" placeholder="Enter HuggingFace repo ID (e.g. Snowflake/snowflake-arctic-embed-m)..." style="display: none; margin-top: 0.4rem; padding: 0.6rem; border: var(--border); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; box-shadow: var(--shadow); width: 100%;">
           </div>
@@ -905,7 +932,7 @@
                 <button type="button" onclick="setPagePreset('50')" class="btn-preset" id="preset-50" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; font-weight: 800; border: 1.5px solid #000; border-radius: 4px; cursor: pointer; background: #fff; color: #000;">First 50</button>
                 <button type="button" onclick="setPagePreset('custom')" class="btn-preset" id="preset-custom" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; font-weight: 800; border: 1.5px solid #000; border-radius: 4px; cursor: pointer; background: #fff; color: #000;">Custom</button>
               </div>
-              <button type="button" onclick="applyRangeToAllFiles()" id="btn-apply-all" title="Apply these exact page limits to all uploaded documents" style="padding: 0.2rem 0.6rem; font-size: 0.72rem; font-weight: 800; border: 1.5px solid #000; border-radius: 4px; cursor: pointer; background: #e0f2fe; color: #0369a1; box-shadow: 1px 1px 0px #000; transition: all 0.15s ease;">📋 Apply to All Docs</button>
+              <button type="button" onclick="applyRangeToAllFiles()" id="btn-apply-all" title="Apply these exact page limits to all uploaded documents" style="padding: 0.2rem 0.6rem; font-size: 0.72rem; font-weight: 800; border: 1.5px solid #000; border-radius: 4px; cursor: pointer; background: #e0f2fe; color: #0369a1; box-shadow: 1px 1px 0px #000; transition: all 0.15s ease;">Apply to All Docs</button>
             </div>
           </div>
 
@@ -1393,7 +1420,7 @@
         return `
           <div class="file-item ${isActive ? 'active-file' : ''}" onclick="selectActiveFile(${idx})" title="${f._isImage ? 'Image attachment' : 'Click to select and customize page range for this document'}">
             <div style="display: flex; align-items: center; gap: 0.6rem; overflow: hidden;">
-              ${isActive ? '<span style="font-size: 1rem;">👉</span>' : ''}
+              ${isActive ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color:var(--pink); flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>' : ''}
               <span style="font-weight: 700; color: #0f172a; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${f.name} <span style="font-size:0.75rem; color:#64748b;">(${(f.size/1024).toFixed(1)} KB)</span></span>
             </div>
             <div style="display: flex; gap: 0.45rem; align-items: center; flex-shrink: 0;">
@@ -1807,33 +1834,69 @@
 
     function syncHeaderModelDisplay() {
       const cfg = PROVIDER_CONFIGS[currentProvider] || PROVIDER_CONFIGS.ollama;
-      const badge = document.getElementById("nav-provider-badge");
-      const disp = document.getElementById("nav-model-name");
-      if (badge) badge.innerText = cfg.badge;
-      if (disp) disp.innerText = currentModel || cfg.models[0];
-
       if (statusPill) {
         if (currentProvider === 'ollama') {
-          statusPill.innerText = "⚡ OFFLINE MODE (100% Local)";
+          statusPill.innerText = "OFFLINE READY";
           statusPill.style.background = "#2be26c";
           statusPill.style.color = "#000000";
         } else {
-          statusPill.innerText = `🌐 ONLINE CLOUD (${cfg.badge})`;
+          statusPill.innerText = `CLOUD (${cfg.badge})`;
           statusPill.style.background = "#ffe814";
           statusPill.style.color = "#000000";
         }
       }
     }
 
+    function toggleAdvancedSettings(forceOpen) {
+      const panel = document.getElementById("advanced-settings-panel");
+      const arrow = document.getElementById("adv-arrow");
+      if (!panel) return;
+      const isOpen = panel.style.display === "flex";
+      const shouldOpen = (typeof forceOpen === "boolean") ? forceOpen : !isOpen;
+      
+      panel.style.display = shouldOpen ? "flex" : "none";
+      if (arrow) arrow.innerText = shouldOpen ? "▲" : "▼";
+    }
+
     function openModelSettingsModal() {
+      // 1. Setup Local Ollama Model selection
+      const localSelect = document.getElementById("setting-local-model-select");
+      if (localSelect) {
+        const mainSelect = document.getElementById("model-select");
+        localSelect.innerHTML = "";
+        if (mainSelect && mainSelect.options.length > 0) {
+          for (let opt of mainSelect.options) {
+            const newOpt = document.createElement("option");
+            newOpt.value = opt.value;
+            newOpt.innerText = opt.innerText;
+            localSelect.appendChild(newOpt);
+          }
+        } else {
+          for (let m of PROVIDER_CONFIGS.ollama.models) {
+            const newOpt = document.createElement("option");
+            newOpt.value = m;
+            newOpt.innerText = m;
+            localSelect.appendChild(newOpt);
+          }
+        }
+
+        if (currentProvider === 'ollama' && currentModel) {
+          localSelect.value = currentModel;
+        } else if (localSelect.options.length > 0) {
+          localSelect.value = localSelect.options[0].value;
+        }
+      }
+
+      // 2. Setup Advanced Settings (Cloud & API Models)
       const pSelect = document.getElementById("setting-provider-select");
-      if (pSelect) pSelect.value = currentProvider;
+      if (pSelect) pSelect.value = (currentProvider !== 'ollama') ? currentProvider : 'ollama';
       handleProviderChange();
+
       const mSelect = document.getElementById("setting-model-select");
-      if (mSelect) {
-        if (currentModel && Array.from(mSelect.options).some(opt => opt.value === currentModel)) {
+      if (mSelect && currentProvider !== 'ollama' && currentModel) {
+        if (Array.from(mSelect.options).some(opt => opt.value === currentModel)) {
           mSelect.value = currentModel;
-        } else if (currentModel) {
+        } else {
           const opt = document.createElement("option");
           opt.value = currentModel;
           opt.innerText = currentModel;
@@ -1841,12 +1904,27 @@
           mSelect.value = currentModel;
         }
       }
-      
+
       const keyInput = document.getElementById("setting-api-key");
       if (keyInput) keyInput.value = savedApiKeys[currentProvider] || "";
-      
+
       const feedback = document.getElementById("key-test-feedback");
       if (feedback) { feedback.style.display = 'none'; feedback.innerText = ''; }
+
+      // 3. Auto-expand advanced panel if cloud is currently active
+      const advActivePill = document.getElementById("adv-active-pill");
+      if (currentProvider !== 'ollama') {
+        toggleAdvancedSettings(true);
+        if (advActivePill) {
+          advActivePill.style.display = "inline-block";
+          advActivePill.innerText = `Active: ${currentProvider.toUpperCase()}`;
+        }
+      } else {
+        toggleAdvancedSettings(false);
+        if (advActivePill) {
+          advActivePill.style.display = "none";
+        }
+      }
 
       document.getElementById("model-settings-modal").classList.add("active");
     }
@@ -1858,25 +1936,22 @@
     function handleProviderChange() {
       const provider = document.getElementById("setting-provider-select").value;
       const cfg = PROVIDER_CONFIGS[provider] || PROVIDER_CONFIGS.ollama;
-      
-      const banner = document.getElementById("modal-mode-banner");
-      const icon = document.getElementById("modal-mode-icon");
-      const text = document.getElementById("modal-mode-text");
-      if (banner && icon && text) {
-        if (provider === 'ollama') {
-          banner.style.background = "#dcfce7";
-          banner.style.borderColor = "#16a34a";
-          banner.style.color = "#166534";
-          icon.innerText = "⚡";
-          text.innerText = "100% OFFLINE CAPABLE: Runs completely on-device with zero internet connection required.";
-        } else {
-          banner.style.background = "#fef9c3";
-          banner.style.borderColor = "#ca8a04";
-          banner.style.color = "#854d0e";
-          icon.innerText = "🌐";
-          text.innerText = `ADVANCED CLOUD ACTIVE (${cfg.name}): Requires an active internet connection and valid API key.`;
-        }
+
+      const cloudModelContainer = document.getElementById("cloud-model-container");
+      const customModelContainer = document.getElementById("custom-model-container");
+      const keyContainer = document.getElementById("api-key-container");
+      const keyInput = document.getElementById("setting-api-key");
+      const keyLabel = document.getElementById("api-key-label");
+
+      if (provider === 'ollama') {
+        if (cloudModelContainer) cloudModelContainer.style.display = 'none';
+        if (customModelContainer) customModelContainer.style.display = 'none';
+        if (keyContainer) keyContainer.style.display = 'none';
+        return;
       }
+
+      if (cloudModelContainer) cloudModelContainer.style.display = 'block';
+      if (customModelContainer) customModelContainer.style.display = 'block';
 
       const mSelect = document.getElementById("setting-model-select");
       if (mSelect) {
@@ -1888,10 +1963,6 @@
         }
       }
 
-      const keyContainer = document.getElementById("api-key-container");
-      const keyInput = document.getElementById("setting-api-key");
-      const keyLabel = document.getElementById("api-key-label");
-      
       if (cfg.requiresKey) {
         if (keyContainer) keyContainer.style.display = 'block';
         if (keyLabel) keyLabel.innerText = `${cfg.name} API Key:`;
@@ -1953,7 +2024,7 @@
       const apiKey = document.getElementById("setting-api-key")?.value?.trim() || savedApiKeys[provider] || "";
       const fetchBtn = document.getElementById("btn-fetch-models");
       const originalText = fetchBtn.innerText;
-      fetchBtn.innerText = "⏳ Syncing...";
+      fetchBtn.innerText = "Syncing...";
       fetchBtn.disabled = true;
 
       try {
@@ -1969,12 +2040,12 @@
           if (data.models.includes(currentModel)) {
             mSelect.value = currentModel;
           }
-          fetchBtn.innerText = "✅ Auto-Synced (" + data.models.length + " Models)";
+          fetchBtn.innerText = "Synced (" + data.models.length + " Models)";
         } else {
-          fetchBtn.innerText = "❌ None Found";
+          fetchBtn.innerText = "None Found";
         }
       } catch (err) {
-        fetchBtn.innerText = "❌ Error";
+        fetchBtn.innerText = "Error";
       } finally {
         setTimeout(() => {
           if (fetchBtn) {
@@ -2009,38 +2080,51 @@
         const data = await res.json();
         if (data.valid) {
           feedback.style.color = '#16a34a';
-          feedback.innerText = '✅ ' + data.message;
+          feedback.innerText = data.message;
         } else {
           feedback.style.color = '#dc2626';
-          feedback.innerText = '❌ ' + data.message;
+          feedback.innerText = data.message;
         }
       } catch (err) {
         feedback.style.color = '#dc2626';
-        feedback.innerText = '❌ Test failed: ' + err.message;
+        feedback.innerText = 'Test failed: ' + err.message;
       } finally {
         if (testBtn) testBtn.disabled = false;
       }
     }
 
     function saveModelSettings() {
-      const provider = document.getElementById("setting-provider-select").value;
-      const isCustom = document.getElementById("check-custom-model")?.checked;
-      const customModel = document.getElementById("setting-custom-model")?.value?.trim();
-      const selectModel = document.getElementById("setting-model-select").value;
-      const model = (isCustom && customModel) ? customModel : selectModel;
-      const apiKey = document.getElementById("setting-api-key")?.value?.trim() || "";
+      const advPanel = document.getElementById("advanced-settings-panel");
+      const isAdvOpen = advPanel && advPanel.style.display === "flex";
+      const selectedAdvProvider = document.getElementById("setting-provider-select")?.value;
 
-      currentProvider = provider;
-      currentModel = model;
-      if (apiKey) {
-        savedApiKeys[provider] = apiKey;
-      } else if (PROVIDER_CONFIGS[provider]?.requiresKey === false) {
-        delete savedApiKeys[provider];
+      if (isAdvOpen && selectedAdvProvider && selectedAdvProvider !== 'ollama') {
+        const provider = selectedAdvProvider;
+        const isCustom = document.getElementById("check-custom-model")?.checked;
+        const customModel = document.getElementById("setting-custom-model")?.value?.trim();
+        const selectModel = document.getElementById("setting-model-select")?.value;
+        const model = (isCustom && customModel) ? customModel : selectModel;
+        const apiKey = document.getElementById("setting-api-key")?.value?.trim() || "";
+
+        currentProvider = provider;
+        currentModel = model;
+        if (apiKey) {
+          savedApiKeys[provider] = apiKey;
+        }
+
+        localStorage.setItem("mirag_provider", currentProvider);
+        localStorage.setItem("mirag_model", currentModel);
+        localStorage.setItem("mirag_api_keys", JSON.stringify(savedApiKeys));
+      } else {
+        const localSelect = document.getElementById("setting-local-model-select");
+        const localModel = localSelect?.value || currentModel || "llama3.2:3b";
+
+        currentProvider = 'ollama';
+        currentModel = localModel;
+
+        localStorage.setItem("mirag_provider", currentProvider);
+        localStorage.setItem("mirag_model", currentModel);
       }
-
-      localStorage.setItem("mirag_provider", currentProvider);
-      localStorage.setItem("mirag_model", currentModel);
-      localStorage.setItem("mirag_api_keys", JSON.stringify(savedApiKeys));
 
       syncHeaderModelDisplay();
       loadModels();

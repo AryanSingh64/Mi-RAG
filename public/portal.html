@@ -1011,53 +1011,81 @@
   <div id="portal-settings-modal" class="custom-modal" onclick="closePortalSettingsModal()">
     <div class="modal-card" onclick="event.stopPropagation()">
       <div class="modal-header">
-        <div class="modal-title">⚙️ Chatbot Model & API Providers</div>
+        <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>Settings</span>
+        </div>
         <button type="button" class="modal-close" onclick="closePortalSettingsModal()">✕</button>
       </div>
       <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
-        <div id="portal-modal-mode-banner" style="display: flex; align-items: center; justify-content: space-between; background: #dcfce7; border: 1.5px solid #16a34a; border-radius: 6px; padding: 0.6rem 0.85rem; font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; font-weight: 800; color: #166534;">
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span id="portal-modal-mode-icon" style="font-size: 1.1rem;">⚡</span>
-            <span id="portal-modal-mode-text">100% OFFLINE CAPABLE: Local Ollama active. No internet required.</span>
+        <!-- 1. Normal Settings: Local Model (Ollama) -->
+        <div style="background: #f8fafc; border: 2px solid #000; box-shadow: 2px 2px 0px #000; border-radius: 8px; padding: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem;">
+            <label style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.9rem; color: #0f172a; margin: 0;">Local Model (Ollama)</label>
+            <span style="font-size: 0.72rem; font-weight: 800; background: var(--green); color: #000; padding: 0.15rem 0.5rem; border: 1.5px solid #000; border-radius: 4px;">Offline Ready</span>
+          </div>
+          <div style="margin-bottom: 0.6rem;">
+            <select id="portal-setting-local-model-select" style="width: 100%; padding: 0.65rem; border: 2px solid #000; border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: 2px 2px 0px #000;">
+              <!-- Local Ollama options -->
+            </select>
+          </div>
+          <div style="font-size: 0.78rem; color: #64748b; font-weight: 600;">
+            Runs completely on-device. No internet required.
           </div>
         </div>
 
-        <div>
-          <label style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Active Provider:</label>
-          <select id="portal-provider-select" onchange="handlePortalProviderChange()" style="width: 100%; padding: 0.65rem; border: var(--border); border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: 2px 2px 0px #000;">
-            <optgroup label="⚡ Local & 100% Offline (Zero-Cost / Private)">
-              <option value="ollama" selected>⚡ Local Ollama (Offline Engine - Default)</option>
-            </optgroup>
-            <optgroup label="🌐 Advanced: Cloud Providers (Internet Required)">
-              <option value="openai">🟢 OpenAI (GPT-5.6 Sol, GPT-5.5, GPT-5.4, GPT-4o)</option>
-              <option value="gemini">🔵 Google Gemini (Gemini 3.7 Flash, 3.6 Flash, 3.1 Pro)</option>
-              <option value="anthropic">🟣 Anthropic Claude (Claude Opus 5, Sonnet 5, Fable 5)</option>
-              <option value="grok">🔴 xAI Grok (Grok 4.6, Grok 4.5, Grok 4)</option>
-              <option value="openrouter">🌐 OpenRouter — Multi-Model Gateway (300+ Live Models)</option>
-            </optgroup>
-          </select>
-        </div>
+        <!-- 2. Inside popup: Advanced Settings (Cloud & API Models) -->
+        <div style="border: 2px solid #000; box-shadow: 2px 2px 0px #000; border-radius: 8px; overflow: hidden; background: #fff;">
+          <button type="button" onclick="togglePortalAdvancedSettings()" id="btn-portal-toggle-adv" style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: #f1f5f9; border: none; cursor: pointer; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; color: #0f172a; text-align: left;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span>Advanced Settings (Cloud & API Models)</span>
+              <span id="portal-adv-active-pill" style="display: none; font-size: 0.68rem; background: var(--yellow); color: #000; padding: 0.1rem 0.45rem; border: 1px solid #000; border-radius: 3px; font-weight: 800;">Active</span>
+            </div>
+            <span id="portal-adv-arrow" style="font-size: 0.8rem; font-weight: 900; transition: transform 0.2s ease;">▼</span>
+          </button>
 
-        <div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-            <label style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; color: #0f172a;">Model Selection:</label>
-            <button type="button" onclick="fetchLatestPortalModels()" id="btn-portal-fetch-models" style="background: var(--yellow); border: 1.5px solid #000; box-shadow: 1.5px 1.5px 0px #000; padding: 0.2rem 0.6rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.72rem; border-radius: 4px; cursor: pointer; transition: all 0.1s ease;">🔄 Sync Models</button>
-          </div>
-          <select id="portal-model-select" style="width: 100%; padding: 0.65rem; border: var(--border); border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: 2px 2px 0px #000;"></select>
-        </div>
+          <div id="portal-advanced-settings-panel" style="display: none; padding: 1rem; border-top: 2px solid #000; flex-direction: column; gap: 0.85rem;">
+            <div style="font-size: 0.78rem; color: #475569; font-weight: 600; line-height: 1.4;">
+              Connect external AI providers for cloud inference. Requires an active internet connection and your own API key.
+            </div>
 
-        <div id="portal-api-key-container" style="display: none;">
-          <label id="portal-api-key-label" style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Provider API Key:</label>
-          <div style="display: flex; gap: 0.5rem;">
-            <input type="password" id="portal-setting-api-key" placeholder="Enter API key..." style="flex: 1; padding: 0.65rem; border: var(--border); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; box-shadow: 2px 2px 0px #000;">
-            <button type="button" onclick="testPortalKey()" id="btn-portal-test-key" style="background: var(--yellow); border: var(--border); box-shadow: 2px 2px 0px #000; padding: 0.65rem 0.9rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; border-radius: 6px; cursor: pointer;">Test Key</button>
+            <div>
+              <label style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; margin-bottom: 0.35rem; color: #0f172a;">Cloud Provider:</label>
+              <select id="portal-provider-select" onchange="handlePortalProviderChange()" style="width: 100%; padding: 0.65rem; border: 2px solid #000; border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.85rem; background: #fff; box-shadow: 2px 2px 0px #000;">
+                <option value="ollama">Local Ollama (Use local model above)</option>
+                <option value="openai">OpenAI (GPT-5, GPT-4o)</option>
+                <option value="gemini">Google Gemini (Gemini 3.7 Flash, 3.1 Pro)</option>
+                <option value="anthropic">Anthropic Claude (Claude Opus 5, Sonnet 5)</option>
+                <option value="grok">xAI Grok (Grok 4.6)</option>
+                <option value="openrouter">OpenRouter Gateway (300+ Models)</option>
+              </select>
+            </div>
+
+            <div id="portal-cloud-model-container" style="display: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                <label style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; color: #0f172a;">Cloud Model:</label>
+                <button type="button" onclick="fetchLatestPortalModels()" id="btn-portal-fetch-models" style="background: var(--yellow); border: 1.5px solid #000; box-shadow: 1.5px 1.5px 0px #000; padding: 0.15rem 0.55rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.7rem; border-radius: 4px; cursor: pointer;">Fetch Models</button>
+              </div>
+              <select id="portal-model-select" style="width: 100%; padding: 0.65rem; border: 2px solid #000; border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.85rem; background: #fff; box-shadow: 2px 2px 0px #000;"></select>
+            </div>
+
+            <div id="portal-api-key-container" style="display: none;">
+              <label id="portal-api-key-label" style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; margin-bottom: 0.35rem; color: #0f172a;">API Key:</label>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="password" id="portal-setting-api-key" placeholder="Enter API key..." style="flex: 1; padding: 0.65rem; border: 2px solid #000; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; box-shadow: 2px 2px 0px #000;">
+                <button type="button" onclick="testPortalKey()" id="btn-portal-test-key" style="background: var(--yellow); border: 2px solid #000; box-shadow: 2px 2px 0px #000; padding: 0.65rem 0.9rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.8rem; border-radius: 6px; cursor: pointer;">Test</button>
+              </div>
+              <div id="portal-key-test-feedback" style="margin-top: 0.4rem; font-size: 0.76rem; font-weight: 700; display: none;"></div>
+            </div>
           </div>
-          <div id="portal-key-test-feedback" style="margin-top: 0.5rem; font-size: 0.78rem; font-weight: 700; display: none;"></div>
         </div>
 
         <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem; border-top: 2px solid #000; padding-top: 1rem;">
           <button type="button" onclick="closePortalSettingsModal()" style="background: #e2e8f0; border: 2px solid #000; box-shadow: 2px 2px 0px #000; padding: 0.65rem 1.2rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; border-radius: 6px; cursor: pointer;">Cancel</button>
-          <button type="button" onclick="savePortalSettings()" style="background: var(--green); color: #000; border: 2px solid #000; box-shadow: 2px 2px 0px #000; padding: 0.65rem 1.4rem; font-family: 'Space Grotesk', sans-serif; font-weight: 900; font-size: 0.85rem; border-radius: 6px; cursor: pointer;">Save & Switch Model</button>
+          <button type="button" onclick="savePortalSettings()" style="background: var(--green); color: #000; border: 2px solid #000; box-shadow: 2px 2px 0px #000; padding: 0.65rem 1.4rem; font-family: 'Space Grotesk', sans-serif; font-weight: 900; font-size: 0.85rem; border-radius: 6px; cursor: pointer;">Save & Apply</button>
         </div>
       </div>
     </div>
@@ -1133,7 +1161,12 @@
           <select id="chat-model-select" onchange="handleChatModelSelectChange()" style="background: transparent; color: #fff; border: none; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.8rem; cursor: pointer; outline: none; max-width: 175px;">
             <option value="ollama:llama3.2:3b">llama3.2:3b (Local)</option>
           </select>
-          <button type="button" onclick="openPortalSettingsModal()" title="Configure Models & Cloud API Keys" style="background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 0 0.2rem; color: var(--yellow); line-height: 1;">⚙️</button>
+          <button type="button" onclick="openPortalSettingsModal()" title="Settings" style="background: none; border: none; cursor: pointer; padding: 0 0.2rem; color: var(--yellow); line-height: 1; display: flex; align-items: center;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
         </div>
         <div class="timer-badge">
           <div class="pulse-dot"></div>
@@ -1552,14 +1585,14 @@
       } catch (e) {}
 
       let html = '';
-      html += `<optgroup label="⚡ Local Offline (Ollama)">`;
+      html += `<optgroup label="Local (Ollama Offline)">`;
       for (let m of localModels) {
         const isSel = (currentProvider === 'ollama' && currentModel === m);
         html += `<option value="ollama:${m}" ${isSel ? 'selected' : ''}>${m} (Local)</option>`;
       }
       html += `</optgroup>`;
 
-      html += `<optgroup label="🌐 Online Cloud (Advanced)">`;
+      html += `<optgroup label="Cloud (API Models)">`;
       const cloudPresets = [
         { prov: "openai", model: "gpt-4o-mini", label: "OpenAI: GPT-4o Mini" },
         { prov: "openai", model: "gpt-4o", label: "OpenAI: GPT-4o" },
@@ -1636,20 +1669,79 @@
       }
     }
 
-    window.openPortalSettingsModal = function() {
+    window.togglePortalAdvancedSettings = function(forceOpen) {
+      const panel = document.getElementById("portal-advanced-settings-panel");
+      const arrow = document.getElementById("portal-adv-arrow");
+      if (!panel) return;
+      const isOpen = panel.style.display === "flex";
+      const shouldOpen = (typeof forceOpen === "boolean") ? forceOpen : !isOpen;
+
+      panel.style.display = shouldOpen ? "flex" : "none";
+      if (arrow) arrow.innerText = shouldOpen ? "▲" : "▼";
+    };
+
+    window.openPortalSettingsModal = async function() {
+      // 1. Setup Local Ollama Model selection
+      const localSelect = document.getElementById("portal-setting-local-model-select");
+      if (localSelect) {
+        localSelect.innerHTML = "";
+        let localModels = ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b"];
+        try {
+          const res = await fetch('/api/models');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.text_models && data.text_models.length > 0) {
+              localModels = data.text_models;
+            }
+          }
+        } catch (e) {}
+
+        for (let m of localModels) {
+          const opt = document.createElement("option");
+          opt.value = m;
+          opt.innerText = m;
+          localSelect.appendChild(opt);
+        }
+
+        if (currentProvider === 'ollama' && currentModel) {
+          localSelect.value = currentModel;
+        } else if (localSelect.options.length > 0) {
+          localSelect.value = localSelect.options[0].value;
+        }
+      }
+
+      // 2. Setup Advanced Settings (Cloud & API)
       const pSelect = document.getElementById("portal-provider-select");
-      if (pSelect) pSelect.value = currentProvider;
+      if (pSelect) pSelect.value = (currentProvider !== 'ollama') ? currentProvider : 'ollama';
       handlePortalProviderChange();
+
       const mSelect = document.getElementById("portal-model-select");
-      if (mSelect) {
-        if (currentModel && Array.from(mSelect.options).some(opt => opt.value === currentModel)) {
+      if (mSelect && currentProvider !== 'ollama' && currentModel) {
+        if (Array.from(mSelect.options).some(opt => opt.value === currentModel)) {
           mSelect.value = currentModel;
         }
       }
+
       const keyInput = document.getElementById("portal-setting-api-key");
       if (keyInput) keyInput.value = savedApiKeys[currentProvider] || "";
+
       const feedback = document.getElementById("portal-key-test-feedback");
       if (feedback) { feedback.style.display = 'none'; feedback.innerText = ''; }
+
+      // 3. Auto-expand advanced panel if cloud is currently active
+      const advActivePill = document.getElementById("portal-adv-active-pill");
+      if (currentProvider !== 'ollama') {
+        togglePortalAdvancedSettings(true);
+        if (advActivePill) {
+          advActivePill.style.display = "inline-block";
+          advActivePill.innerText = `Active: ${currentProvider.toUpperCase()}`;
+        }
+      } else {
+        togglePortalAdvancedSettings(false);
+        if (advActivePill) {
+          advActivePill.style.display = "none";
+        }
+      }
 
       document.getElementById("portal-settings-modal").classList.add("active");
     };
@@ -1662,24 +1754,18 @@
       const provider = document.getElementById("portal-provider-select").value;
       const cfg = PORTAL_FULL_PROVIDER_CONFIGS[provider] || PORTAL_FULL_PROVIDER_CONFIGS.ollama;
 
-      const banner = document.getElementById("portal-modal-mode-banner");
-      const icon = document.getElementById("portal-modal-mode-icon");
-      const text = document.getElementById("portal-modal-mode-text");
-      if (banner && icon && text) {
-        if (provider === 'ollama') {
-          banner.style.background = "#dcfce7";
-          banner.style.borderColor = "#16a34a";
-          banner.style.color = "#166534";
-          icon.innerText = "⚡";
-          text.innerText = "100% OFFLINE CAPABLE: Local Ollama active. No internet required.";
-        } else {
-          banner.style.background = "#fef9c3";
-          banner.style.borderColor = "#ca8a04";
-          banner.style.color = "#854d0e";
-          icon.innerText = "🌐";
-          text.innerText = `ADVANCED CLOUD ACTIVE (${cfg.name}): Requires internet connection and API key.`;
-        }
+      const cloudModelContainer = document.getElementById("portal-cloud-model-container");
+      const keyContainer = document.getElementById("portal-api-key-container");
+      const keyInput = document.getElementById("portal-setting-api-key");
+      const keyLabel = document.getElementById("portal-api-key-label");
+
+      if (provider === 'ollama') {
+        if (cloudModelContainer) cloudModelContainer.style.display = 'none';
+        if (keyContainer) keyContainer.style.display = 'none';
+        return;
       }
+
+      if (cloudModelContainer) cloudModelContainer.style.display = 'block';
 
       const mSelect = document.getElementById("portal-model-select");
       if (mSelect) {
@@ -1691,9 +1777,6 @@
         }
       }
 
-      const keyContainer = document.getElementById("portal-api-key-container");
-      const keyInput = document.getElementById("portal-setting-api-key");
-      const keyLabel = document.getElementById("portal-api-key-label");
       if (cfg.requiresKey) {
         if (keyContainer) keyContainer.style.display = 'block';
         if (keyLabel) keyLabel.innerText = `${cfg.name} API Key:`;
@@ -1707,21 +1790,34 @@
     };
 
     window.savePortalSettings = function() {
-      const provider = document.getElementById("portal-provider-select").value;
-      const model = document.getElementById("portal-model-select").value;
-      const apiKey = document.getElementById("portal-setting-api-key")?.value?.trim() || "";
+      const advPanel = document.getElementById("portal-advanced-settings-panel");
+      const isAdvOpen = advPanel && advPanel.style.display === "flex";
+      const selectedAdvProvider = document.getElementById("portal-provider-select")?.value;
 
-      currentProvider = provider;
-      currentModel = model;
-      if (apiKey) {
-        savedApiKeys[provider] = apiKey;
-      } else if (PORTAL_FULL_PROVIDER_CONFIGS[provider]?.requiresKey === false) {
-        delete savedApiKeys[provider];
+      if (isAdvOpen && selectedAdvProvider && selectedAdvProvider !== 'ollama') {
+        const provider = selectedAdvProvider;
+        const model = document.getElementById("portal-model-select").value;
+        const apiKey = document.getElementById("portal-setting-api-key")?.value?.trim() || "";
+
+        currentProvider = provider;
+        currentModel = model;
+        if (apiKey) {
+          savedApiKeys[provider] = apiKey;
+        }
+
+        localStorage.setItem("mirag_provider", currentProvider);
+        localStorage.setItem("mirag_model", currentModel);
+        localStorage.setItem("mirag_api_keys", JSON.stringify(savedApiKeys));
+      } else {
+        const localSelect = document.getElementById("portal-setting-local-model-select");
+        const localModel = localSelect?.value || currentModel || "llama3.2:3b";
+
+        currentProvider = 'ollama';
+        currentModel = localModel;
+
+        localStorage.setItem("mirag_provider", currentProvider);
+        localStorage.setItem("mirag_model", currentModel);
       }
-
-      localStorage.setItem("mirag_provider", currentProvider);
-      localStorage.setItem("mirag_model", currentModel);
-      localStorage.setItem("mirag_api_keys", JSON.stringify(savedApiKeys));
 
       populateChatModelDropdown();
       closePortalSettingsModal();
@@ -1750,14 +1846,14 @@
         const data = await res.json();
         if (data.valid) {
           feedback.style.color = '#16a34a';
-          feedback.innerText = '✅ ' + data.message;
+          feedback.innerText = data.message;
         } else {
           feedback.style.color = '#dc2626';
-          feedback.innerText = '❌ ' + data.message;
+          feedback.innerText = data.message;
         }
       } catch (err) {
         feedback.style.color = '#dc2626';
-        feedback.innerText = '❌ Error: ' + err.message;
+        feedback.innerText = 'Error: ' + err.message;
       } finally {
         if (testBtn) testBtn.disabled = false;
       }
