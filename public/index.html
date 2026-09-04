@@ -1173,70 +1173,6 @@
       height: 52px;
     }
 
-    /* Skeleton Live Progress Bar Card (Neo-Brutalist) */
-    .sk-status-card {
-      margin-top: 1.5rem;
-      background: #0f1523;
-      border: 2.5px solid #000;
-      box-shadow: 5px 5px 0px #000;
-      border-radius: 8px;
-      padding: 0.85rem 1.25rem;
-      width: 100%;
-      max-width: 440px;
-    }
-
-    .sk-status-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.65rem;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.76rem;
-      font-weight: 800;
-      letter-spacing: 0.5px;
-      color: #94a3b8;
-    }
-
-    .sk-status-row .sk-indicator {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      background: #2be26c;
-      border-radius: 50%;
-      box-shadow: 0 0 8px #2be26c;
-      margin-right: 0.45rem;
-      animation: skPulse 0.8s ease-in-out infinite;
-    }
-
-    @keyframes skPulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.35; transform: scale(0.85); }
-    }
-
-    .sk-track {
-      width: 100%;
-      height: 12px;
-      background: #192033;
-      border: 1.5px solid #000;
-      border-radius: 6px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .sk-fill {
-      height: 100%;
-      width: 18%;
-      background: repeating-linear-gradient(
-        45deg,
-        #2be26c,
-        #2be26c 10px,
-        #22b856 10px,
-        #22b856 20px
-      );
-      transition: width 0.15s ease;
-      box-shadow: 0 0 10px rgba(43, 226, 108, 0.4);
-    }
-
     @media (max-width: 768px) {
       .neo-skeleton-screen { padding: 1.25rem; }
       .sk-header { margin-bottom: 2rem; }
@@ -1284,16 +1220,6 @@
       <div class="sk-actions">
         <div class="sk-el sk-btn-primary"></div>
         <div class="sk-el sk-btn-secondary"></div>
-      </div>
-
-      <div class="sk-status-card">
-        <div class="sk-status-row">
-          <span><span class="sk-indicator"></span>SYSTEM INIT // ASSETS COMPUTE</span>
-          <span id="sk-progress-pct">0%</span>
-        </div>
-        <div class="sk-track">
-          <div id="sk-progress-bar" class="sk-fill"></div>
-        </div>
       </div>
     </div>
   </div>
@@ -1559,40 +1485,23 @@
       });
     }
 
-    // Neo-Brutalist Skeleton Loader dismissal with dynamic progress
+    // Neo-Brutalist Skeleton Loader dismissal
     (function() {
       const loader = document.getElementById('neo-skeleton-loader');
-      const progressBar = document.getElementById('sk-progress-bar');
-      const progressPct = document.getElementById('sk-progress-pct');
       if (!loader) return;
 
-      let progress = 22;
-      const interval = setInterval(() => {
-        if (progress < 90) {
-          progress += Math.floor(Math.random() * 12) + 6;
-          if (progress > 90) progress = 90;
-          if (progressBar) progressBar.style.width = progress + '%';
-          if (progressPct) progressPct.innerText = progress + '%';
-        }
-      }, 35);
-
       function hideLoader() {
-        clearInterval(interval);
-        if (progressBar) progressBar.style.width = '100%';
-        if (progressPct) progressPct.innerText = '100%';
+        loader.classList.add('loaded');
         setTimeout(() => {
-          loader.classList.add('loaded');
-          setTimeout(() => {
-            if (loader.parentNode) loader.parentNode.removeChild(loader);
-          }, 400);
-        }, 120);
+          if (loader.parentNode) loader.parentNode.removeChild(loader);
+        }, 400);
       }
 
       if (document.readyState === 'complete') {
         hideLoader();
       } else {
         window.addEventListener('load', hideLoader);
-        setTimeout(hideLoader, 650); // High-speed fallback safety gate
+        setTimeout(hideLoader, 500); // Fallback safety timer
       }
     })();
   </script>
