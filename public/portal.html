@@ -1005,6 +1005,8 @@
           <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.95rem;"><strong>Click to Upload</strong>, <strong>Drag & Drop</strong>, or <strong>Paste (Ctrl+V)</strong></div>
           <div style="font-size: 0.78rem; color: #64748b; margin-top: 0.35rem;">Supports PNG, JPG, JPEG, WEBP • Math Sheets • Diagrams • Charts</div>
         </div>
+      </div>
+    </div>
   </div>
 
   <!-- AI Model Engine & Cloud API Settings Modal in Portal -->
@@ -1162,6 +1164,7 @@
         </button>
         <div class="session-badge" id="session-badge">Session: loading...</div>
       </div>
+      <div class="top-header-right">
         <div class="session-model-pill" style="display: flex; align-items: center; gap: 0.45rem; padding: 0.2rem 0.65rem;">
           <span class="provider-badge-icon" id="header-provider-badge">OLLAMA</span>
           <select id="chat-model-select" onchange="handleChatModelSelectChange()" style="background: transparent; color: #fff; border: none; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.8rem; cursor: pointer; outline: none; max-width: 175px;">
@@ -1355,8 +1358,6 @@
         document.getElementById('countdown-timer').innerText = `${hrs}:${mins}:${secs}`;
       }, 1000);
     }
-
-    loadSession();
 
     const chatForm = document.getElementById('chat-form');
     const userInput = document.getElementById('user-input');
@@ -2500,6 +2501,7 @@
       }
     }
     loadChatFromStorage();
+    loadSession();
 
     // Native Smooth Multi-User Figma Nametag Tracker with Contextual Hover
     const nameTag = document.getElementById('figma-nametag');
