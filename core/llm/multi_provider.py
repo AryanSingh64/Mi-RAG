@@ -353,23 +353,35 @@ class MultiProviderLLM:
 
         # 1. Local Ollama Fallback / Default
         if provider == "ollama" or not api_key:
-            with httpx.Client(timeout=timeout) as client:
-                messages = []
-                if system_prompt:
-                    messages.append({"role": "system", "content": system_prompt})
-                messages.append({"role": "user", "content": user_prompt})
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": user_prompt})
 
-                res = client.post(
-                    f"{ollama_url}/api/chat",
-                    json={
-                        "model": model_name,
-                        "messages": messages,
-                        "stream": False,
-                        "options": {"temperature": temperature}
-                    }
-                )
-                res.raise_for_status()
-                return res.json().get("message", {}).get("content", "").strip()
+            payload = {
+                "model": model_name,
+                "messages": messages,
+                "stream": False,
+                "options": {"temperature": temperature}
+            }
+
+            for attempt in range(2):
+                try:
+                    with httpx.Client(timeout=timeout) as client:
+                        res = client.post(f"{ollama_url}/api/chat", json=payload)
+                        if res.status_code == 200:
+                            return res.json().get("message", {}).get("content", "").strip()
+                        elif res.status_code == 500 and attempt == 0:
+                            import time
+                            time.sleep(1.2)
+                            continue
+                        res.raise_for_status()
+                except Exception as err:
+                    if attempt == 0 and "500" in str(err):
+                        import time
+                        time.sleep(1.2)
+                        continue
+                    raise err
 
         # 2. OpenAI
         if provider == "openai":

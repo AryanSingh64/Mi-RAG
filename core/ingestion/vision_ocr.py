@@ -11,6 +11,11 @@ import httpx
 from core.ingestion.base import BaseDocumentParser, ParsedDocument
 
 
+import threading
+
+_OLLAMA_VISION_SEMAPHORE = threading.Semaphore(1)
+
+
 class VisionImageParser(BaseDocumentParser):
     """
     Multimodal Multi-Model Image Parser.
@@ -103,8 +108,8 @@ class VisionImageParser(BaseDocumentParser):
             print(f"[*] OCR extraction: {e}")
             return ""
 
-    def _extract_from_single_vision_model(self, model_name: str, b64_image: str, timeout: float = 8.0) -> Optional[str]:
-        """Queries a single vision model with bounded fast token generation."""
+    def _extract_from_single_vision_model(self, model_name: str, b64_image: str, timeout: float = 25.0) -> Optional[str]:
+        """Queries a single vision model with bounded token generation and serial GPU access."""
         resolved_model = self._resolve_vision_model(model_name)
         if not resolved_model:
             # Model not installed locally, immediately use OCR without stalling
@@ -113,10 +118,11 @@ class VisionImageParser(BaseDocumentParser):
         print(f"[*] Processing with Vision Model: {resolved_model} (timeout={timeout}s)...")
 
         prompt = (
-            "Analyze this image: "
-            "1. Transcribe all text, numbers, brands, or words exactly as written. "
-            "2. Describe colors, visual layout, and graphic style. "
-            "3. State what this image represents."
+            "Analyze this visual document/image thoroughly and objectively:\n"
+            "1. SUBJECT & SCENE: State who or what is depicted (e.g., person/model portrait, landscape, diagram, artwork, object). Describe their pose, appearance, clothing or drapery, and expression.\n"
+            "2. COMPOSITION & COLORS: Detail the visual composition, framing, background (e.g., textures, seamless paper, curtains, props), lighting style, and dominant color palette (e.g., pastel pink, light green, warm tones).\n"
+            "3. NOTABLE DETAILS & STYLE: What makes this image visually unique, special, or aesthetic (mood, artistic style, materials)?\n"
+            "4. VISIBLE TEXT & NUMBERS: Transcribe any visible titles, names, calendar dates, numbers, and brand logos verbatim."
         )
 
         payload = {
@@ -128,47 +134,42 @@ class VisionImageParser(BaseDocumentParser):
             "options": {
                 "num_gpu": 99,
                 "num_thread": os.cpu_count() or 8,
-                "num_predict": 180,
+                "num_predict": 260,
                 "temperature": 0.1
             }
         }
 
-        try:
-            with httpx.Client(timeout=timeout) as client:
-                res = client.post(f"{self.ollama_url}/api/generate", json=payload)
-                if res.status_code == 200:
-                    description = res.json().get("response", "").strip()
-                    if len(description) > 5:
-                        print(f"[*] {resolved_model} extracted description ({len(description)} chars)")
-                        return description
+        with _OLLAMA_VISION_SEMAPHORE:
+            try:
+                with httpx.Client(timeout=timeout) as client:
+                    res = client.post(f"{self.ollama_url}/api/generate", json=payload)
+                    if res.status_code == 200:
+                        description = res.json().get("response", "").strip()
+                        if len(description) > 5:
+                            print(f"[*] {resolved_model} extracted description ({len(description)} chars)")
+                            return description
+                        else:
+                            return None
                     else:
                         return None
-                else:
-                    return None
-        except Exception:
-            # Silent fallback to local OCR without freezing
-            return None
+            except Exception:
+                # Silent fallback to local OCR without freezing
+                return None
         return None
 
     def _extract_all_vision_descriptions(self, b64_image: str) -> List[tuple[str, str]]:
-        """Runs all selected vision models in parallel for minimum latency."""
+        """Runs selected vision models with serial GPU protection for minimum latency."""
         if not self.vision_models:
             return []
 
         results = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(self.vision_models), 3)) as executor:
-            future_to_model = {
-                executor.submit(self._extract_from_single_vision_model, model, b64_image, 8.0): model
-                for model in self.vision_models
-            }
-            for future in concurrent.futures.as_completed(future_to_model):
-                model_name = future_to_model[future]
-                try:
-                    desc = future.result()
-                    if desc:
-                        results.append((model_name, desc))
-                except Exception:
-                    pass
+        for model in self.vision_models:
+            try:
+                desc = self._extract_from_single_vision_model(model, b64_image, timeout=25.0)
+                if desc:
+                    results.append((model, desc))
+            except Exception:
+                pass
 
         return results
 

@@ -142,6 +142,7 @@ class PdfDocumentParser(BaseDocumentParser):
 
             # 1. Native Digital Text (Instant extraction)
             native_text = (page.get_text() or "").strip()
+            is_visual_doc_page = len(native_text) < 120
 
             # 2. Detect & Crop Genuine Images/Figures (Only isolated real figures)
             image_regions = DiagramDetector.detect_diagram_regions(page)[:2]
@@ -167,6 +168,17 @@ class PdfDocumentParser(BaseDocumentParser):
                             f"[IMAGE / FIGURE: {caption}]",
                             f"[Image URL: {img_url}]"
                         ]
+
+                        # Deep vision analysis for visual-dominant / true-image pages
+                        if is_visual_doc_page and self.vision_parser and hasattr(self.vision_parser, "describe_and_ocr_image"):
+                            try:
+                                vis_res = self.vision_parser.describe_and_ocr_image(target_path)
+                                vis_desc = vis_res.get("description", "").strip()
+                                if vis_desc:
+                                    img_block.append(f"[Visual Scene, Composition & Details Analysis]:\n{vis_desc}")
+                            except Exception:
+                                pass
+
                         page_sections.append("\n".join(img_block))
                     except Exception:
                         pass
@@ -187,9 +199,11 @@ class PdfDocumentParser(BaseDocumentParser):
                         pix = page.get_pixmap(dpi=140)
                         pix.save(str(target_path), jpg_quality=90)
                         page_image_urls.append(img_url)
-                        page_sections.append(
-                            f"[IMAGE / FIGURE: Page {p_idx} Visual Document / Photo]\n[Image URL: {img_url}]"
-                        )
+                        
+                        full_img_block = [
+                            f"[IMAGE / FIGURE: Page {p_idx} Visual Document / Photo]",
+                            f"[Image URL: {img_url}]"
+                        ]
 
                         # Multimodal Vision Model scene description for image-only/sparse pages
                         if self.vision_parser and hasattr(self.vision_parser, "describe_and_ocr_image"):
@@ -197,9 +211,11 @@ class PdfDocumentParser(BaseDocumentParser):
                                 vis_res = self.vision_parser.describe_and_ocr_image(target_path)
                                 vis_desc = vis_res.get("description", "").strip()
                                 if vis_desc:
-                                    page_sections.append(f"[Visual Description of Page {p_idx} Image]:\n{vis_desc}")
+                                    full_img_block.append(f"[Visual Scene, Composition & Details Analysis of Page {p_idx}]:\n{vis_desc}")
                             except Exception:
                                 pass
+
+                        page_sections.append("\n".join(full_img_block))
                     except Exception:
                         pass
 
