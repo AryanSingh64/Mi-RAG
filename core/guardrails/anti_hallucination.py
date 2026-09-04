@@ -162,11 +162,13 @@ class AntiHallucinationEngine:
             "ANSWER QUALITY & CONVERSATIONAL MEMORY DIRECTIVES:\n"
             "1. Deliver a DIRECT, FINISHED, and WELL-STRUCTURED answer that directly addresses what the user asked.\n"
             "2. CONVERSATION MEMORY: Use prior conversation turns to resolve pronouns (e.g. 'it', 'this', 'that', 'they', 'the previous method'). Maintain smooth conversational continuity.\n"
-            "3. NEVER output raw internal labels, headers, or debug tags like '[Exact OCR Extracted Text]', '[Vision Model Analysis]', '[Image URL: ...]', or '[Source Document: ...]'. Speak naturally as an expert assistant.\n"
+            "3. NEVER output raw internal labels, headers, or debug tags like '[Exact OCR Extracted Text]', '[Vision Model Analysis]', '[Image URL: ...]', or '[Source Document: ...]'. If presenting an image from the document, convert the URL into standard Markdown syntax: `![Caption](<url>)`. Speak naturally as an expert assistant.\n"
             "4. If explaining a diagram, chart, formula, or artwork, explain its meaning, key components, comparison results, and takeaways in clean, polished prose.\n"
             "5. Use clear Markdown (bold headers, bullet points, and clean paragraphs) so your answer is professional and easy to read.\n"
             "6. Answer ONLY using the factual context provided. Do NOT hallucinate facts not in the context. If something is missing, state clearly that it is not present in the uploaded documents.\n"
-            "7. MATHEMATICAL & SCIENTIFIC SYMBOLS: Use clean LaTeX math delimiters for formulas, tolerances, and scientific quantities (e.g. `$1.25 \\pm 0.80$ cm`, `$\\times$`, `$\\approx$`, `$\\le$`, `$\\ge$`, `$\\alpha$`, `$\\beta$`, `$$ E = mc^2 $$`) so math renders crisply."
+            "7. MATHEMATICAL & SCIENTIFIC SYMBOLS: Use clean LaTeX math delimiters for formulas, tolerances, and scientific quantities (e.g. `$1.25 \\pm 0.80$ cm`, `$\\times$`, `$\\approx$`, `$\\le$`, `$\\ge$`, `$\\alpha$`, `$\\beta$`, `$$ E = mc^2 $$`) so math renders crisply.\n"
+            "8. VISUAL MEDIA & IMAGE CITATION: If the context contains an image URL (e.g., `[Image URL: /api/sessions/.../images/filename.jpg]`) and the user asks to see an image, photo, figure, diagram, or character from the document, you MUST include the Markdown image link: `![Description](<url>)` in your response so the user can view it immediately. Never claim that you cannot display images when an image URL is present in the context.\n"
+            "9. ANTI-FABRICATION FOR SPARSE/CALENDAR/IMAGE PAGES: If the retrieved document excerpts consist of calendar dates, numbers, sparse words, or visual photos, DO NOT invent or fabricate fictional stories, cartoon characters, animals in clothes, or unmentioned personas. If the user asks 'what is this' or 'what is in this document', state accurately that it is a calendar / visual photo collection, describe the verified textual or visual elements, and cite the image URL using markdown."
         )
 
     def build_user_prompt(

@@ -1535,11 +1535,17 @@
         });
         const session = await sessionRes.json();
         const sessionId = session.session_id;
+        const sessionToken = session.session_token || '';
+        if (sessionToken) {
+          sessionStorage.setItem('mirag_token_' + sessionId, sessionToken);
+        }
 
         // Start live server progress polling
         pollInterval = setInterval(async () => {
           try {
-            const pRes = await fetch(`/api/sessions/${sessionId}/progress`);
+            const pRes = await fetch(`/api/sessions/${sessionId}/progress`, {
+              headers: sessionToken ? { 'X-Session-Token': sessionToken } : {}
+            });
             if (pRes.ok) {
               const pData = await pRes.json();
               if (pData.status === "processing") {
@@ -1572,7 +1578,12 @@
             fd.append('end_page', eVal);
           }
           
-          const uploadRes = await fetch(`/api/sessions/${sessionId}/upload`, { method: 'POST', body: fd });
+          const uploadHeaders = sessionToken ? { 'X-Session-Token': sessionToken } : {};
+          const uploadRes = await fetch(`/api/sessions/${sessionId}/upload`, {
+            method: 'POST',
+            headers: uploadHeaders,
+            body: fd
+          });
           const uploadData = await uploadRes.json();
           
           if (uploadData.error) {
@@ -1583,7 +1594,7 @@
         if (pollInterval) clearInterval(pollInterval);
         updateProgress(100, "Knowledge Base Ready", "100%");
         resultBox.style.display = 'block';
-        portalLink.href = `/portal/${sessionId}`;
+        portalLink.href = `/portal/${sessionId}${sessionToken ? `?token=${encodeURIComponent(sessionToken)}` : ''}`;
         buildBtn.disabled = false;
       } catch (err) {
         if (pollInterval) clearInterval(pollInterval);

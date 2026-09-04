@@ -44,6 +44,11 @@ class DiagramDetector:
                 b_rect = fitz.Rect(b[:4])
                 caption_blocks.append((b_rect, text))
 
+        page_rect = page.rect
+        page_area = page_rect.width * page_rect.height
+        native_page_text = (page.get_text() or "").strip()
+        is_sparse_text_page = len(native_page_text) < 120
+
         # 2. Collect genuine standalone image bounding boxes
         img_info_list = page.get_image_info(xrefs=True)
         img_rects = []
@@ -63,8 +68,9 @@ class DiagramDetector:
                 if aspect > 6.0 or aspect < 0.15:
                     continue
 
-                # 3. Skip full-page background slide templates (area > 80%)
-                if area_pct > 80.0:
+                # 3. Skip full-page background slide templates (area > 80%) ONLY if the page has dense digital text
+                # For magazines, catalogs, photos, and scanned slides, full-page images are PRIMARY content!
+                if area_pct > 80.0 and not is_sparse_text_page:
                     continue
 
                 # 4. Skip tiny footer icons that touch bottom 8%
@@ -106,12 +112,18 @@ class PdfDocumentParser(BaseDocumentParser):
     with page relations and rich semantic captions for 100% accurate RAG retrieval.
     """
 
-    def __init__(self, output_images_dir: Optional[Path] = None, session_id: Optional[str] = None):
+    def __init__(
+        self,
+        output_images_dir: Optional[Path] = None,
+        session_id: Optional[str] = None,
+        vision_parser: Optional[Any] = None
+    ):
         self.ocr_engine = None
         self.output_images_dir = Path(output_images_dir) if output_images_dir else None
         if self.output_images_dir:
             self.output_images_dir.mkdir(parents=True, exist_ok=True)
         self.session_id = session_id
+        self.vision_parser = vision_parser
 
     def _get_ocr(self):
         if self.ocr_engine is None:
@@ -156,6 +168,38 @@ class PdfDocumentParser(BaseDocumentParser):
                             f"[Image URL: {img_url}]"
                         ]
                         page_sections.append("\n".join(img_block))
+                    except Exception:
+                        pass
+
+            # Fallback for scanned slides, catalogs, posters, and image-heavy pages
+            # If no bounded diagram was detected, but the page contains embedded images or is text-sparse:
+            raw_page_images = page.get_images()
+            if not image_regions and (raw_page_images or len(native_text) < 60):
+                visual_filename = f"{clean_stem}_p{p_idx}_visual.jpg"
+                img_url = (
+                    f"/api/sessions/{self.session_id}/images/{visual_filename}"
+                    if self.session_id
+                    else f"/images/{visual_filename}"
+                )
+                if self.output_images_dir:
+                    target_path = self.output_images_dir / visual_filename
+                    try:
+                        pix = page.get_pixmap(dpi=140)
+                        pix.save(str(target_path), jpg_quality=90)
+                        page_image_urls.append(img_url)
+                        page_sections.append(
+                            f"[IMAGE / FIGURE: Page {p_idx} Visual Document / Photo]\n[Image URL: {img_url}]"
+                        )
+
+                        # Multimodal Vision Model scene description for image-only/sparse pages
+                        if self.vision_parser and hasattr(self.vision_parser, "describe_and_ocr_image"):
+                            try:
+                                vis_res = self.vision_parser.describe_and_ocr_image(target_path)
+                                vis_desc = vis_res.get("description", "").strip()
+                                if vis_desc:
+                                    page_sections.append(f"[Visual Description of Page {p_idx} Image]:\n{vis_desc}")
+                            except Exception:
+                                pass
                     except Exception:
                         pass
 

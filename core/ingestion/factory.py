@@ -25,10 +25,6 @@ class DocumentParserFactory:
 
         self._text_parser = TextDocumentParser()
         self._docx_parser = DocxDocumentParser()
-        self._pdf_parser = PdfDocumentParser(
-            output_images_dir=self.output_images_dir,
-            session_id=self.session_id
-        )
         self._image_parser = VisionImageParser(
             vision_models=self.vision_models,
             output_images_dir=self.output_images_dir,
@@ -36,6 +32,11 @@ class DocumentParserFactory:
         )
         self.vision_parser = self._image_parser
         self.image_parser = self._image_parser
+        self._pdf_parser = PdfDocumentParser(
+            output_images_dir=self.output_images_dir,
+            session_id=self.session_id,
+            vision_parser=self._image_parser
+        )
 
     def parse_file(
         self,

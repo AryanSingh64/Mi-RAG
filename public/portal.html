@@ -1147,11 +1147,17 @@
     const pathParts = window.location.pathname.split('/');
     const sessionId = pathParts[pathParts.length - 1];
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionToken = urlParams.get('token') || sessionStorage.getItem('mirag_token_' + sessionId) || '';
+    if (sessionToken) {
+      sessionStorage.setItem('mirag_token_' + sessionId, sessionToken);
+    }
+
     const sessionBadge = document.getElementById('session-badge');
     if (sessionBadge) sessionBadge.innerText = `Session: ${sessionId}`;
 
     const downloadZipBtn = document.getElementById('download-zip-btn');
-    if (downloadZipBtn) downloadZipBtn.href = `/api/sessions/${sessionId}/export`;
+    if (downloadZipBtn) downloadZipBtn.href = `/api/sessions/${sessionId}/export${sessionToken ? `?token=${encodeURIComponent(sessionToken)}` : ''}`;
 
     let timeRemaining = 0;
     let currentAttachedFile = null;
@@ -1192,7 +1198,10 @@
     async function clearMemory() {
       if (!confirm("Are you sure you want to reset conversation memory for this session?")) return;
       try {
-        await fetch(`/api/sessions/${sessionId}/clear_memory`, { method: 'POST' });
+        await fetch(`/api/sessions/${sessionId}/clear_memory`, {
+          method: 'POST',
+          headers: sessionToken ? { 'X-Session-Token': sessionToken } : {}
+        });
       } catch (err) {
         console.warn("Memory clearance warning:", err);
       }
@@ -1205,7 +1214,9 @@
 
     async function loadSession() {
       try {
-        const res = await fetch(`/api/sessions/${sessionId}`);
+        const res = await fetch(`/api/sessions/${sessionId}`, {
+          headers: sessionToken ? { 'X-Session-Token': sessionToken } : {}
+        });
         if (!res.ok) throw new Error("Session expired");
         const data = await res.json();
         timeRemaining = data.time_remaining_seconds;
@@ -1294,6 +1305,14 @@
       formatted = formatted.replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>');
 
       formatted = formatted.replace(/\n\n+/g, '<br><br>').replace(/\n/g, '<br>');
+
+      // Markdown Images
+      formatted = formatted.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => {
+        const fullUrl = (typeof sessionToken !== 'undefined' && sessionToken && !url.includes('token='))
+          ? (url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(sessionToken))
+          : url;
+        return `<div class="msg-image-wrap" style="margin: 0.6rem 0;"><img src="${fullUrl}" alt="${escapeHtml(alt)}" style="max-width: 100%; max-height: 380px; border: 2.5px solid #000; border-radius: 6px; box-shadow: 3px 3px 0px #000; cursor: pointer; display: block;" onclick="openImageModal('${fullUrl}', '${escapeHtml(alt)}')"><div style="font-size: 0.74rem; font-weight: 800; color: #475569; margin-top: 0.35rem; font-family: 'Space Grotesk', sans-serif;">${escapeHtml(alt)}</div></div>`;
+      });
 
       inlineCodes.forEach((ic, i) => { formatted = formatted.replace(`__INLINE_CODE_${i}__`, ic); });
       codeBlocks.forEach((cb, i) => { formatted = formatted.replace(`__CODE_BLOCK_${i}__`, cb); });
@@ -1519,14 +1538,18 @@
           fd.append('provider', currentProvider);
           if (currentModel) fd.append('model', currentModel);
           if (activeKey) fd.append('api_key', activeKey);
+          const headers = sessionToken ? { 'X-Session-Token': sessionToken } : {};
           res = await fetch(`/api/sessions/${sessionId}/chat`, {
             method: 'POST',
+            headers: headers,
             body: fd
           });
         } else {
+          const headers = { 'Content-Type': 'application/json' };
+          if (sessionToken) headers['X-Session-Token'] = sessionToken;
           res = await fetch(`/api/sessions/${sessionId}/chat`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify({
               message: effectiveMessage,
               top_k: 6,
@@ -1558,15 +1581,17 @@
         let visualGalleryHtml = '';
         if (data.images && data.images.length > 0) {
           visualGalleryHtml = '<div class="visual-gallery"><div class="visual-gallery-title">Visual Evidence / Diagrams:</div><div class="visual-grid">' +
-            data.images.map(img => `
-              <div class="visual-card" onclick="openImageModal('${img.url}', 'Extracted from ${img.source_file}')">
-                <img src="${img.url}" alt="${img.filename}" loading="lazy">
+            data.images.map(img => {
+              const displayUrl = sessionToken ? `${img.url}${img.url.includes('?') ? '&' : '?'}token=${encodeURIComponent(sessionToken)}` : img.url;
+              return `
+              <div class="visual-card" onclick="openImageModal('${displayUrl}', 'Extracted from ${img.source_file}')">
+                <img src="${displayUrl}" alt="${img.filename}" loading="lazy">
                 <div class="visual-card-info">
                   <span>${img.source_file}</span>
                   <span style="color:var(--yellow);">${img.relevance}%</span>
                 </div>
               </div>
-            `).join('') + '</div></div>';
+            `;}).join('') + '</div></div>';
         }
 
         let citationsHtml = '';

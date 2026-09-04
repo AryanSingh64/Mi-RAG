@@ -187,11 +187,12 @@ def create_session(req: CreateSessionRequest):
     print(f"\n[SESSION CREATED] ID: {session.session_id} | Model: {session.model_name} | Vision: {models_to_use} | Embedder: {session.embedding_model}")
     return {
         "session_id": session.session_id,
+        "session_token": session.session_token,
         "model_name": session.model_name,
         "embedding_model": session.embedding_model,
         "expires_at": session.expires_at,
         "time_remaining_seconds": session.time_remaining_seconds,
-        "portal_url": f"/portal/{session.session_id}"
+        "portal_url": f"/portal/{session.session_id}?token={session.session_token}"
     }
 
 
@@ -525,6 +526,7 @@ def clear_session_memory(session_id: str):
 
 
 @router.get("/sessions/{session_id}/images/{filename}")
+@router.get("/sessions/{session_id}/diagrams/{filename}")
 def get_session_image(session_id: str, filename: str):
     """Serves an extracted diagram or image snippet from the session knowledge base."""
     session = session_manager.get_session(session_id)
