@@ -51,12 +51,12 @@ class DocumentParserFactory:
         ext = path.suffix.lower()
 
         if ext in [".txt", ".md", ".csv", ".json", ".log"]:
-            return self._text_parser.parse(path, progress_callback=progress_callback)
+            return self._text_parser.parse(path, start_page=start_page, end_page=end_page, progress_callback=progress_callback)
         elif ext in [".docx"]:
-            return self._docx_parser.parse(path, progress_callback=progress_callback)
+            return self._docx_parser.parse(path, start_page=start_page, end_page=end_page, progress_callback=progress_callback)
         elif ext in [".pdf"]:
             return self._pdf_parser.parse(path, start_page=start_page, end_page=end_page, progress_callback=progress_callback)
         elif ext in [".png", ".jpg", ".jpeg", ".webp", ".bmp"]:
             return self._image_parser.parse(path, progress_callback=progress_callback)
         else:
-            return self._text_parser.parse(path, progress_callback=progress_callback)
+            return self._text_parser.parse(path, start_page=start_page, end_page=end_page, progress_callback=progress_callback)

@@ -1,4 +1,6 @@
+import io
 import json
+import math
 import shutil
 import uuid
 from pathlib import Path
@@ -214,6 +216,83 @@ def get_session_progress(session_id: str):
     return session_manager.get_progress(session_id)
 
 
+@router.post("/documents/inspect")
+async def inspect_document(file: UploadFile = File(...)):
+    """
+    Super-fast inspection of document metadata (exact or estimated page count, document type).
+    Rejects unsupported audio/video formats.
+    """
+    name = (file.filename or "").lower()
+    ext = Path(name).suffix
+
+    # 1. Reject audio/video files
+    AUDIO_VIDEO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".wma", ".mp4", ".mov", ".avi", ".mkv", ".webm", ".wmv", ".m4v"}
+    if ext in AUDIO_VIDEO_EXTS:
+        raise HTTPException(
+            status_code=400,
+            detail="Audio and video files (mp3, mp4, etc.) are not supported. Please upload documents (PDF, DOCX, TXT, MD, CSV, JSON) or images."
+        )
+
+    # 2. Check if image
+    IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".svg", ".tiff"}
+    if ext in IMAGE_EXTS:
+        return {
+            "filename": file.filename,
+            "pages": 1,
+            "is_image": True,
+            "file_type": "image"
+        }
+
+    # 3. Read stream bytes into memory
+    content = await file.read()
+    pages = 1
+
+    try:
+        if ext == ".pdf":
+            try:
+                import fitz
+                doc = fitz.open(stream=content, filetype="pdf")
+                pages = max(1, len(doc))
+                doc.close()
+            except Exception:
+                try:
+                    from pypdf import PdfReader
+                    reader = PdfReader(io.BytesIO(content))
+                    pages = max(1, len(reader.pages))
+                except Exception:
+                    pages = max(1, round(len(content) / (100 * 1024)))
+        elif ext == ".docx":
+            try:
+                import docx
+                doc = docx.Document(io.BytesIO(content))
+                words = sum(len(p.text.split()) for p in doc.paragraphs)
+                for t in doc.tables:
+                    for row in t.rows:
+                        words += sum(len(c.text.split()) for c in row.cells)
+                pages = max(1, math.ceil(words / 450)) if words > 0 else max(1, math.ceil(len(doc.paragraphs) / 15))
+            except Exception:
+                pages = max(1, round(len(content) / 25000))
+        elif ext in [".txt", ".md", ".csv", ".json", ".log", ".py", ".html", ".js"]:
+            try:
+                text = content.decode("utf-8", errors="replace")
+            except Exception:
+                text = content.decode("latin-1", errors="replace")
+            lines = text.splitlines()
+            chars = len(text)
+            pages = max(1, max(math.ceil(chars / 3000), math.ceil(len(lines) / 55)))
+        else:
+            pages = max(1, round(len(content) / 3000))
+    except Exception:
+        pages = 1
+
+    return {
+        "filename": file.filename,
+        "pages": pages,
+        "is_image": False,
+        "file_type": ext.lstrip(".")
+    }
+
+
 @router.post("/sessions/{session_id}/upload")
 async def upload_document(
     session_id: str,
@@ -226,6 +305,14 @@ async def upload_document(
     session = session_manager.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session expired or not found.")
+
+    ext = Path(file.filename or "").suffix.lower()
+    AUDIO_VIDEO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".wma", ".mp4", ".mov", ".avi", ".mkv", ".webm", ".wmv", ".m4v"}
+    if ext in AUDIO_VIDEO_EXTS:
+        raise HTTPException(
+            status_code=400,
+            detail="Audio and video files (mp3, mp4, etc.) are not supported. Please upload documents (PDF, DOCX, TXT, MD, CSV, JSON) or images."
+        )
 
     file_path = session.uploads_dir / file.filename
     with open(file_path, "wb") as buffer:

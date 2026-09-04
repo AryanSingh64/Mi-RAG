@@ -828,7 +828,7 @@
 
           <div class="input-group" style="grid-column: span 2;">
             <div class="label-row">
-              <label class="label">Vision OCR Models (Multi-Model Combined Ensemble)</label>
+              <label class="label">Vision OCR Models</label>
             </div>
             <div class="checkbox-chips-grid" id="vision-checkbox-group">
               <label class="model-chip"><input type="checkbox" value="moondream" checked> moondream:latest <span class="chip-badge badge-rec">PERFECT</span></label>
@@ -838,8 +838,8 @@
 
         <div class="dropzone" id="dropzone">
           <div class="drop-title">Drop your documents, PDFs, or photos here</div>
-          <div class="drop-sub">Supports PDF, DOCX, TXT, MD, CSV, PNG, JPG (with RapidOCR + Vision)</div>
-          <input type="file" id="file-input" multiple style="display: none;">
+          <div class="drop-sub">Supports PDF, DOCX, TXT, MD, CSV, PNG, JPG</div>
+          <input type="file" id="file-input" multiple accept=".pdf,.docx,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.webp,.bmp" style="display: none;">
         </div>
 
         <div class="file-list" id="file-list"></div>
@@ -851,11 +851,11 @@
               <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 900; font-size: 0.92rem; color: #0f172a;">Page Analysis Range</span>
               <span id="range-badge" style="font-size: 0.72rem; font-weight: 800; background: var(--yellow); color: #000; padding: 0.15rem 0.5rem; border: 1.5px solid #000; border-radius: 4px; box-shadow: 1px 1px 0px #000;">FULL DOCUMENT</span>
             </div>
-            <!-- Quick Preset Pills -->
-            <div style="display: flex; gap: 0.35rem; align-items: center;">
+            <!-- Quick Preset Pills (Dynamically Adjusted to Document Page Count) -->
+            <div id="preset-buttons-container" style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
               <button type="button" onclick="setPagePreset('all')" class="btn-preset active" id="preset-all" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; font-weight: 800; border: 1.5px solid #000; border-radius: 4px; cursor: pointer; background: #000; color: #fff;">All Pages</button>
+              <button type="button" onclick="setPagePreset('25')" class="btn-preset" id="preset-25" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; font-weight: 800; border: 1.5px solid #000; border-radius: 4px; cursor: pointer; background: #fff; color: #000;">First 25</button>
               <button type="button" onclick="setPagePreset('50')" class="btn-preset" id="preset-50" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; font-weight: 800; border: 1.5px solid #000; border-radius: 4px; cursor: pointer; background: #fff; color: #000;">First 50</button>
-              <button type="button" onclick="setPagePreset('100')" class="btn-preset" id="preset-100" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; font-weight: 800; border: 1.5px solid #000; border-radius: 4px; cursor: pointer; background: #fff; color: #000;">First 100</button>
               <button type="button" onclick="setPagePreset('custom')" class="btn-preset" id="preset-custom" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; font-weight: 800; border: 1.5px solid #000; border-radius: 4px; cursor: pointer; background: #fff; color: #000;">Custom</button>
             </div>
           </div>
@@ -865,15 +865,15 @@
             <div>
               <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #475569; margin-bottom: 0.25rem;">START PAGE (From Front):</label>
               <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <input type="number" id="input-start-page" min="1" value="1" oninput="syncPageSliders('start_input')" style="width: 75px; padding: 0.35rem 0.5rem; border: 2px solid #000; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 0.85rem; background: #f8fafc;">
-                <input type="range" id="slider-start-page" min="1" max="2695" value="1" oninput="syncPageSliders('start_slider')" style="flex: 1; accent-color: #000; cursor: pointer;">
+                <input type="number" id="input-start-page" min="1" max="1" value="1" oninput="syncPageSliders('start_input')" style="width: 75px; padding: 0.35rem 0.5rem; border: 2px solid #000; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 0.85rem; background: #f8fafc;">
+                <input type="range" id="slider-start-page" min="1" max="1" value="1" oninput="syncPageSliders('start_slider')" style="flex: 1; accent-color: #000; cursor: pointer;">
               </div>
             </div>
             <div>
               <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #475569; margin-bottom: 0.25rem;">END PAGE (From Back):</label>
               <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <input type="number" id="input-end-page" min="1" value="2695" oninput="syncPageSliders('end_input')" style="width: 75px; padding: 0.35rem 0.5rem; border: 2px solid #000; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 0.85rem; background: #f8fafc;">
-                <input type="range" id="slider-end-page" min="1" max="2695" value="2695" oninput="syncPageSliders('end_slider')" style="flex: 1; accent-color: #000; cursor: pointer;">
+                <input type="number" id="input-end-page" min="1" max="1" value="1" oninput="syncPageSliders('end_input')" style="width: 75px; padding: 0.35rem 0.5rem; border: 2px solid #000; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 0.85rem; background: #f8fafc;">
+                <input type="range" id="slider-end-page" min="1" max="1" value="1" oninput="syncPageSliders('end_slider')" style="flex: 1; accent-color: #000; cursor: pointer;">
               </div>
             </div>
           </div>
@@ -1184,6 +1184,19 @@
     });
 
     let selectedFiles = [];
+    let currentPresetMode = 'all';
+
+    function isAudioVideoFile(name) {
+      const ext = (name || '').toLowerCase().slice(name.lastIndexOf('.'));
+      const list = ['.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg', '.wma', '.mp4', '.mov', '.avi', '.mkv', '.webm', '.wmv', '.m4v', '.3gp'];
+      return list.includes(ext);
+    }
+
+    function isImageFile(name) {
+      const ext = (name || '').toLowerCase().slice(name.lastIndexOf('.'));
+      const list = ['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif', '.svg', '.tiff'];
+      return list.includes(ext);
+    }
 
     dropzone.addEventListener('click', () => fileInput.click());
     dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
@@ -1196,65 +1209,223 @@
 
     fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
-    function handleFiles(files) {
-      for (let f of files) { selectedFiles.push(f); }
+    async function handleFiles(files) {
+      let hasAudioVideo = false;
+      const validFiles = [];
+
+      for (let f of files) {
+        if (isAudioVideoFile(f.name)) {
+          hasAudioVideo = true;
+          continue;
+        }
+        f._isImage = isImageFile(f.name);
+        f._pageCount = f._isImage ? 1 : 1;
+        validFiles.push(f);
+      }
+
+      if (hasAudioVideo) {
+        alert("Audio and video files (MP3, MP4, etc.) are not supported. Please upload documents (PDF, DOCX, TXT, MD, CSV, JSON) or images.");
+      }
+
+      for (let f of validFiles) {
+        selectedFiles.push(f);
+        countFilePagesFast(f);
+      }
+
       renderFileList();
+      refreshPageRangeUI();
+    }
+
+    async function countFilePagesFast(file) {
+      if (file._isImage) {
+        file._pageCount = 1;
+        renderFileList();
+        refreshPageRangeUI();
+        return;
+      }
+
+      const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+
+      // 1. Text-based documents: parsed in-memory instantly in < 2ms
+      if (['.txt', '.md', '.csv', '.json', '.log', '.py', '.html', '.js'].includes(ext)) {
+        try {
+          const text = await file.text();
+          const lines = text.split('\n').length;
+          const chars = text.length;
+          file._pageCount = Math.max(1, Math.max(Math.ceil(chars / 3000), Math.ceil(lines / 55)));
+          renderFileList();
+          refreshPageRangeUI();
+          return;
+        } catch (e) {}
+      }
+
+      // 2. PDF & DOCX: Instant initial estimate to keep UI snappy
+      if (ext === '.pdf') {
+        file._pageCount = Math.max(1, Math.round(file.size / (110 * 1024)));
+      } else if (ext === '.docx') {
+        file._pageCount = Math.max(1, Math.round(file.size / 25000));
+      }
+      renderFileList();
+      refreshPageRangeUI();
+
+      // 3. Super-fast backend inspection endpoint for exact PyMuPDF/docx page count
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/documents/inspect', { method: 'POST', body: fd });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && typeof data.pages === 'number' && data.pages >= 1) {
+            file._pageCount = data.pages;
+            renderFileList();
+            refreshPageRangeUI();
+            return;
+          }
+        }
+      } catch (err) {
+        // Fallback for static demo environments (e.g. pure Vercel preview)
+        if (ext === '.pdf') {
+          tryScanPdfClientSide(file);
+        }
+      }
+    }
+
+    async function tryScanPdfClientSide(file) {
+      try {
+        const slice = file.slice(0, Math.min(file.size, 262144));
+        const text = await slice.text();
+        const matches = text.match(/\/Count\s+(\d+)/g);
+        if (matches && matches.length > 0) {
+          const nums = matches.map(m => parseInt(m.replace(/\D/g, ''))).filter(n => !isNaN(n));
+          if (nums.length > 0) {
+            file._pageCount = Math.max(...nums);
+            renderFileList();
+            refreshPageRangeUI();
+          }
+        }
+      } catch(e) {}
     }
 
     function renderFileList() {
-      fileList.innerHTML = selectedFiles.map((f, idx) => `
-        <div class="file-item" style="display: flex; justify-content: space-between; align-items: center;">
-          <span>${f.name} (${(f.size/1024).toFixed(1)} KB)</span>
-          <div style="display: flex; gap: 0.4rem; align-items: center;">
-            <span class="file-tag">${f.name.split('.').pop().toUpperCase()}</span>
-            <button type="button" onclick="removeFile(${idx})" style="background: none; border: none; font-weight: 800; cursor: pointer; color: #ef4444; font-size: 0.9rem;">✕</button>
+      fileList.innerHTML = selectedFiles.map((f, idx) => {
+        const ext = f.name.split('.').pop().toUpperCase();
+        const pageLabel = f._isImage ? 'IMAGE' : `${f._pageCount || 1}p`;
+        return `
+          <div class="file-item" style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 700; color: #0f172a;">${f.name} (${(f.size/1024).toFixed(1)} KB)</span>
+            <div style="display: flex; gap: 0.4rem; align-items: center;">
+              <span class="file-tag">${ext} • ${pageLabel}</span>
+              <button type="button" onclick="removeFile(${idx})" style="background: none; border: none; font-weight: 800; cursor: pointer; color: #ef4444; font-size: 0.9rem;">✕</button>
+            </div>
           </div>
-        </div>
-      `).join('');
-
-      const hasPdf = selectedFiles.some(f => f.name.toLowerCase().endsWith('.pdf'));
-      const rangeBox = document.getElementById('page-range-container');
-      if (rangeBox) {
-        rangeBox.style.display = hasPdf ? 'block' : 'none';
-        updateRangeSummary();
-      }
+        `;
+      }).join('');
     }
 
-    window.removeFile = function(idx) {
-      selectedFiles.splice(idx, 1);
-      renderFileList();
-    };
+    function refreshPageRangeUI() {
+      const nonImageDocs = selectedFiles.filter(f => !f._isImage);
+      const rangeBox = document.getElementById('page-range-container');
+      if (!rangeBox) return;
 
-    let currentPresetMode = 'all';
-
-    window.setPagePreset = function(preset) {
-      currentPresetMode = preset;
-      document.querySelectorAll('.btn-preset').forEach(b => {
-        b.style.background = '#fff';
-        b.style.color = '#000';
-      });
-      const activeBtn = document.getElementById(`preset-${preset}`);
-      if (activeBtn) {
-        activeBtn.style.background = '#000';
-        activeBtn.style.color = '#fff';
+      if (nonImageDocs.length === 0) {
+        rangeBox.style.display = 'none';
+        return;
       }
+
+      rangeBox.style.display = 'block';
+
+      // Determine real maximum page count across loaded non-image documents
+      const maxP = Math.max(1, ...nonImageDocs.map(f => f._pageCount || 1));
 
       const sIn = document.getElementById('input-start-page');
       const eIn = document.getElementById('input-end-page');
       const sSl = document.getElementById('slider-start-page');
       const eSl = document.getElementById('slider-end-page');
-      const maxP = parseInt(eIn.max || '2695');
+
+      if (sIn && eIn && sSl && eSl) {
+        sIn.max = maxP;
+        sSl.max = maxP;
+        eIn.max = maxP;
+        eSl.max = maxP;
+
+        if (currentPresetMode === 'all') {
+          sIn.value = 1;
+          sSl.value = 1;
+          eIn.value = maxP;
+          eSl.value = maxP;
+        } else {
+          let curE = parseInt(eIn.value) || maxP;
+          if (curE > maxP) { eIn.value = maxP; eSl.value = maxP; }
+          let curS = parseInt(sIn.value) || 1;
+          if (curS > maxP) { sIn.value = 1; sSl.value = 1; }
+        }
+      }
+
+      adjustPresetsForPageSize(maxP);
+      updateRangeSummary();
+    }
+
+    function adjustPresetsForPageSize(maxP) {
+      const container = document.getElementById('preset-buttons-container');
+      if (!container) return;
+
+      const presets = [
+        { id: 'all', label: `All Pages (${maxP})` }
+      ];
+
+      if (maxP <= 25) {
+        if (maxP >= 8) presets.push({ id: '5', label: 'First 5' });
+        if (maxP >= 15) presets.push({ id: '10', label: 'First 10' });
+      } else if (maxP <= 50) {
+        presets.push({ id: '25', label: 'First 25' });
+      } else {
+        presets.push({ id: '25', label: 'First 25' });
+        presets.push({ id: '50', label: 'First 50' });
+        if (maxP > 100) {
+          presets.push({ id: '100', label: 'First 100' });
+        }
+      }
+
+      presets.push({ id: 'custom', label: 'Custom' });
+
+      container.innerHTML = presets.map(p => {
+        const isActive = (currentPresetMode === p.id);
+        const bg = isActive ? '#000' : '#fff';
+        const color = isActive ? '#fff' : '#000';
+        return `<button type="button" onclick="setPagePreset('${p.id}')" class="btn-preset ${isActive ? 'active' : ''}" id="preset-${p.id}" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; font-weight: 800; border: 1.5px solid #000; border-radius: 4px; cursor: pointer; background: ${bg}; color: ${color}; transition: all 0.15s ease;">${p.label}</button>`;
+      }).join('');
+    }
+
+    window.removeFile = function(idx) {
+      selectedFiles.splice(idx, 1);
+      renderFileList();
+      refreshPageRangeUI();
+    };
+
+    window.setPagePreset = function(preset) {
+      currentPresetMode = preset;
+
+      const sIn = document.getElementById('input-start-page');
+      const eIn = document.getElementById('input-end-page');
+      const sSl = document.getElementById('slider-start-page');
+      const eSl = document.getElementById('slider-end-page');
+      const maxP = parseInt(eIn.max || '1');
 
       if (preset === 'all') {
         sIn.value = 1; sSl.value = 1;
         eIn.value = maxP; eSl.value = maxP;
-      } else if (preset === '50') {
-        sIn.value = 1; sSl.value = 1;
-        eIn.value = Math.min(50, maxP); eSl.value = Math.min(50, maxP);
-      } else if (preset === '100') {
-        sIn.value = 1; sSl.value = 1;
-        eIn.value = Math.min(100, maxP); eSl.value = Math.min(100, maxP);
+      } else if (preset === 'custom') {
+        // preserve current manual selection
+      } else {
+        const num = parseInt(preset);
+        if (!isNaN(num)) {
+          sIn.value = 1; sSl.value = 1;
+          const targetEnd = Math.min(num, maxP);
+          eIn.value = targetEnd; eSl.value = targetEnd;
+        }
       }
+
+      adjustPresetsForPageSize(maxP);
       updateRangeSummary();
     };
 
@@ -1263,12 +1434,15 @@
       const eIn = document.getElementById('input-end-page');
       const sSl = document.getElementById('slider-start-page');
       const eSl = document.getElementById('slider-end-page');
+      const maxP = parseInt(eIn.max || '1');
 
       let sVal = parseInt(source.startsWith('start') ? (source === 'start_input' ? sIn.value : sSl.value) : sIn.value) || 1;
-      let eVal = parseInt(source.startsWith('end') ? (source === 'end_input' ? eIn.value : eSl.value) : eIn.value) || 2695;
+      let eVal = parseInt(source.startsWith('end') ? (source === 'end_input' ? eIn.value : eSl.value) : eIn.value) || maxP;
 
       if (sVal < 1) sVal = 1;
+      if (sVal > maxP) sVal = maxP;
       if (eVal < sVal) eVal = sVal;
+      if (eVal > maxP) eVal = maxP;
 
       sIn.value = sVal;
       sSl.value = sVal;
@@ -1276,15 +1450,7 @@
       eSl.value = eVal;
 
       currentPresetMode = 'custom';
-      document.querySelectorAll('.btn-preset').forEach(b => {
-        b.style.background = '#fff';
-        b.style.color = '#000';
-      });
-      const customBtn = document.getElementById('preset-custom');
-      if (customBtn) {
-        customBtn.style.background = '#000';
-        customBtn.style.color = '#fff';
-      }
+      adjustPresetsForPageSize(maxP);
       updateRangeSummary();
     };
 
@@ -1293,18 +1459,18 @@
       const eIn = document.getElementById('input-end-page');
       if (!sIn || !eIn) return;
       const sVal = parseInt(sIn.value) || 1;
-      const eVal = parseInt(eIn.value) || 2695;
-      const maxP = parseInt(eIn.max || '2695');
+      const maxP = parseInt(eIn.max || '1');
+      const eVal = Math.min(maxP, parseInt(eIn.value) || maxP);
       const badge = document.getElementById('range-badge');
       const summary = document.getElementById('range-summary-text');
 
       const totalPagesToProcess = Math.max(1, (eVal - sVal + 1));
       if (sVal === 1 && eVal >= maxP) {
         if (badge) badge.innerText = "FULL DOCUMENT";
-        if (summary) summary.innerText = `Analyzing all pages in document.`;
+        if (summary) summary.innerText = `Analyzing all ${maxP} pages in document.`;
       } else {
         if (badge) badge.innerText = `PAGES ${sVal}-${eVal} (${totalPagesToProcess}p)`;
-        if (summary) summary.innerText = `Analyzing Pages ${sVal} to ${eVal} (${totalPagesToProcess} pages total) • Fast Sliced Mode.`;
+        if (summary) summary.innerText = `Analyzing Pages ${sVal} to ${eVal} (${totalPagesToProcess} pages total).`;
       }
     }
 
@@ -1388,8 +1554,8 @@
         const sIn = document.getElementById('input-start-page');
         const eIn = document.getElementById('input-end-page');
         const sVal = parseInt(sIn ? sIn.value : '1') || 1;
-        const eVal = parseInt(eIn ? eIn.value : '2695') || 2695;
-        const maxP = parseInt(eIn ? eIn.max : '2695') || 2695;
+        const maxP = parseInt(eIn ? eIn.max : '1') || 1;
+        const eVal = parseInt(eIn ? eIn.value : `${maxP}`) || maxP;
         const isCustomRange = (currentPresetMode !== 'all') || (sVal > 1 || eVal < maxP);
 
         const total = selectedFiles.length;
@@ -1401,7 +1567,7 @@
 
           const fd = new FormData();
           fd.append('file', file);
-          if (isCustomRange && file.name.toLowerCase().endsWith('.pdf')) {
+          if (isCustomRange && !file._isImage && !isImageFile(file.name)) {
             fd.append('start_page', sVal);
             fd.append('end_page', eVal);
           }
