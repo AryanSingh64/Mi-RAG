@@ -500,13 +500,14 @@ async def chat_rag(request: Request):
     context_blocks = []
     unique_citations = {{}}
     for idx, c in enumerate(reranked_chunks[:5], start=1):
-        context_blocks.append(f"--- DOCUMENT EXCERPT {{idx}} ({{c['source_file']}}) ---\\n{{c['text']}}")
+        clean_text = re.sub(r'\[Image URL:\s*[^\]]+\]', '', c['text']).strip()
+        context_blocks.append(f"--- DOCUMENT EXCERPT {{idx}} ({{c['source_file']}}) ---\\n{{clean_text}}")
         score_pct = round(c["score"] * 100, 1)
         if c["source_file"] not in unique_citations or score_pct > unique_citations[c["source_file"]]["relevance"]:
             unique_citations[c["source_file"]] = {{
                 "source_file": c["source_file"],
                 "relevance": score_pct,
-                "text": c["text"][:200] + "..." if len(c["text"]) > 200 else c["text"]
+                "text": clean_text[:200] + "..." if len(clean_text) > 200 else clean_text
             }}
 
     history_block = ""
@@ -522,7 +523,8 @@ async def chat_rag(request: Request):
         "You are a 100% private, local offline document intelligence engine.\\n"
         "1. Deliver a direct, finished, and well-structured answer in clean Markdown.\\n"
         "2. Use conversation memory to resolve pronouns and follow-up references.\\n"
-        "3. Answer ONLY using the factual context provided. Do not hallucinate."
+        "3. Answer ONLY using the factual context provided. Do not hallucinate.\\n"
+        "4. Figures and diagrams are automatically displayed in the interactive gallery below your answer, so NEVER say 'I cannot display images' and NEVER output raw server file paths or URLs."
     )
 
     joined_context = "\\n\\n".join(context_blocks)
@@ -547,6 +549,9 @@ async def chat_rag(request: Request):
         )
     except Exception as e:
         ans_text = f"Error from {{provider_name.upper()}}: {{str(e)}}. Make sure your model/key settings are valid or local Ollama is active."
+
+    ans_text = re.sub(r'(?i)(?:as an ai text model,\s*)?(?:unfortunately,\s*)?I (?:am|am currently)?\s*(?:unable|not able)\s*to (?:display|show|view) (?:the )?images? (?:directly|here)?[^.\n]*[.\n]?', '', ans_text)
+    ans_text = re.sub(r'(?i)The image URL is\s*[`\'"]?(?:/api/sessions/[^\s`\'"]+|/images/[^\s`\'"]+)[`\'"]?\s*\.?\s*', '', ans_text)
 
     matched_images = extract_relevant_images(user_message, reranked_chunks, is_image_query=bool(query_image_path))
 

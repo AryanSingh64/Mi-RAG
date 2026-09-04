@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from core.chunking.text_chunker import RecursiveChunker
@@ -220,6 +221,7 @@ class RAGPipeline:
                 temperature=0.1,
                 ollama_url=self.ollama.base_url
             )
+            llm_response = self._sanitize_llm_response(llm_response)
         except Exception as e:
             return GroundedAnswer(
                 answer=f"Error communicating with {provider_name.upper()}: {str(e)}",
@@ -342,6 +344,7 @@ class RAGPipeline:
                 temperature=0.1,
                 ollama_url=self.ollama.base_url
             )
+            llm_response = self._sanitize_llm_response(llm_response)
         except Exception as e:
             return GroundedAnswer(
                 answer=f"Error communicating with {provider_name.upper()}: {str(e)}",
@@ -376,6 +379,31 @@ class RAGPipeline:
             citations=grounded_citations,
             images=matched_images
         )
+
+    @staticmethod
+    def _sanitize_llm_response(answer: str) -> str:
+        """
+        Strips residual AI disclaimers about image display inability or leaked raw API URLs,
+        ensuring answers stay clean, professional, and grounded.
+        """
+        if not answer:
+            return answer
+        cleaned = answer
+        disclaimers = [
+            r"(?:[Uu]nfortunately|[Aa]gain|[Oo]nce more)?,?\s*(?:I am|I'm)?\s*unable to display (?:the )?images? directly[^\n.]*[\n.]*",
+            r"[Aa]s an AI(?: language model)?,?\s*I cannot (?:display|show) images?[^\n.]*[\n.]*",
+            r"[Aa]s a text(?:-based)? AI,?\s*I cannot (?:display|show) images?[^\n.]*[\n.]*",
+            r"[Yy]ou can view (?:it|them) by clicking on the provided URL\.?",
+            r"[Cc]lick on the provided URL to view (?:it|the image)\.?"
+        ]
+        for pat in disclaimers:
+            cleaned = re.sub(pat, "", cleaned)
+
+        cleaned = re.sub(r"(?:The )?image URL is\s*[`'\"]?/api/sessions/[^`'\"\s)]+[`'\"]?\.?\s*", "", cleaned)
+        cleaned = re.sub(r"[`'\"]?/api/sessions/[^`'\"\s)]+[`'\"]?", "", cleaned)
+        cleaned = re.sub(r"\s+\.", ".", cleaned)
+        cleaned = re.sub(r"\n\s*\n\s*\n", "\n\n", cleaned)
+        return cleaned.strip()
 
     def _extract_relevant_images(self, user_question: str, relevant_chunks: list, is_image_query: bool = False) -> list:
         """

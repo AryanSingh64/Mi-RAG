@@ -162,13 +162,13 @@ class AntiHallucinationEngine:
             "ANSWER QUALITY & CONVERSATIONAL MEMORY DIRECTIVES:\n"
             "1. Deliver a DIRECT, FINISHED, and WELL-STRUCTURED answer that directly addresses what the user asked.\n"
             "2. CONVERSATION MEMORY: Use prior conversation turns to resolve pronouns (e.g. 'it', 'this', 'that', 'they', 'the previous method'). Maintain smooth conversational continuity.\n"
-            "3. NEVER output raw internal labels, headers, or debug tags like '[Exact OCR Extracted Text]', '[Vision Model Analysis]', '[Image URL: ...]', or '[Source Document: ...]'. If presenting an image from the document, convert the URL into standard Markdown syntax: `![Caption](<url>)`. Speak naturally as an expert assistant.\n"
+            "3. NEVER output raw internal labels, headers, debug tags, or server URLs (e.g. '[Exact OCR Extracted Text]', '[Vision Model Analysis]', or '/api/sessions/...'). Speak naturally as an expert assistant.\n"
             "4. If explaining a diagram, chart, formula, or artwork, explain its meaning, key components, comparison results, and takeaways in clean, polished prose.\n"
             "5. Use clear Markdown (bold headers, bullet points, and clean paragraphs) so your answer is professional and easy to read.\n"
             "6. Answer ONLY using the factual context provided. Do NOT hallucinate facts not in the context. If something is missing, state clearly that it is not present in the uploaded documents.\n"
             "7. MATHEMATICAL & SCIENTIFIC SYMBOLS: Use clean LaTeX math delimiters for formulas, tolerances, and scientific quantities (e.g. `$1.25 \\pm 0.80$ cm`, `$\\times$`, `$\\approx$`, `$\\le$`, `$\\ge$`, `$\\alpha$`, `$\\beta$`, `$$ E = mc^2 $$`) so math renders crisply.\n"
-            "8. VISUAL MEDIA & IMAGE CITATION: If the context contains an image URL (e.g., `[Image URL: /api/sessions/.../images/filename.jpg]`) and the user asks to see an image, photo, figure, diagram, or character from the document, you MUST include the Markdown image link: `![Description](<url>)` in your response so the user can view it immediately. Never claim that you cannot display images when an image URL is present in the context.\n"
-            "9. ANTI-FABRICATION FOR SPARSE/CALENDAR/IMAGE PAGES: If the retrieved document excerpts consist of calendar dates, numbers, sparse words, or visual photos, DO NOT invent or fabricate fictional stories, cartoon characters, animals in clothes, or unmentioned personas. If the user asks 'what is this' or 'what is in this document', state accurately that it is a calendar / visual photo collection, describe the verified textual or visual elements, and cite the image URL using markdown.\n"
+            "8. VISUAL MEDIA & FIGURES: When discussing figures, diagrams, or visual documents from the context, describe their visual contents, key features, and findings directly. Figures and diagrams are automatically displayed in the interactive gallery below your answer, so NEVER say 'I cannot display images' and NEVER output raw server file paths or URLs.\n"
+            "9. ANTI-FABRICATION FOR SPARSE/CALENDAR/IMAGE PAGES: If the retrieved document excerpts consist of calendar dates, numbers, sparse words, or visual photos, DO NOT invent or fabricate fictional stories, cartoon characters, animals in clothes, or unmentioned personas. If the user asks 'what is this' or 'what is in this document', state accurately that it is a calendar / visual photo collection and describe the verified textual or visual elements.\n"
             "10. VISUAL COMPOSITION, COLORS & LOGICAL AESTHETICS: When the user asks what an image represents, what is special in it, or asks about composition, colors, and aesthetics (or questions like 'which one is best or what makes it unique'), synthesize the visual details directly from '[Visual Scene, Composition & Details Analysis]'. Detail the subject pose, lighting, setting, color palette (e.g. pastel pink, champagne green, warm tones), materials, and artistic qualities objectively without fabricating unverified personas."
         )
 
@@ -185,9 +185,10 @@ class AntiHallucinationEngine:
         """
         context_blocks = []
         for idx, chunk in enumerate(context_chunks, start=1):
+            clean_chunk_text = re.sub(r"\[Image URL:\s*.*?\]", "", chunk.text).strip()
             context_blocks.append(
                 f"--- DOCUMENT EXCERPT {idx} ({chunk.source_file}) ---\n"
-                f"{chunk.text}"
+                f"{clean_chunk_text}"
             )
 
         formatted_context = "\n\n".join(context_blocks)
