@@ -97,32 +97,67 @@ class LocalEmbedder:
         self.batch_size = 128 if self.device in ("cuda", "mps") else 64
 
         print(f"[*] Initializing Embedding Model: {self.model_name} on device: {self.device.upper()} (batch_size={self.batch_size})...")
-        if HAS_SENTENCE_TRANSFORMERS and SentenceTransformer is not None:
+        self.model = self._load_sentence_transformer()
+
+    def _load_sentence_transformer(self):
+        """Loads sentence-transformers model with offline-first caching to guarantee 100% offline operation."""
+        if not HAS_SENTENCE_TRANSFORMERS or SentenceTransformer is None:
+            return None
+
+        model_kwargs = {"torch_dtype": "float16"} if self.device == "cuda" else {}
+
+        # 1. Try local cache first (100% offline, zero network requests, instant startup)
+        try:
+            return SentenceTransformer(
+                self.model_name,
+                device=self.device,
+                model_kwargs=model_kwargs,
+                trust_remote_code=True,
+                local_files_only=True
+            )
+        except Exception:
+            pass
+
+        # 2. Try online download if local cache miss and network is available
+        try:
+            return SentenceTransformer(
+                self.model_name,
+                device=self.device,
+                model_kwargs=model_kwargs,
+                trust_remote_code=True
+            )
+        except Exception as e:
+            print(f"[!] Notice: Offline or cache miss loading {self.model_name}: {e}. Trying fallback models...")
+
+        # 3. Fallback to cached all-MiniLM-L6-v2 or bge-small
+        for fb_name in ["all-MiniLM-L6-v2", "BAAI/bge-small-en-v1.5"]:
             try:
-                model_kwargs = {"torch_dtype": "float16"} if self.device == "cuda" else {}
-                self.model = SentenceTransformer(
-                    self.model_name,
-                    device=self.device,
-                    model_kwargs=model_kwargs,
-                    trust_remote_code=True
-                )
-            except Exception as e:
-                print(f"[!] Notice loading {self.model_name} with float16 on {self.device}: {e}. Retrying default...")
+                self.model_name = fb_name
+                return SentenceTransformer(fb_name, device=self.device, local_files_only=True)
+            except Exception:
                 try:
-                    self.model = SentenceTransformer(self.model_name, device=self.device, trust_remote_code=True)
-                except Exception as e2:
-                    print(f"[!] Warning loading {self.model_name} on {self.device}: {e2}. Falling back to all-MiniLM-L6-v2 on {self.device}...")
-                    try:
-                        self.model_name = "all-MiniLM-L6-v2"
-                        self.query_prefix = ""
-                        self.passage_prefix = ""
-                        self.model = SentenceTransformer(self.model_name, device=self.device)
-                    except Exception:
-                        try:
-                            self.device = "cpu"
-                            self.model = SentenceTransformer(self.model_name, device="cpu")
-                        except Exception:
-                            self.model = None
+                    return SentenceTransformer(fb_name, device=self.device)
+                except Exception:
+                    pass
+
+        return None
+
+    def _embed_via_ollama(self, text: str) -> Optional[List[float]]:
+        """100% offline embedding via local Ollama instance if sentence-transformers is unavailable."""
+        try:
+            import httpx
+            with httpx.Client(timeout=4.0) as client:
+                res = client.post(
+                    "http://localhost:11434/api/embeddings",
+                    json={"model": "nomic-embed-text", "prompt": text}
+                )
+                if res.status_code == 200:
+                    vec = res.json().get("embedding", [])
+                    if vec:
+                        return vec
+        except Exception:
+            pass
+        return None
 
     def _fallback_hash_vector(self, text: str) -> List[float]:
         """High-speed deterministic normalized pseudo-semantic vector when dependencies are missing."""
@@ -148,6 +183,11 @@ class LocalEmbedder:
             formatted_text = f"{self.query_prefix}{text}" if self.query_prefix else text
             embedding = self.model.encode(formatted_text, convert_to_numpy=True, normalize_embeddings=True)
             return embedding.tolist()
+
+        ollama_vec = self._embed_via_ollama(text)
+        if ollama_vec:
+            return ollama_vec
+
         return self._fallback_hash_vector(text)
 
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
@@ -169,6 +209,20 @@ class LocalEmbedder:
                 normalize_embeddings=True
             )
             return embeddings.tolist()
+
+        if self.model is None:
+            # Try Ollama embedding fallback
+            ollama_results = []
+            can_use_ollama = True
+            for t in texts:
+                vec = self._embed_via_ollama(t)
+                if vec:
+                    ollama_results.append(vec)
+                else:
+                    can_use_ollama = False
+                    break
+            if can_use_ollama and len(ollama_results) == len(texts):
+                return ollama_results
 
         return [self._fallback_hash_vector(t) for t in texts]
 

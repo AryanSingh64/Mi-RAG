@@ -1005,6 +1005,60 @@
           <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.95rem;"><strong>Click to Upload</strong>, <strong>Drag & Drop</strong>, or <strong>Paste (Ctrl+V)</strong></div>
           <div style="font-size: 0.78rem; color: #64748b; margin-top: 0.35rem;">Supports PNG, JPG, JPEG, WEBP • Math Sheets • Diagrams • Charts</div>
         </div>
+  </div>
+
+  <!-- AI Model Engine & Cloud API Settings Modal in Portal -->
+  <div id="portal-settings-modal" class="custom-modal" onclick="closePortalSettingsModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">⚙️ Chatbot Model & API Providers</div>
+        <button type="button" class="modal-close" onclick="closePortalSettingsModal()">✕</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
+        <div id="portal-modal-mode-banner" style="display: flex; align-items: center; justify-content: space-between; background: #dcfce7; border: 1.5px solid #16a34a; border-radius: 6px; padding: 0.6rem 0.85rem; font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; font-weight: 800; color: #166534;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span id="portal-modal-mode-icon" style="font-size: 1.1rem;">⚡</span>
+            <span id="portal-modal-mode-text">100% OFFLINE CAPABLE: Local Ollama active. No internet required.</span>
+          </div>
+        </div>
+
+        <div>
+          <label style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Active Provider:</label>
+          <select id="portal-provider-select" onchange="handlePortalProviderChange()" style="width: 100%; padding: 0.65rem; border: var(--border); border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: 2px 2px 0px #000;">
+            <optgroup label="⚡ Local & 100% Offline (Zero-Cost / Private)">
+              <option value="ollama" selected>⚡ Local Ollama (Offline Engine - Default)</option>
+            </optgroup>
+            <optgroup label="🌐 Advanced: Cloud Providers (Internet Required)">
+              <option value="openai">🟢 OpenAI (GPT-5.6 Sol, GPT-5.5, GPT-5.4, GPT-4o)</option>
+              <option value="gemini">🔵 Google Gemini (Gemini 3.7 Flash, 3.6 Flash, 3.1 Pro)</option>
+              <option value="anthropic">🟣 Anthropic Claude (Claude Opus 5, Sonnet 5, Fable 5)</option>
+              <option value="grok">🔴 xAI Grok (Grok 4.6, Grok 4.5, Grok 4)</option>
+              <option value="openrouter">🌐 OpenRouter — Multi-Model Gateway (300+ Live Models)</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+            <label style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; color: #0f172a;">Model Selection:</label>
+            <button type="button" onclick="fetchLatestPortalModels()" id="btn-portal-fetch-models" style="background: var(--yellow); border: 1.5px solid #000; box-shadow: 1.5px 1.5px 0px #000; padding: 0.2rem 0.6rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.72rem; border-radius: 4px; cursor: pointer; transition: all 0.1s ease;">🔄 Sync Models</button>
+          </div>
+          <select id="portal-model-select" style="width: 100%; padding: 0.65rem; border: var(--border); border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: 2px 2px 0px #000;"></select>
+        </div>
+
+        <div id="portal-api-key-container" style="display: none;">
+          <label id="portal-api-key-label" style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.4rem; color: #0f172a;">Provider API Key:</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="password" id="portal-setting-api-key" placeholder="Enter API key..." style="flex: 1; padding: 0.65rem; border: var(--border); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; box-shadow: 2px 2px 0px #000;">
+            <button type="button" onclick="testPortalKey()" id="btn-portal-test-key" style="background: var(--yellow); border: var(--border); box-shadow: 2px 2px 0px #000; padding: 0.65rem 0.9rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; border-radius: 6px; cursor: pointer;">Test Key</button>
+          </div>
+          <div id="portal-key-test-feedback" style="margin-top: 0.5rem; font-size: 0.78rem; font-weight: 700; display: none;"></div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem; border-top: 2px solid #000; padding-top: 1rem;">
+          <button type="button" onclick="closePortalSettingsModal()" style="background: #e2e8f0; border: 2px solid #000; box-shadow: 2px 2px 0px #000; padding: 0.65rem 1.2rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; border-radius: 6px; cursor: pointer;">Cancel</button>
+          <button type="button" onclick="savePortalSettings()" style="background: var(--green); color: #000; border: 2px solid #000; box-shadow: 2px 2px 0px #000; padding: 0.65rem 1.4rem; font-family: 'Space Grotesk', sans-serif; font-weight: 900; font-size: 0.85rem; border-radius: 6px; cursor: pointer;">Save & Switch Model</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1074,10 +1128,12 @@
         </button>
         <div class="session-badge" id="session-badge">Session: loading...</div>
       </div>
-      <div class="top-header-right">
-        <div class="session-model-pill">
+        <div class="session-model-pill" style="display: flex; align-items: center; gap: 0.45rem; padding: 0.2rem 0.65rem;">
           <span class="provider-badge-icon" id="header-provider-badge">OLLAMA</span>
-          <span id="active-model-display">llama3.2:3b</span>
+          <select id="chat-model-select" onchange="handleChatModelSelectChange()" style="background: transparent; color: #fff; border: none; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.8rem; cursor: pointer; outline: none; max-width: 175px;">
+            <option value="ollama:llama3.2:3b">llama3.2:3b (Local)</option>
+          </select>
+          <button type="button" onclick="openPortalSettingsModal()" title="Configure Models & Cloud API Keys" style="background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 0 0.2rem; color: var(--yellow); line-height: 1;">⚙️</button>
         </div>
         <div class="timer-badge">
           <div class="pulse-dot"></div>
@@ -1427,6 +1483,50 @@
       openrouter: { name: "OpenRouter Gateway", badge: "ROUTER" }
     };
 
+    const PORTAL_FULL_PROVIDER_CONFIGS = {
+      ollama: {
+        name: "Local Ollama",
+        badge: "OLLAMA",
+        requiresKey: false,
+        models: ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b", "qwen2.5:7b", "mistral:latest", "qwen3.8-flash-next", "deepseek-v4-flash"]
+      },
+      openai: {
+        name: "OpenAI",
+        badge: "OPENAI",
+        requiresKey: true,
+        placeholder: "sk-proj-...",
+        models: ["gpt-4o-mini", "gpt-4o", "gpt-5.6-sol", "gpt-5.5", "gpt-5.4", "o3-mini"]
+      },
+      gemini: {
+        name: "Google Gemini",
+        badge: "GEMINI",
+        requiresKey: true,
+        placeholder: "AIzaSy...",
+        models: ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-pro", "gemini-2.0-flash"]
+      },
+      anthropic: {
+        name: "Anthropic Claude",
+        badge: "CLAUDE",
+        requiresKey: true,
+        placeholder: "sk-ant-api03-...",
+        models: ["claude-sonnet-5", "claude-opus-5", "claude-fable-5", "claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022"]
+      },
+      grok: {
+        name: "xAI Grok",
+        badge: "GROK",
+        requiresKey: true,
+        placeholder: "xai-...",
+        models: ["grok-4.6", "grok-4.5", "grok-4"]
+      },
+      openrouter: {
+        name: "OpenRouter",
+        badge: "OPENROUTER",
+        requiresKey: true,
+        placeholder: "sk-or-v1-...",
+        models: ["openrouter/auto", "openai/gpt-5.6-sol", "anthropic/claude-opus-5", "google/gemini-3.7-flash"]
+      }
+    };
+
     let currentProvider = localStorage.getItem("mirag_provider") || "ollama";
     let currentModel = localStorage.getItem("mirag_model") || "llama3.2:3b";
     let savedApiKeys = {};
@@ -1436,14 +1536,234 @@
       savedApiKeys = {};
     }
 
+    async function populateChatModelDropdown() {
+      const select = document.getElementById("chat-model-select");
+      if (!select) return;
+
+      let localModels = ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b"];
+      try {
+        const res = await fetch('/api/models');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.text_models && data.text_models.length > 0) {
+            localModels = data.text_models;
+          }
+        }
+      } catch (e) {}
+
+      let html = '';
+      html += `<optgroup label="⚡ Local Offline (Ollama)">`;
+      for (let m of localModels) {
+        const isSel = (currentProvider === 'ollama' && currentModel === m);
+        html += `<option value="ollama:${m}" ${isSel ? 'selected' : ''}>${m} (Local)</option>`;
+      }
+      html += `</optgroup>`;
+
+      html += `<optgroup label="🌐 Online Cloud (Advanced)">`;
+      const cloudPresets = [
+        { prov: "openai", model: "gpt-4o-mini", label: "OpenAI: GPT-4o Mini" },
+        { prov: "openai", model: "gpt-4o", label: "OpenAI: GPT-4o" },
+        { prov: "openai", model: "gpt-5.6-sol", label: "OpenAI: GPT-5.6 Sol" },
+        { prov: "gemini", model: "gemini-3.7-flash", label: "Gemini: 3.7 Flash" },
+        { prov: "gemini", model: "gemini-3.1-pro", label: "Gemini: 3.1 Pro" },
+        { prov: "anthropic", model: "claude-sonnet-5", label: "Claude: Sonnet 5" },
+        { prov: "anthropic", model: "claude-opus-5", label: "Claude: Opus 5" },
+        { prov: "grok", model: "grok-4.6", label: "Grok: Grok 4.6" },
+        { prov: "openrouter", model: "openrouter/auto", label: "OpenRouter: Auto" }
+      ];
+
+      // Add currently selected cloud model if it's not in presets
+      if (currentProvider !== 'ollama' && currentModel && !cloudPresets.some(p => p.prov === currentProvider && p.model === currentModel)) {
+        cloudPresets.unshift({
+          prov: currentProvider,
+          model: currentModel,
+          label: `${currentProvider.toUpperCase()}: ${currentModel}`
+        });
+      }
+
+      for (let cp of cloudPresets) {
+        const isSel = (currentProvider === cp.prov && currentModel === cp.model);
+        html += `<option value="${cp.prov}:${cp.model}" ${isSel ? 'selected' : ''}>${cp.label}</option>`;
+      }
+      html += `</optgroup>`;
+
+      select.innerHTML = html;
+
+      // Ensure select value is synced
+      const currentVal = `${currentProvider}:${currentModel}`;
+      if (Array.from(select.options).some(o => o.value === currentVal)) {
+        select.value = currentVal;
+      } else {
+        const found = Array.from(select.options).find(o => o.value.endsWith(`:${currentModel}`));
+        if (found) {
+          select.value = found.value;
+        } else if (select.options.length > 0) {
+          select.value = select.options[0].value;
+        }
+      }
+
+      syncHeaderModelDisplay();
+    }
+
+    window.handleChatModelSelectChange = function() {
+      const select = document.getElementById("chat-model-select");
+      if (!select) return;
+      const val = select.value;
+      const parts = val.split(':');
+      const prov = parts[0];
+      const mod = parts.slice(1).join(':');
+
+      currentProvider = prov;
+      currentModel = mod;
+      localStorage.setItem("mirag_provider", currentProvider);
+      localStorage.setItem("mirag_model", currentModel);
+
+      syncHeaderModelDisplay();
+    };
+
     function syncHeaderModelDisplay() {
       const cfg = PROVIDER_CONFIGS[currentProvider] || PROVIDER_CONFIGS.ollama;
       const badge = document.getElementById("header-provider-badge");
-      const disp = document.getElementById("active-model-display");
-      if (badge) badge.innerText = cfg.badge;
-      if (disp) disp.innerText = currentModel || "llama3.2:3b";
+      if (badge) {
+        badge.innerText = cfg.badge;
+        if (currentProvider === 'ollama') {
+          badge.style.background = "#2be26c";
+          badge.style.color = "#000";
+        } else {
+          badge.style.background = "var(--yellow)";
+          badge.style.color = "#000";
+        }
+      }
     }
-    syncHeaderModelDisplay();
+
+    window.openPortalSettingsModal = function() {
+      const pSelect = document.getElementById("portal-provider-select");
+      if (pSelect) pSelect.value = currentProvider;
+      handlePortalProviderChange();
+      const mSelect = document.getElementById("portal-model-select");
+      if (mSelect) {
+        if (currentModel && Array.from(mSelect.options).some(opt => opt.value === currentModel)) {
+          mSelect.value = currentModel;
+        }
+      }
+      const keyInput = document.getElementById("portal-setting-api-key");
+      if (keyInput) keyInput.value = savedApiKeys[currentProvider] || "";
+      const feedback = document.getElementById("portal-key-test-feedback");
+      if (feedback) { feedback.style.display = 'none'; feedback.innerText = ''; }
+
+      document.getElementById("portal-settings-modal").classList.add("active");
+    };
+
+    window.closePortalSettingsModal = function() {
+      document.getElementById("portal-settings-modal").classList.remove("active");
+    };
+
+    window.handlePortalProviderChange = function() {
+      const provider = document.getElementById("portal-provider-select").value;
+      const cfg = PORTAL_FULL_PROVIDER_CONFIGS[provider] || PORTAL_FULL_PROVIDER_CONFIGS.ollama;
+
+      const banner = document.getElementById("portal-modal-mode-banner");
+      const icon = document.getElementById("portal-modal-mode-icon");
+      const text = document.getElementById("portal-modal-mode-text");
+      if (banner && icon && text) {
+        if (provider === 'ollama') {
+          banner.style.background = "#dcfce7";
+          banner.style.borderColor = "#16a34a";
+          banner.style.color = "#166534";
+          icon.innerText = "⚡";
+          text.innerText = "100% OFFLINE CAPABLE: Local Ollama active. No internet required.";
+        } else {
+          banner.style.background = "#fef9c3";
+          banner.style.borderColor = "#ca8a04";
+          banner.style.color = "#854d0e";
+          icon.innerText = "🌐";
+          text.innerText = `ADVANCED CLOUD ACTIVE (${cfg.name}): Requires internet connection and API key.`;
+        }
+      }
+
+      const mSelect = document.getElementById("portal-model-select");
+      if (mSelect) {
+        mSelect.innerHTML = cfg.models.map(m => `<option value="${m}">${m}</option>`).join('');
+        if (provider === currentProvider && currentModel && cfg.models.includes(currentModel)) {
+          mSelect.value = currentModel;
+        } else if (cfg.models.length > 0) {
+          mSelect.value = cfg.models[0];
+        }
+      }
+
+      const keyContainer = document.getElementById("portal-api-key-container");
+      const keyInput = document.getElementById("portal-setting-api-key");
+      const keyLabel = document.getElementById("portal-api-key-label");
+      if (cfg.requiresKey) {
+        if (keyContainer) keyContainer.style.display = 'block';
+        if (keyLabel) keyLabel.innerText = `${cfg.name} API Key:`;
+        if (keyInput) {
+          keyInput.placeholder = cfg.placeholder || "Enter API key...";
+          keyInput.value = savedApiKeys[provider] || "";
+        }
+      } else {
+        if (keyContainer) keyContainer.style.display = 'none';
+      }
+    };
+
+    window.savePortalSettings = function() {
+      const provider = document.getElementById("portal-provider-select").value;
+      const model = document.getElementById("portal-model-select").value;
+      const apiKey = document.getElementById("portal-setting-api-key")?.value?.trim() || "";
+
+      currentProvider = provider;
+      currentModel = model;
+      if (apiKey) {
+        savedApiKeys[provider] = apiKey;
+      } else if (PORTAL_FULL_PROVIDER_CONFIGS[provider]?.requiresKey === false) {
+        delete savedApiKeys[provider];
+      }
+
+      localStorage.setItem("mirag_provider", currentProvider);
+      localStorage.setItem("mirag_model", currentModel);
+      localStorage.setItem("mirag_api_keys", JSON.stringify(savedApiKeys));
+
+      populateChatModelDropdown();
+      closePortalSettingsModal();
+    };
+
+    window.testPortalKey = async function() {
+      const provider = document.getElementById("portal-provider-select").value;
+      const model = document.getElementById("portal-model-select").value;
+      const apiKey = document.getElementById("portal-setting-api-key")?.value?.trim() || "";
+      const feedback = document.getElementById("portal-key-test-feedback");
+      const testBtn = document.getElementById("btn-portal-test-key");
+
+      if (feedback) {
+        feedback.style.display = 'block';
+        feedback.style.color = '#3b82f6';
+        feedback.innerText = 'Testing connection...';
+      }
+      if (testBtn) testBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/keys/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, api_key: apiKey, model })
+        });
+        const data = await res.json();
+        if (data.valid) {
+          feedback.style.color = '#16a34a';
+          feedback.innerText = '✅ ' + data.message;
+        } else {
+          feedback.style.color = '#dc2626';
+          feedback.innerText = '❌ ' + data.message;
+        }
+      } catch (err) {
+        feedback.style.color = '#dc2626';
+        feedback.innerText = '❌ Error: ' + err.message;
+      } finally {
+        if (testBtn) testBtn.disabled = false;
+      }
+    };
+
+    populateChatModelDropdown();
 
     // Quoted Reply Management (WhatsApp/Discord Style)
     function setQuotedReply(text) {
