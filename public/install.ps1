@@ -406,12 +406,25 @@ if (-not $detectedGpu -and (Get-Command nvidia-smi -ErrorAction SilentlyContinue
     } catch {}
 }
 
+$gpuPrefFile = "$venvDir\.gpu_preference"
 $installCuda = $false
 $hasTorchCuda = & $venvPython -c "import torch; print('CUDA' if torch.cuda.is_available() else 'CPU')" 2>$null
+
+# Dynamic PyTorch CUDA index: Python 3.13+ officially requires cu124/cu126; Python 3.10-3.12 uses cu121
+$cudaTag = if ($activePython.Minor -ge 13) { "cu124" } else { "cu121" }
+$cudaIndex = "https://download.pytorch.org/whl/$cudaTag"
 
 if ($detectedGpu) {
     if ($hasTorchCuda -eq "CUDA") {
         Write-Host " [*] Hardware Acceleration: $detectedGpu [ CUDA ENABLED ]" -ForegroundColor Green
+    } elseif (Test-Path $gpuPrefFile) {
+        $savedPref = (Get-Content $gpuPrefFile -Raw).Trim()
+        if ($savedPref -eq "cpu") {
+            Write-Host " [*] Hardware Acceleration: CPU Mode (Persisted Preference)" -ForegroundColor DarkGray
+        } elseif ($savedPref -eq "cuda") {
+            Write-Host " [*] Hardware Acceleration: $detectedGpu [ CONFIG: CUDA ]" -ForegroundColor Cyan
+            $installCuda = $true
+        }
     } else {
         Write-Host ""
         Write-Host " ==========================================================================" -ForegroundColor DarkGreen
@@ -424,7 +437,11 @@ if ($detectedGpu) {
         Write-Host "  Option 2: No, use CPU only (Standard and Lightweight)" -ForegroundColor White
         Write-Host ""
         $gpuChoice = Read-Host -Prompt "  Select option [1/2] (Default is 1)"
-        if ($gpuChoice -ne "2") {
+        if ($gpuChoice -eq "2") {
+            Set-Content -Path $gpuPrefFile -Value "cpu" -Force
+            Write-Host " [*] Configured for CPU-only mode." -ForegroundColor DarkGray
+        } else {
+            Set-Content -Path $gpuPrefFile -Value "cuda" -Force
             $installCuda = $true
         }
     }
@@ -484,14 +501,14 @@ if ($hasDeps -ne "OK" -or ($installCuda -and $hasTorchCuda -ne "CUDA")) {
 
     if ($installCuda) {
         Write-Host ""
-        Write-Host " [*] Installing CUDA-accelerated PyTorch (cu121)..." -ForegroundColor Cyan
+        Write-Host " [*] Installing CUDA-accelerated PyTorch ($cudaTag)..." -ForegroundColor Cyan
         $cudaInstalled = $false
         if ($uvInstalled) {
-            & "$venvDir\Scripts\uv.exe" pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+            & "$venvDir\Scripts\uv.exe" pip install --upgrade torch torchvision --index-url $cudaIndex
             if ($LASTEXITCODE -eq 0) { $cudaInstalled = $true }
         }
         if (-not $cudaInstalled) {
-            & $venvPython -m pip install --retries 5 --timeout 60 --progress-bar on torch torchvision --index-url https://download.pytorch.org/whl/cu121
+            & $venvPython -m pip install --retries 5 --timeout 60 --upgrade --progress-bar on torch torchvision --index-url $cudaIndex
         }
     }
     

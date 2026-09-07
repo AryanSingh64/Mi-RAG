@@ -224,12 +224,28 @@ elif lspci 2>/dev/null | grep -i "nvidia" >/dev/null 2>&1; then
     DETECTED_GPU=$(lspci 2>/dev/null | grep -i "nvidia" | head -n 1 | cut -d: -f3 | sed 's/^[ \t]*//')
 fi
 
+GPU_PREF_FILE="$VENV_DIR/.gpu_preference"
 INSTALL_CUDA=false
 HAS_TORCH_CUDA=$("$VENV_PYTHON" -c "import torch; print('CUDA' if torch.cuda.is_available() else 'CPU')" 2>/dev/null || true)
+
+CUDA_TAG="cu121"
+PY_MINOR=$(echo "$PY_VER" | cut -d. -f2)
+if [ "$PY_MINOR" -ge 13 ]; then
+    CUDA_TAG="cu124"
+fi
+CUDA_INDEX="https://download.pytorch.org/whl/$CUDA_TAG"
 
 if [ -n "$DETECTED_GPU" ]; then
     if [ "$HAS_TORCH_CUDA" = "CUDA" ]; then
         echo -e " ${GREEN}[*] Hardware Acceleration: $DETECTED_GPU [ CUDA ENABLED ]${NC}"
+    elif [ -f "$GPU_PREF_FILE" ]; then
+        SAVED_PREF=$(cat "$GPU_PREF_FILE" 2>/dev/null | tr -d '[:space:]')
+        if [ "$SAVED_PREF" = "cpu" ]; then
+            echo -e " ${DARKGRAY}[*] Hardware Acceleration: CPU Mode (Persisted Preference)${NC}"
+        elif [ "$SAVED_PREF" = "cuda" ]; then
+            echo -e " ${CYAN}[*] Hardware Acceleration: $DETECTED_GPU [ CONFIG: CUDA ]${NC}"
+            INSTALL_CUDA=true
+        fi
     else
         echo ""
         echo -e "${GREEN} ==========================================================================${NC}"
@@ -242,7 +258,11 @@ if [ -n "$DETECTED_GPU" ]; then
         echo "  Option 2: No, use CPU only (Standard and Lightweight)"
         echo ""
         read -p "  Select option [1/2] (Default is 1): " gpu_choice
-        if [ "$gpu_choice" != "2" ]; then
+        if [ "$gpu_choice" = "2" ]; then
+            echo "cpu" > "$GPU_PREF_FILE"
+            echo -e " ${DARKGRAY}[*] Configured for CPU-only mode.${NC}"
+        else
+            echo "cuda" > "$GPU_PREF_FILE"
             INSTALL_CUDA=true
         fi
     fi
@@ -280,15 +300,15 @@ if [ "$HAS_DEPS" != "OK" ] || { [ "$INSTALL_CUDA" = true ] && [ "$HAS_TORCH_CUDA
 
     if [ "$INSTALL_CUDA" = true ]; then
         echo ""
-        echo -e " ${CYAN}[*] Installing CUDA-accelerated PyTorch (cu121)...${NC}"
+        echo -e " ${CYAN}[*] Installing CUDA-accelerated PyTorch ($CUDA_TAG)...${NC}"
         CUDA_INSTALLED=false
         if [ "$UV_INSTALLED" = true ]; then
-            if "$VENV_DIR/bin/uv" pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121; then
+            if "$VENV_DIR/bin/uv" pip install --upgrade torch torchvision --index-url "$CUDA_INDEX"; then
                 CUDA_INSTALLED=true
             fi
         fi
         if [ "$CUDA_INSTALLED" = false ]; then
-            "$VENV_PYTHON" -m pip install --retries 5 --timeout 60 torch torchvision --index-url https://download.pytorch.org/whl/cu121
+            "$VENV_PYTHON" -m pip install --retries 5 --timeout 60 --upgrade torch torchvision --index-url "$CUDA_INDEX"
         fi
     fi
 
