@@ -45,12 +45,53 @@ function Register-MiragCommand($repoDir) {
         $cmdScript = @"
 @echo off
 set "MIRAG_DIR=$repoDir"
+if exist "%CD%\run_factory.py" (
+    if exist "%CD%\.venv\Scripts\python.exe" (
+        set "MIRAG_DIR=%CD%"
+    )
+)
 if not exist "%MIRAG_DIR%\.venv\Scripts\python.exe" (
     echo [!] Mi:RAG virtual environment not found in %MIRAG_DIR%. Please re-run the installer.
+    pause
     exit /b 1
 )
 "%MIRAG_DIR%\.venv\Scripts\python.exe" "%MIRAG_DIR%\run_factory.py" %*
 "@
+
+        # 2. mirag.ps1 for PowerShell
+        $escapedRepoDir = $repoDir -replace "'", "''"
+        $psScript = @"
+`$repoDir = '$escapedRepoDir'
+if (Test-Path ".\run_factory.py") {
+    if (Test-Path ".\.venv\Scripts\python.exe") {
+        `$repoDir = (Get-Location).Path
+    }
+}
+`$pythonExe = "`$repoDir\.venv\Scripts\python.exe"
+`$runScript = "`$repoDir\run_factory.py"
+if (-not (Test-Path `$pythonExe)) {
+    Write-Host "[!] Mi:RAG virtual environment not found in `$repoDir. Please re-run the installer." -ForegroundColor Red
+    Read-Host -Prompt "Press [Enter] to exit"
+    exit 1
+}
+& `$pythonExe `$runScript `$args
+"@
+
+        # 3. Unix script for Git Bash / MSYS2 / WSL
+        $posixDir = $repoDir -replace '\\', '/'
+        $shScript = @"
+#!/usr/bin/env bash
+REPO_DIR="$posixDir"
+if [ -f "./run_factory.py" ] && [ -f "./.venv/Scripts/python.exe" ]; then
+    REPO_DIR="\$(pwd)"
+fi
+if [ ! -f "`$REPO_DIR/.venv/Scripts/python.exe" ]; then
+    echo "[!] Mi:RAG virtual environment not found in `$REPO_DIR. Please re-run the installer."
+    exit 1
+fi
+exec "`$REPO_DIR/.venv/Scripts/python.exe" "`$REPO_DIR/run_factory.py" "`$@"
+"@
+
         $targetDirs = @("$HOME\.mirag\bin", "$HOME\.local\bin")
         foreach ($bDir in $targetDirs) {
             if (-not (Test-Path $bDir)) {
