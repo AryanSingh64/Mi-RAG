@@ -500,7 +500,7 @@ async def chat_rag(request: Request):
     context_blocks = []
     unique_citations = {{}}
     for idx, c in enumerate(reranked_chunks[:5], start=1):
-        clean_text = re.sub(r'\[Image URL:\s*[^\]]+\]', '', c['text']).strip()
+        clean_text = re.sub(r'\\[Image URL:\\s*[^\\]]+\\]', '', c['text']).strip()
         context_blocks.append(f"--- DOCUMENT EXCERPT {{idx}} ({{c['source_file']}}) ---\\n{{clean_text}}")
         score_pct = round(c["score"] * 100, 1)
         if c["source_file"] not in unique_citations or score_pct > unique_citations[c["source_file"]]["relevance"]:
@@ -550,8 +550,8 @@ async def chat_rag(request: Request):
     except Exception as e:
         ans_text = f"Error from {{provider_name.upper()}}: {{str(e)}}. Make sure your model/key settings are valid or local Ollama is active."
 
-    ans_text = re.sub(r'(?i)(?:as an ai text model,\s*)?(?:unfortunately,\s*)?I (?:am|am currently)?\s*(?:unable|not able)\s*to (?:display|show|view) (?:the )?images? (?:directly|here)?[^.\n]*[.\n]?', '', ans_text)
-    ans_text = re.sub(r'(?i)The image URL is\s*[`\'"]?(?:/api/sessions/[^\s`\'"]+|/images/[^\s`\'"]+)[`\'"]?\s*\.?\s*', '', ans_text)
+    ans_text = re.sub(r'(?i)(?:as an ai text model,\\s*)?(?:unfortunately,\\s*)?I (?:am|am currently)?\\s*(?:unable|not able)\\s*to (?:display|show|view) (?:the )?images? (?:directly|here)?[^.\\n]*[.\\n]?', '', ans_text)
+    ans_text = re.sub(r'(?i)The image URL is\\s*[`\'"]?(?:/api/sessions/[^\\s`\'"]+|/images/[^\\s`\'"]+)[`\'"]?\\s*\\.?\\s*', '', ans_text)
 
     matched_images = extract_relevant_images(user_message, reranked_chunks, is_image_query=bool(query_image_path))
 
