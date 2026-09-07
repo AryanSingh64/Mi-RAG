@@ -494,49 +494,6 @@
       z-index: 1;
     }
 
-    .cli-shortcut-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.55rem;
-      background: rgba(0, 0, 0, 0.9);
-      border: 2px solid var(--yellow);
-      color: #ffffff;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.82rem;
-      font-weight: 700;
-      padding: 0.45rem 1.1rem;
-      border-radius: 999px;
-      margin-top: 0.85rem;
-      box-shadow: var(--shadow-neo);
-    }
-
-    .mirag-cmd-badge {
-      background: var(--pink);
-      color: #ffffff;
-      padding: 0.12rem 0.5rem;
-      border-radius: 4px;
-      font-family: 'JetBrains Mono', monospace;
-      font-weight: 900;
-      font-size: 0.88rem;
-      border: 1px solid #000000;
-    }
-
-    .pulse-dot {
-      width: 8px;
-      height: 8px;
-      background: #00ff88;
-      border-radius: 50%;
-      box-shadow: 0 0 8px #00ff88;
-      animation: pulseAnimation 1.6s infinite ease-in-out;
-      flex-shrink: 0;
-    }
-
-    @keyframes pulseAnimation {
-      0% { transform: scale(0.85); opacity: 0.7; }
-      50% { transform: scale(1.35); opacity: 1; }
-      100% { transform: scale(0.85); opacity: 0.7; }
-    }
-
     .cli-text-group {
       display: flex;
       align-items: center;
@@ -1397,11 +1354,6 @@
           <button class="btn-quick-copy" id="btn-quick-copy" onclick="triggerCopyCommand()">
             COPY PROMPT
           </button>
-        </div>
-
-        <div class="cli-shortcut-pill">
-          <span class="pulse-dot"></span>
-          <span>After 1st run, simply type <code class="mirag-cmd-badge">mirag</code> anywhere in your terminal!</span>
         </div>
       </div>
 
