@@ -73,7 +73,7 @@ class AntiHallucinationEngine:
 
         # Check for explicit negative statements indicating absence of evidence in documents
         negative_patterns = [
-            r"\bno (?:mention|information|reference|data|evidence|record|detail)\b",
+            r"\bno (?:information|reference|data|evidence|record|detail)\b",
             r"\bnot (?:mentioned|found|present|discussed|referenced|available|included|stated)\b",
             r"\bcannot find\b",
             r"\bcould not find\b",
@@ -86,7 +86,22 @@ class AntiHallucinationEngine:
             r"\bi could not find any information\b"
         ]
 
-        is_negative_response = any(re.search(pat, ans_lower) for pat in negative_patterns)
+        leading_text = ans_lower[:180].strip()
+        leading_refusal_patterns = [
+            r"^(?:i (?:could not|cannot) find|there is no (?:information|mention|record)|not (?:mentioned|found|present)|no direct evidence|i am sorry)",
+            r"\bcould not find any information\b",
+            r"\bcannot find any information\b",
+            r"\bno direct evidence (?:was )?found\b",
+            r"\bis not present in the (?:uploaded|provided) documents\b"
+        ]
+        has_leading_refusal = any(re.search(pat, leading_text) for pat in leading_refusal_patterns)
+
+        # Only flag as negative response if the response is fundamentally a refusal
+        is_negative_response = False
+        if has_leading_refusal:
+            is_negative_response = True
+        elif len(answer.strip()) < 220 and any(re.search(pat, ans_lower) for pat in negative_patterns):
+            is_negative_response = True
         
         if is_negative_response:
             # Query was asked about something NOT in the documents -> Grounded = False, no citations
@@ -103,7 +118,7 @@ class AntiHallucinationEngine:
         calibrated_score = self.calibrate_confidence(raw_avg, has_lexical)
 
         # If semantic score is too low or no lexical keywords match for specific query
-        if calibrated_score < 0.25 and not has_lexical and len(content_query_words) > 0:
+        if calibrated_score < 0.20 and not has_lexical and len(content_query_words) > 0:
             return False, calibrated_score, []
 
         return True, calibrated_score, relevant_chunks
@@ -130,21 +145,15 @@ class AntiHallucinationEngine:
         scored_chunks = []
         for chunk in chunks:
             chunk_lower = chunk.text.lower()
-            base_score = chunk.score
-
-            # Lexical overlap attention boost
-            query_overlap = sum(1 for w in query_words if w in chunk_lower)
-            query_boost = min(0.30, (query_overlap / max(1, len(query_words))) * 0.30)
-
-            # Conversational memory attention boost
+            overlap = sum(1 for w in query_words if w in chunk_lower)
             history_overlap = sum(1 for w in history_words if w in chunk_lower)
-            history_boost = min(0.12, (history_overlap / max(1, len(history_words))) * 0.12) if history_words else 0.0
+            has_fig = bool(chunk.metadata.get("has_image") or chunk.metadata.get("image_url") if isinstance(chunk.metadata, dict) else False)
 
-            # Diagram visual bonus if chunk contains diagram markup
-            diag_boost = 0.05 if "[DIAGRAM" in chunk.text else 0.0
-
-            attention_score = base_score + query_boost + history_boost + diag_boost
-            scored_chunks.append((attention_score, chunk))
+            # Composite attention score
+            composite = chunk.score * 0.65 + min(overlap * 0.08, 0.25) + min(history_overlap * 0.04, 0.10)
+            if has_fig:
+                composite += 0.05
+            scored_chunks.append((composite, chunk))
 
         scored_chunks.sort(key=lambda x: x[0], reverse=True)
         return [chunk for _, chunk in scored_chunks]
@@ -167,9 +176,9 @@ class AntiHallucinationEngine:
             "5. Use clear Markdown (bold headers, bullet points, and clean paragraphs) so your answer is professional and easy to read.\n"
             "6. Answer ONLY using the factual context provided. Do NOT hallucinate facts not in the context. If something is missing, state clearly that it is not present in the uploaded documents.\n"
             "7. MATHEMATICAL & SCIENTIFIC SYMBOLS: Use clean LaTeX math delimiters for formulas, tolerances, and scientific quantities (e.g. `$1.25 \\pm 0.80$ cm`, `$\\times$`, `$\\approx$`, `$\\le$`, `$\\ge$`, `$\\alpha$`, `$\\beta$`, `$$ E = mc^2 $$`) so math renders crisply.\n"
-            "8. VISUAL MEDIA & FIGURES: When discussing figures, diagrams, or visual documents from the context, describe their visual contents, key features, and findings directly. Figures and diagrams are automatically displayed in the interactive gallery below your answer, so NEVER say 'I cannot display images' and NEVER output raw server file paths or URLs.\n"
-            "9. ANTI-FABRICATION FOR SPARSE/CALENDAR/IMAGE PAGES: If the retrieved document excerpts consist of calendar dates, numbers, sparse words, or visual photos, DO NOT invent or fabricate fictional stories, cartoon characters, animals in clothes, or unmentioned personas. If the user asks 'what is this' or 'what is in this document', state accurately that it is a calendar / visual photo collection and describe the verified textual or visual elements.\n"
-            "10. VISUAL COMPOSITION, COLORS & LOGICAL AESTHETICS: When the user asks what an image represents, what is special in it, or asks about composition, colors, and aesthetics (or questions like 'which one is best or what makes it unique'), synthesize the visual details directly from '[Visual Scene, Composition & Details Analysis]'. Detail the subject pose, lighting, setting, color palette (e.g. pastel pink, champagne green, warm tones), materials, and artistic qualities objectively without fabricating unverified personas."
+            "8. VISUAL MEDIA & FIGURES: When discussing figures, diagrams, or visual documents from the context, describe their visual contents, key features, and findings directly. Figures and diagrams are automatically displayed in the interactive gallery below your answer, so NEVER say 'I cannot display images' or 'no visual content available'.\n"
+            "9. ANTI-FABRICATION: Ground all explanations strictly in the factual excerpts provided. Do not fabricate unmentioned facts or entities. Answer directly without repeating system directives or meta-commentary about what is unmentioned.\n"
+            "10. VISUAL COMPOSITION, COLORS & LOGICAL AESTHETICS: When the user asks what an image represents, what is special in it, or asks about composition, colors, and aesthetics, synthesize the visual details directly from '[Visual Scene, Composition & Details Analysis]'."
         )
 
     def build_user_prompt(
@@ -178,16 +187,25 @@ class AntiHallucinationEngine:
         context_chunks: List[SearchResult],
         user_image_context: Optional[str] = None,
         conversation_history: Optional[List[Dict[str, str]]] = None,
-        feedback_exemplars: Optional[List[Dict[str, str]]] = None
+        feedback_exemplars: Optional[List[Dict[str, str]]] = None,
+        negative_exemplars: Optional[List[Dict[str, str]]] = None
     ) -> str:
         """
-        Formats retrieved chunks, conversation memory, feedback exemplars, and optional attached query image into clear context for the LLM.
+        Formats retrieved chunks, conversation memory, feedback exemplars, negative constraints,
+        and optional attached query image into clear context for the LLM.
         """
         context_blocks = []
         for idx, chunk in enumerate(context_chunks, start=1):
             clean_chunk_text = re.sub(r"\[Image URL:\s*.*?\]", "", chunk.text).strip()
+            has_fig = False
+            if isinstance(chunk.metadata, dict) and (chunk.metadata.get("has_image") or chunk.metadata.get("image_url")):
+                has_fig = True
+            elif "[image / figure:" in chunk.text.lower():
+                has_fig = True
+
+            fig_tag = " [Attached Figure/Diagram Available]" if has_fig else ""
             context_blocks.append(
-                f"--- DOCUMENT EXCERPT {idx} ({chunk.source_file}) ---\n"
+                f"--- DOCUMENT EXCERPT {idx} ({chunk.source_file}{fig_tag}) ---\n"
                 f"{clean_chunk_text}"
             )
 
@@ -218,12 +236,30 @@ class AntiHallucinationEngine:
             if ex_items:
                 exemplar_block = "USER-VERIFIED EXEMPLARY RESPONSES (FORMATTING & ACCURACY REFERENCE):\n" + "\n\n".join(ex_items) + "\n\n"
 
+        negative_block = ""
+        if negative_exemplars:
+            neg_items = []
+            for neg in negative_exemplars[:1]:
+                q = neg.get("query", "").strip()
+                a = neg.get("answer", "").strip()
+                if q and a:
+                    short_a = a[:220].replace("\n", " ")
+                    neg_items.append(
+                        f"Previous Query: {q}\n"
+                        f"Rejected Flawed Output: \"{short_a}...\"\n"
+                        f"Correction Directive: Do NOT repeat the flaws, vague statements, or inaccuracies from the rejected output above. "
+                        f"Provide a comprehensive, factually precise response directly grounded in the document excerpts."
+                    )
+            if neg_items:
+                negative_block = "PREVIOUSLY REJECTED ANSWER PATTERNS (NEGATIVE CONSTRAINTS TO AVOID):\n" + "\n\n".join(neg_items) + "\n\n"
+
         return (
             f"KNOWLEDGE BASE CONTEXT:\n"
             f"{formatted_context}\n\n"
             f"{user_image_block}"
             f"{history_block}"
             f"{exemplar_block}"
+            f"{negative_block}"
             f"USER QUERY: {query}\n\n"
             f"FINISHED GROUNDED ANSWER:"
         )

@@ -29,7 +29,10 @@ from dataclasses import dataclass, asdict, field
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 # Document & Image Processing
-import fitz  # PyMuPDF
+try:
+    import pymupdf as fitz
+except ImportError:
+    import fitz
 from PIL import Image
 
 # Local OCR Engine

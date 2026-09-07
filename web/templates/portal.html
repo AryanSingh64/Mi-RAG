@@ -1576,6 +1576,8 @@
       savedApiKeys = {};
     }
 
+    let _cachedPortalModels = null;
+
     async function populateChatModelDropdown() {
       const select = document.getElementById("chat-model-select");
       if (!select) return;
@@ -1586,15 +1588,20 @@
       const cloudModel = localStorage.getItem("mirag_cloud_model") || (currentProvider !== 'ollama' ? currentModel : 'gpt-4o');
 
       let localModels = ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b"];
-      try {
-        const res = await fetch('/api/models');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.text_models && data.text_models.length > 0) {
-            localModels = data.text_models;
+      if (_cachedPortalModels) {
+        localModels = _cachedPortalModels;
+      } else {
+        try {
+          const res = await fetch('/api/models');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.text_models && data.text_models.length > 0) {
+              _cachedPortalModels = data.text_models;
+              localModels = data.text_models;
+            }
           }
-        }
-      } catch (e) {}
+        } catch (e) {}
+      }
 
       let html = '';
 
@@ -1762,15 +1769,20 @@
       if (localSelect) {
         localSelect.innerHTML = "";
         let localModels = ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b"];
-        try {
-          const res = await fetch('/api/models');
-          if (res.ok) {
-            const data = await res.json();
-            if (data.text_models && data.text_models.length > 0) {
-              localModels = data.text_models;
+        if (_cachedPortalModels) {
+          localModels = _cachedPortalModels;
+        } else {
+          try {
+            const res = await fetch('/api/models');
+            if (res.ok) {
+              const data = await res.json();
+              if (data.text_models && data.text_models.length > 0) {
+                _cachedPortalModels = data.text_models;
+                localModels = data.text_models;
+              }
             }
-          }
-        } catch (e) {}
+          } catch (e) {}
+        }
 
         for (let m of localModels) {
           const opt = document.createElement("option");
@@ -2241,14 +2253,21 @@
       
       if (rating === 'thumbs_up') {
         btn.classList.add('active-up');
+        btn.title = "Approved! Model will use this as a positive reference exemplar.";
       } else {
         btn.classList.add('active-down');
+        btn.title = "Feedback saved! Model will avoid repeating these mistakes.";
       }
 
       try {
-        await fetch(`/api/sessions/${sessionId}/feedback`, {
+        const feedbackHeaders = { 'Content-Type': 'application/json' };
+        if (typeof sessionToken !== 'undefined' && sessionToken) {
+          feedbackHeaders['X-Session-Token'] = sessionToken;
+        }
+        const feedbackUrl = `/api/sessions/${sessionId}/feedback${(typeof sessionToken !== 'undefined' && sessionToken) ? `?token=${encodeURIComponent(sessionToken)}` : ''}`;
+        const res = await fetch(feedbackUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: feedbackHeaders,
           body: JSON.stringify({
             query: meta.query,
             answer: meta.answer,
@@ -2257,6 +2276,9 @@
             citations: meta.citations || []
           })
         });
+        if (res.ok) {
+          console.log(`[*] Feedback recorded successfully as ${rating}`);
+        }
       } catch (err) {
         console.warn("Feedback recording notice:", err);
       }

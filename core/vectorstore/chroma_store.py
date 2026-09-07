@@ -135,6 +135,84 @@ class ChromaVectorStore:
 
         return search_results
 
+    def get_image_chunks(self, limit: int = 6) -> List[SearchResult]:
+        """
+        Retrieves document chunks that contain extracted diagrams, figures, or images.
+        """
+        try:
+            results = self.collection.get(
+                where={"has_image": True},
+                limit=limit,
+                include=["documents", "metadatas"]
+            )
+            image_results = []
+            if results and results.get("ids"):
+                for doc_id, doc_text, metadata in zip(results["ids"], results["documents"], results["metadatas"]):
+                    image_results.append(
+                        SearchResult(
+                            chunk_id=doc_id,
+                            text=doc_text,
+                            source_file=metadata.get("source_file", "unknown"),
+                            metadata=metadata,
+                            score=0.85,
+                            distance=0.15
+                        )
+                    )
+            if image_results:
+                return image_results
+        except Exception:
+            pass
+
+        # Fallback: inspect raw chunks for [IMAGE / FIGURE: or [Image URL:
+        try:
+            all_sample = self.collection.get(limit=50, include=["documents", "metadatas"])
+            fallback_results = []
+            if all_sample and all_sample.get("ids"):
+                for doc_id, doc_text, metadata in zip(all_sample["ids"], all_sample["documents"], all_sample["metadatas"]):
+                    if "[image url:" in doc_text.lower() or "[image / figure:" in doc_text.lower() or metadata.get("image_url"):
+                        fallback_results.append(
+                            SearchResult(
+                                chunk_id=doc_id,
+                                text=doc_text,
+                                source_file=metadata.get("source_file", "unknown"),
+                                metadata=metadata,
+                                score=0.85,
+                                distance=0.15
+                            )
+                        )
+                    if len(fallback_results) >= limit:
+                        break
+            return fallback_results
+        except Exception:
+            return []
+
+    def get_initial_chunks(self, limit: int = 4) -> List[SearchResult]:
+        """
+        Retrieves the earliest chunks of the document (typically pages 1-2 containing title, abstract, intro)
+        for broad summary or overview queries.
+        """
+        try:
+            results = self.collection.get(
+                limit=limit,
+                include=["documents", "metadatas"]
+            )
+            init_results = []
+            if results and results.get("ids"):
+                for doc_id, doc_text, metadata in zip(results["ids"], results["documents"], results["metadatas"]):
+                    init_results.append(
+                        SearchResult(
+                            chunk_id=doc_id,
+                            text=doc_text,
+                            source_file=metadata.get("source_file", "unknown"),
+                            metadata=metadata,
+                            score=0.80,
+                            distance=0.20
+                        )
+                    )
+            return init_results
+        except Exception:
+            return []
+
     def count(self) -> int:
         """Returns total number of chunks currently indexed in the collection."""
         return self.collection.count()

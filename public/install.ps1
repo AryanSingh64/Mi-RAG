@@ -64,10 +64,19 @@ if not exist "%MIRAG_DIR%\.venv\Scripts\python.exe" (
 `$repoDir = '$escapedRepoDir'
 if (Test-Path ".\run_factory.py") {
     if (Test-Path ".\.venv\Scripts\python.exe") {
-        `$repoDir = (Get-Location).Path
+        `$testUvi = & ".\.venv\Scripts\python.exe" -c "import uvicorn; print('ok')" 2>`$null
+        if (`$testUvi -and `$testUvi.Trim() -eq "ok") {
+            `$repoDir = (Get-Location).Path
+        }
     }
 }
 `$pythonExe = "`$repoDir\.venv\Scripts\python.exe"
+if (-not (Test-Path `$pythonExe)) {
+    if (Test-Path "$HOME\Mi-RAG\.venv\Scripts\python.exe") {
+        `$repoDir = "$HOME\Mi-RAG"
+        `$pythonExe = "`$repoDir\.venv\Scripts\python.exe"
+    }
+}
 `$runScript = "`$repoDir\run_factory.py"
 if (-not (Test-Path `$pythonExe)) {
     Write-Host "[!] Mi:RAG virtual environment not found in `$repoDir. Please re-run the installer." -ForegroundColor Red

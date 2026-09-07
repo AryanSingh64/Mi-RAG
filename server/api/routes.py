@@ -251,7 +251,10 @@ async def inspect_document(file: UploadFile = File(...)):
     try:
         if ext == ".pdf":
             try:
-                import fitz
+                try:
+                    import pymupdf as fitz
+                except ImportError:
+                    import fitz
                 doc = fitz.open(stream=content, filetype="pdf")
                 pages = max(1, len(doc))
                 doc.close()

@@ -11,12 +11,21 @@ if str(ROOT_DIR) not in sys.path:
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
+import logging
 from fastapi import FastAPI
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 import uvicorn
+
+# Suppress repetitive polling endpoint logs from cluttering terminal
+class EndpointFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        return "/progress" not in msg
+
+logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 from fastapi.staticfiles import StaticFiles
 from server.api.routes import router as api_router, session_manager
@@ -36,7 +45,7 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         path = request.url.path
 
-        # 1. Whitelist all public routes, static files, and hub catalog
+        # 1. Whitelist all public routes, static files, hub catalog, and media
         if (
             path in ["/", "/app", "/docs", "/docs.html", "/studio", "/favicon.ico"]
             or path.startswith("/static")
@@ -45,6 +54,9 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
             or path.startswith("/api/providers")
             or path.startswith("/api/embeddings")
             or path.startswith("/api/keys")
+            or "/images/" in path
+            or "/diagrams/" in path
+            or "/feedback" in path
             or path == "/api/documents/inspect"
             or (path == "/api/sessions/create" and request.method == "POST")
             or path.startswith("/portal/")

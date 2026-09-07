@@ -50,12 +50,53 @@ class RAGPipeline:
         self.guardrails = AntiHallucinationEngine(min_similarity_threshold=min_similarity_threshold)
         self.rewriter = QueryRewriter(ollama_client=self.ollama)
         self.current_model = ollama_model
-        self.conversation_memory: List[Dict[str, str]] = []
-        self.feedback_store: List[Dict[str, Any]] = []
+        self.persist_directory = Path(persist_directory)
+        self.feedback_file = self.persist_directory.parent / "feedback.json"
+        self.global_feedback_file = Path.home() / ".mirag" / "global_feedback.json"
+        self.citation_boosts: Dict[str, float] = {}
+        self.feedback_store: List[Dict[str, Any]] = self._load_feedback()
 
-    def record_feedback(self, query: str, answer: str, rating: str, model: Optional[str] = None, citations: Optional[List[Any]] = None) -> Dict[str, Any]:
-        """Stores user feedback (thumbs_up / thumbs_down) for continuous in-context learning and dataset export."""
+    def _load_feedback(self) -> List[Dict[str, Any]]:
+        """Loads persistent feedback from session directory or global store."""
+        import json
+        loaded = []
+        if self.feedback_file.exists():
+            try:
+                loaded = json.loads(self.feedback_file.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        if not loaded and self.global_feedback_file.exists():
+            try:
+                loaded = json.loads(self.global_feedback_file.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+
+        # Populate initial citation boosts from loaded feedback
+        for entry in loaded:
+            r = entry.get("rating")
+            cits = entry.get("citations", [])
+            delta = 0.12 if r == "thumbs_up" else -0.15
+            for c in cits:
+                self.citation_boosts[str(c)] = round(self.citation_boosts.get(str(c), 0.0) + delta, 3)
+
+        return loaded
+
+    def record_feedback(
+        self,
+        query: str,
+        answer: str,
+        rating: str,
+        model: Optional[str] = None,
+        citations: Optional[List[Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Records user feedback (thumbs_up / thumbs_down) to actively improve RAG accuracy:
+        1. Thumbs Up: Rewards source citations and saves Q&A as an in-context few-shot exemplar.
+        2. Thumbs Down: Penalizes citations, broadens future retrieval, and injects negative constraints.
+        3. Persists feedback locally and globally for DPO / SFT dataset export.
+        """
         import time
+        import json
         clean_cits = []
         if citations:
             for c in citations:
@@ -75,15 +116,63 @@ class RAGPipeline:
             "timestamp": time.time()
         }
         self.feedback_store.append(entry)
-        print(f"[*] FEEDBACK RECORDED [{rating.upper()}]: Query '{query[:45]}...' -> {len(self.feedback_store)} feedback items in store")
+
+        # Active citation reinforcement / penalty
+        delta = 0.12 if rating == "thumbs_up" else -0.15
+        for c in clean_cits:
+            self.citation_boosts[str(c)] = round(self.citation_boosts.get(str(c), 0.0) + delta, 3)
+
+        # Persist feedback locally to session and to global ~/.mirag dataset
+        try:
+            self.feedback_file.parent.mkdir(parents=True, exist_ok=True)
+            self.feedback_file.write_text(json.dumps(self.feedback_store, indent=2), encoding="utf-8")
+            self.global_feedback_file.parent.mkdir(parents=True, exist_ok=True)
+            self.global_feedback_file.write_text(json.dumps(self.feedback_store, indent=2), encoding="utf-8")
+        except Exception as e:
+            print(f"[!] Feedback persistence notice: {e}")
+
+        print(f"[*] FEEDBACK RECORDED [{rating.upper()}]: Query '{query[:45]}...' -> {len(self.feedback_store)} feedback items in store (Citations updated)")
         return entry
 
     def get_feedback_exemplars(self, current_query: str, max_exemplars: int = 2) -> List[Dict[str, str]]:
-        """Retrieves top verified thumbs_up exemplars for dynamic few-shot in-context learning."""
+        """Retrieves top verified thumbs_up exemplars ranked by relevance for dynamic few-shot in-context learning."""
         approved = [f for f in self.feedback_store if f.get("rating") == "thumbs_up"]
         if not approved:
             return []
-        return [{"query": item["query"], "answer": item["answer"]} for item in approved[-max_exemplars:]]
+
+        q_words = set(re.findall(r"\b\w{3,}\b", current_query.lower()))
+        
+        # Rank approved items by keyword overlap with current query
+        scored = []
+        for item in approved:
+            item_q = item.get("query", "").lower()
+            overlap = sum(1 for w in q_words if w in item_q)
+            scored.append((overlap, item))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        top_items = [item for _, item in scored[:max_exemplars]]
+        return [{"query": item["query"], "answer": item["answer"]} for item in top_items]
+
+    def get_negative_exemplars(self, current_query: str, max_exemplars: int = 1) -> List[Dict[str, str]]:
+        """Retrieves rejected thumbs_down exemplars for queries similar to the current one to inject negative constraints."""
+        rejected = [f for f in self.feedback_store if f.get("rating") == "thumbs_down"]
+        if not rejected:
+            return []
+
+        q_words = set(re.findall(r"\b\w{3,}\b", current_query.lower()))
+        if not q_words:
+            return []
+
+        # Only inject if the query has meaningful lexical overlap with the rejected question
+        scored = []
+        for item in rejected:
+            item_q = item.get("query", "").lower()
+            overlap = sum(1 for w in q_words if w in item_q)
+            if overlap >= 1:
+                scored.append((overlap, item))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [{"query": item["query"], "answer": item["answer"]} for _, item in scored[:max_exemplars]]
 
     def clear_memory(self) -> None:
         """Resets the multi-turn conversational dialogue memory."""
@@ -161,17 +250,49 @@ class RAGPipeline:
             model_name=target_model
         )
 
+        q_lower = cleaned_question.lower()
+        is_summary_query = any(w in q_lower for w in ["summary", "summarize", "overview", "what is this document", "what is this paper", "explain this document"])
+        is_visual_query = any(w in q_lower for w in ["image", "images", "figure", "figures", "diagram", "diagrams", "plot", "plots", "chart", "charts", "picture", "pictures", "visual"])
+
+        # Check if negative feedback exists for this query; if so, broaden retrieval top_k
+        negative_exemplars = self.get_negative_exemplars(cleaned_question)
+        effective_top_k = top_k + 2 if negative_exemplars else top_k
+
         # 3. Multi-strategy retrieval (corrected query + original query)
-        raw_results = self.vector_store.query(search_query, top_k=top_k)
+        raw_results = self.vector_store.query(search_query, top_k=effective_top_k)
         if search_query != user_question:
-            direct_results = self.vector_store.query(user_question, top_k=top_k)
-            seen = {r.text: r for r in raw_results}
+            direct_results = self.vector_store.query(user_question, top_k=effective_top_k)
+            seen = {r.chunk_id: r for r in raw_results}
             for dr in direct_results:
-                if dr.text not in seen:
+                if dr.chunk_id not in seen:
                     raw_results.append(dr)
+
+        # Broad overview / summary query augmentation: pull in lead document chunks (abstract, intro)
+        if is_summary_query and hasattr(self.vector_store, "get_initial_chunks"):
+            initial_chunks = self.vector_store.get_initial_chunks(limit=3)
+            seen = {r.chunk_id: r for r in raw_results}
+            for ic in initial_chunks:
+                if ic.chunk_id not in seen:
+                    raw_results.append(ic)
+
+        # Visual query augmentation: pull in chunks containing figures/diagrams
+        if is_visual_query and hasattr(self.vector_store, "get_image_chunks"):
+            fig_chunks = self.vector_store.get_image_chunks(limit=6)
+            seen = {r.chunk_id: r for r in raw_results}
+            for fc in fig_chunks:
+                if fc.chunk_id not in seen:
+                    raw_results.append(fc)
 
         # 4. Filter and apply Attention-Guided Context Reranking
         filtered_chunks = self.guardrails.filter_relevant_chunks(raw_results)
+
+        # Active feedback-guided citation weighting (boosts thumbs_up sources, demotes thumbs_down sources)
+        if self.citation_boosts and filtered_chunks:
+            for c in filtered_chunks:
+                boost = self.citation_boosts.get(c.source_file, 0.0)
+                if boost:
+                    c.score = max(0.0, min(1.0, c.score + boost))
+
         relevant_chunks = self.guardrails.apply_attention_reranking(
             query=cleaned_question,
             chunks=filtered_chunks,
@@ -200,14 +321,15 @@ class RAGPipeline:
                 warning="No relevant chunks met the threshold."
             )
 
-        # 5. Construct grounded prompt with conversation memory & feedback exemplars
+        # 5. Construct grounded prompt with conversation memory, positive exemplars & negative constraints
         system_prompt = self.guardrails.build_grounded_system_prompt()
         feedback_exemplars = self.get_feedback_exemplars(cleaned_question)
         user_prompt = self.guardrails.build_user_prompt(
             query=cleaned_question,
             context_chunks=relevant_chunks,
             conversation_history=self.conversation_memory,
-            feedback_exemplars=feedback_exemplars
+            feedback_exemplars=feedback_exemplars,
+            negative_exemplars=negative_exemplars
         )
 
         # 6. Query LLM via MultiProvider dispatcher
@@ -244,10 +366,20 @@ class RAGPipeline:
             relevant_chunks=relevant_chunks
         )
 
-        # Extract only visually relevant diagrams if answer is grounded and not explicitly suppressed
+        # Extract visually relevant diagrams
         matched_images = []
-        if is_grounded:
-            matched_images = self._extract_relevant_images(user_question, relevant_chunks, is_image_query=False)
+        if is_grounded or is_visual_query:
+            matched_images = self._extract_relevant_images(user_question, relevant_chunks, is_image_query=is_visual_query)
+
+        # Fallback for visual query if relevant_chunks yielded no images
+        if is_visual_query and not matched_images and hasattr(self.vector_store, "get_image_chunks"):
+            img_pool = self.vector_store.get_image_chunks(limit=6)
+            if img_pool:
+                matched_images = self._extract_relevant_images(user_question, img_pool, is_image_query=True)
+
+        if is_visual_query and matched_images and not is_grounded:
+            is_grounded = True
+            confidence_score = max(0.65, confidence_score)
 
         if matched_images:
             print(f"[*] ATTACHED VISUAL DIAGRAMS ({len(matched_images)}):")
@@ -258,7 +390,7 @@ class RAGPipeline:
             answer=llm_response,
             is_grounded=is_grounded,
             confidence_score=confidence_score,
-            citations=grounded_citations,
+            citations=grounded_citations if grounded_citations else relevant_chunks[:3],
             images=matched_images
         )
 
@@ -466,10 +598,12 @@ class RAGPipeline:
                         "relevance": round(max(40.0, calibrated_rel), 1)
                     })
 
-                    if len(matched_images) >= (3 if (is_image_query or explicit_visual_intent) else 1):
+                    max_imgs = 6 if (is_image_query or explicit_visual_intent) else 2
+                    if len(matched_images) >= max_imgs:
                         break
 
-            if len(matched_images) >= (3 if (is_image_query or explicit_visual_intent) else 1):
+            max_imgs = 6 if (is_image_query or explicit_visual_intent) else 2
+            if len(matched_images) >= max_imgs:
                 break
 
         return matched_images

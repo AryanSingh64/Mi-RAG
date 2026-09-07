@@ -27,6 +27,15 @@ class QueryRewriter:
         if not query_clean:
             return user_query, user_query
 
+        # Targeted expansion for broad document overview / summary queries
+        q_lower = query_clean.lower().rstrip("?!.")
+        if any(w in q_lower for w in ["summary", "summarize", "overview", "what is this document", "what is this paper", "explain this document"]):
+            return query_clean, f"{query_clean} document summary overview abstract introduction key findings conclusions main contributions"
+
+        # Targeted expansion for visual figure / diagram queries
+        if any(w in q_lower for w in ["image", "images", "figure", "figures", "diagram", "diagrams", "plot", "plots", "chart", "charts", "picture", "pictures", "visual"]):
+            return query_clean, f"{query_clean} figure diagram plot chart architecture workflow illustration scene details"
+
         # If query is short or straightforward, search directly with original query
         if len(query_clean.split()) <= 4:
             return query_clean, query_clean

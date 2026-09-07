@@ -1722,7 +1722,7 @@
           sessionStorage.setItem('mirag_token_' + sessionId, sessionToken);
         }
 
-        // Start live server progress polling
+        // Start live server progress polling (1 second interval to eliminate terminal spam)
         pollInterval = setInterval(async () => {
           try {
             const pRes = await fetch(`/api/sessions/${sessionId}/progress`, {
@@ -1734,10 +1734,15 @@
                 const diagInfo = pData.diagrams ? ` | ${pData.diagrams} images extracted` : '';
                 const displayMsg = `${pData.stage || 'Processing'}${diagInfo}`;
                 updateProgress(Math.max(10, Math.min(98, pData.percent)), displayMsg, `${pData.percent}%`);
+              } else if (pData.status === "complete" || pData.percent >= 100) {
+                if (pollInterval) {
+                  clearInterval(pollInterval);
+                  pollInterval = null;
+                }
               }
             }
           } catch (pErr) {}
-        }, 350);
+        }, 1000);
 
         const total = selectedFiles.length;
         for (let i = 0; i < total; i++) {
