@@ -28,19 +28,26 @@ Mi:RAG indexes your documents (PDFs, Word documents, images) on your local machi
 
 ## Quickstart & Installation
 
-### Option 1: Windows 1-Line Installer (PowerShell)
+### Option 1: Automated 1-Line Installer
 
-Run PowerShell as Administrator and execute:
-
+#### On Windows (PowerShell)
 ```powershell
 irm https://mirag.me/install | iex
 ```
 
+#### On Linux & macOS (Bash)
+```bash
+curl -fsSL https://mirag.me/install.sh | bash
+```
+
 This automated script:
-1. Detects your hardware (NVIDIA GPU / CPU cores / RAM).
-2. Verifies your Ollama installation and pulls the recommended model (e.g. `llama3.2:3b` or `qwen2.5:3b`).
-3. Caches local sentence-transformer embedding weights (`all-MiniLM-L6-v2`, ~80MB).
-4. Launches the Knowledge Base Studio at `http://localhost:8000`.
+1. Detects your hardware (NVIDIA GPU / CPU cores / RAM / CUDA).
+2. Verifies your base Python and Ollama installation (auto-starting Ollama service).
+3. Configures `.venv`, self-heals corrupted environments, and installs dependencies.
+4. **Registers global `mirag` CLI shortcut** in your terminal's `PATH`.
+5. Launches the Knowledge Base Studio at `http://localhost:8000`.
+
+> **Instant Launch**: After the first run, simply type `mirag` from any directory in PowerShell, CMD, or Bash to start Mi:RAG!
 
 ---
 

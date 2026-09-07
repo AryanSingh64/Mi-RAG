@@ -10,6 +10,10 @@
       "destination": "/install.ps1"
     },
     {
+      "source": "/install.sh",
+      "destination": "/install.sh"
+    },
+    {
       "source": "/docs",
       "destination": "/docs.html"
     }
@@ -17,6 +21,19 @@
   "headers": [
     {
       "source": "/install.ps1",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/install.sh",
       "headers": [
         {
           "key": "Content-Type",

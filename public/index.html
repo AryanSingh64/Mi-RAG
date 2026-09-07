@@ -422,10 +422,65 @@
       text-shadow: 2px 2px 0px #000, 0 2px 8px rgba(0,0,0,0.6);
     }
 
-    /* CLI Prompt Box (Visible & Copyable) */
-    .cli-command-box {
-      max-width: 640px;
+    /* CLI Prompt Box with OS Tabs & Shortcut Banner */
+    .cli-container {
+      max-width: 660px;
       margin: 0 auto 2.5rem;
+      position: relative;
+    }
+
+    .cli-os-tabs {
+      display: inline-flex;
+      background: #000000;
+      border: var(--border-thick);
+      border-bottom: none;
+      border-radius: 12px 12px 0 0;
+      box-shadow: 4px 0px 0px #000000;
+      overflow: hidden;
+      margin-left: 0.5rem;
+      position: relative;
+      z-index: 2;
+    }
+
+    .cli-os-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: #181818;
+      color: #aaaaaa;
+      border: none;
+      border-right: 2px solid #333333;
+      padding: 0.55rem 1.1rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .cli-os-tab:last-child {
+      border-right: none;
+    }
+
+    .cli-os-tab:hover {
+      background: #252525;
+      color: #ffffff;
+    }
+
+    .cli-os-tab.active {
+      background: var(--yellow);
+      color: #000000;
+      font-weight: 900;
+    }
+
+    .os-tab-icon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .cli-command-box {
+      width: 100%;
       background: #000000;
       border: var(--border-thick);
       border-radius: 12px;
@@ -435,6 +490,51 @@
       align-items: center;
       justify-content: space-between;
       gap: 1rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cli-shortcut-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      background: rgba(0, 0, 0, 0.9);
+      border: 2px solid var(--yellow);
+      color: #ffffff;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 0.45rem 1.1rem;
+      border-radius: 999px;
+      margin-top: 0.85rem;
+      box-shadow: var(--shadow-neo);
+    }
+
+    .mirag-cmd-badge {
+      background: var(--pink);
+      color: #ffffff;
+      padding: 0.12rem 0.5rem;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 900;
+      font-size: 0.88rem;
+      border: 1px solid #000000;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: #00ff88;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #00ff88;
+      animation: pulseAnimation 1.6s infinite ease-in-out;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulseAnimation {
+      0% { transform: scale(0.85); opacity: 0.7; }
+      50% { transform: scale(1.35); opacity: 1; }
+      100% { transform: scale(0.85); opacity: 0.7; }
     }
 
     .cli-text-group {
@@ -1276,15 +1376,33 @@
         Turn messy enterprise PDFs, diagrams, scanned forms, and clicked photos into a turnkey, anti-hallucination AI knowledge microservice in seconds.
       </p>
 
-      <!-- Interactive Copyable CLI Prompt Box -->
-      <div class="cli-command-box" data-cursor="CLI Launch Command">
-        <div class="cli-text-group">
-          <span class="cli-prompt-symbol">&gt;</span>
-          <span id="cli-cmd-text">irm https://mirag.me/install | iex</span>
+      <!-- Interactive Copyable CLI Prompt Box with Dynamic OS Selector -->
+      <div class="cli-container">
+        <div class="cli-os-tabs">
+          <button class="cli-os-tab active" id="tab-win" onclick="switchOS('windows')" title="Windows PowerShell Installer">
+            <svg class="os-tab-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.801"/></svg>
+            <span>Windows (PowerShell)</span>
+          </button>
+          <button class="cli-os-tab" id="tab-linux" onclick="switchOS('linux')" title="Linux / macOS Bash Installer">
+            <svg class="os-tab-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12.002 0c-2.457 0-4.444 2.083-4.444 4.654 0 1.547.718 2.919 1.83 3.793-.162.593-.418 1.487-.697 2.408-.66 2.185-1.42 4.417-1.42 4.417s-.52.274-.954.51c-.435.237-.87.525-1.028.988-.158.463.02 1.096.347 1.637.327.54.832 1.01 1.424 1.344.592.333 1.272.502 1.947.502 1.012 0 1.98-.364 2.766-.856.786.492 1.754.856 2.766.856.675 0 1.355-.169 1.947-.502.592-.334 1.097-.804 1.424-1.344.327-.541.505-1.174.347-1.637-.158-.463-.593-.751-1.028-.988-.434-.236-.954-.51-.954-.51s-.76-2.232-1.42-4.417c-.279-.921-.535-1.815-.697-2.408 1.112-.874 1.83-2.246 1.83-3.793C16.446 2.083 14.459 0 12.002 0z"/></svg>
+            <span>Linux / macOS (Bash)</span>
+          </button>
         </div>
-        <button class="btn-quick-copy" id="btn-quick-copy" onclick="triggerCopyCommand()">
-          COPY PROMPT
-        </button>
+
+        <div class="cli-command-box" data-cursor="CLI Launch Command">
+          <div class="cli-text-group">
+            <span class="cli-prompt-symbol" id="cli-prompt-symbol">&gt;</span>
+            <span id="cli-cmd-text">irm https://mirag.me/install | iex</span>
+          </div>
+          <button class="btn-quick-copy" id="btn-quick-copy" onclick="triggerCopyCommand()">
+            COPY PROMPT
+          </button>
+        </div>
+
+        <div class="cli-shortcut-pill">
+          <span class="pulse-dot"></span>
+          <span>After 1st run, simply type <code class="mirag-cmd-badge">mirag</code> anywhere in your terminal!</span>
+        </div>
       </div>
 
       <div class="hero-action-buttons">
@@ -1407,24 +1525,79 @@
     </div>
   </footer>
 
-  <!-- Robust Clipboard Copy Handlers -->
+  <!-- Robust Dynamic OS Installer & Clipboard Handlers -->
   <script>
-    // Robust Clipboard Copy Function with Mobile/Browser Fallbacks
     const copyToast = document.getElementById('copy-toast');
     const toastCloseBtn = document.getElementById('toast-close-btn');
-    const commandText = "irm https://mirag.me/install | iex";
 
-    function triggerCopyCommand() {
-      if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(commandText).then(showToast).catch(fallbackCopy);
-      } else {
-        fallbackCopy();
+    let currentOS = "windows";
+    const osConfigs = {
+      windows: {
+        text: "irm https://mirag.me/install | iex",
+        prompt: ">",
+        instruction: "Paste this command into your PowerShell terminal on Windows to launch your local engine."
+      },
+      linux: {
+        text: "curl -fsSL https://mirag.me/install.sh | bash",
+        prompt: "$",
+        instruction: "Paste this command into your Linux or macOS Terminal to launch your local engine."
+      }
+    };
+
+    function detectUserOS() {
+      try {
+        const ua = (navigator.userAgent || "").toLowerCase();
+        const plat = (navigator.userAgentData?.platform || navigator.platform || "").toLowerCase();
+        if (plat.includes("win") || ua.includes("windows")) {
+          return "windows";
+        }
+        if (plat.includes("linux") || ua.includes("linux") || ua.includes("x11") || plat.includes("mac") || ua.includes("macintosh")) {
+          return "linux";
+        }
+      } catch (e) {}
+      return "windows";
+    }
+
+    function switchOS(os) {
+      currentOS = os;
+      const config = osConfigs[os];
+      const cmdText = document.getElementById('cli-cmd-text');
+      const promptSymbol = document.getElementById('cli-prompt-symbol');
+      const tabWin = document.getElementById('tab-win');
+      const tabLinux = document.getElementById('tab-linux');
+
+      if (cmdText) cmdText.innerText = config.text;
+      if (promptSymbol) promptSymbol.innerText = config.prompt;
+
+      if (tabWin && tabLinux) {
+        if (os === "windows") {
+          tabWin.classList.add('active');
+          tabLinux.classList.remove('active');
+        } else {
+          tabLinux.classList.add('active');
+          tabWin.classList.remove('active');
+        }
       }
     }
 
-    function fallbackCopy() {
+    // Auto-detect OS on initial load
+    (function() {
+      const detected = detectUserOS();
+      switchOS(detected);
+    })();
+
+    function triggerCopyCommand() {
+      const activeText = osConfigs[currentOS].text;
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(activeText).then(showToast).catch(() => fallbackCopy(activeText));
+      } else {
+        fallbackCopy(activeText);
+      }
+    }
+
+    function fallbackCopy(text) {
       const textArea = document.createElement("textarea");
-      textArea.value = commandText;
+      textArea.value = text;
       textArea.style.position = "fixed";
       textArea.style.left = "-999999px";
       textArea.style.top = "-999999px";
@@ -1435,15 +1608,22 @@
         document.execCommand('copy');
         showToast();
       } catch (err) {
-        prompt("Copy this launch command manually:", commandText);
+        prompt("Copy this launch command manually:", text);
       }
       document.body.removeChild(textArea);
     }
 
+    let toastTimer = null;
     function showToast() {
       if (!copyToast) return;
+      const toastCode = copyToast.querySelector('.toast-code');
+      const toastInst = copyToast.querySelector('.toast-instructions');
+      if (toastCode) toastCode.innerText = osConfigs[currentOS].text;
+      if (toastInst) toastInst.innerText = osConfigs[currentOS].instruction;
+
       copyToast.classList.add('visible');
-      setTimeout(() => {
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
         copyToast.classList.remove('visible');
       }, 5000);
     }
