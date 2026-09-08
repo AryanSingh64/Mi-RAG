@@ -913,36 +913,36 @@
             </div>
           </div>
 
-          <!-- Gold Standard Pre-Build Intelligence Settings -->
-          <div class="input-group" style="grid-column: span 2; background: #f8fafc; border: 2px solid #000; padding: 0.9rem; border-radius: 8px; box-shadow: 2.5px 2.5px 0px #000;">
-            <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.88rem; color: #0f172a; margin-bottom: 0.6rem; display: flex; align-items: center; justify-content: space-between;">
-              <span>🎯 KNOWLEDGE ACCURACY & ANSWERING BEHAVIOR</span>
-              <span style="font-size: 0.7rem; font-weight: 800; background: var(--yellow); padding: 0.15rem 0.45rem; border: 1.5px solid #000; border-radius: 4px;">ANTI-HALLUCINATION ACTIVE</span>
+          <!-- Response Configuration Panel -->
+          <div class="input-group" style="grid-column: span 2; background: #ffffff; border: 1.5px solid #e2e8f0; padding: 1rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; color: #0f172a; margin-bottom: 0.65rem; display: flex; align-items: center; justify-content: space-between;">
+              <span style="letter-spacing: 0.3px;">BEHAVIOR</span>
+              <span style="font-size: 0.68rem; font-weight: 700; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; padding: 0.15rem 0.55rem; border-radius: 9999px;">Grounded</span>
             </div>
             
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.85rem;">
               <div>
-                <label class="label" for="strictness-select" style="font-size: 0.78rem;">Document Strictness</label>
-                <select id="strictness-select" style="font-family: 'Space Grotesk', sans-serif; font-size: 0.82rem; padding: 0.45rem;">
-                  <option value="strict">🔒 Strict (Zero Guesswork • Exact Proof Only)</option>
-                  <option value="balanced" selected>⚖️ Balanced (Recommended • Accurate & Fluent)</option>
-                  <option value="creative">🌐 Open (Allows Broad AI General Knowledge)</option>
+                <label class="label" for="strictness-select" style="font-size: 0.76rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Strictness</label>
+                <select id="strictness-select" style="font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem; font-weight: 700; padding: 0.5rem 0.65rem; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; color: #0f172a;">
+                  <option value="strict">Strict</option>
+                  <option value="balanced" selected>Balanced</option>
+                  <option value="creative">Creative</option>
                 </select>
               </div>
 
               <div>
-                <label class="label" for="missing-behavior-select" style="font-size: 0.78rem;">If Answer Is Not in Your Files</label>
-                <select id="missing-behavior-select" style="font-family: 'Space Grotesk', sans-serif; font-size: 0.82rem; padding: 0.45rem;">
-                  <option value="refusal" selected>🚫 Say "Not found in files" (Safe & Grounded)</option>
-                  <option value="general_knowledge">💡 Answer from General Knowledge (With Warning Tag)</option>
+                <label class="label" for="missing-behavior-select" style="font-size: 0.76rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Fallback</label>
+                <select id="missing-behavior-select" style="font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem; font-weight: 700; padding: 0.5rem 0.65rem; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; color: #0f172a;">
+                  <option value="refusal" selected>Decline</option>
+                  <option value="general_knowledge">General</option>
                 </select>
               </div>
 
               <div>
-                <label class="label" for="style-select" style="font-size: 0.78rem;">Response Style</label>
-                <select id="style-select" style="font-family: 'Space Grotesk', sans-serif; font-size: 0.82rem; padding: 0.45rem;">
-                  <option value="detailed" selected>📖 Detailed (In-Depth Analysis & Citations)</option>
-                  <option value="concise">⚡ Direct & Short (Bulleted Facts Only)</option>
+                <label class="label" for="style-select" style="font-size: 0.76rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Format</label>
+                <select id="style-select" style="font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem; font-weight: 700; padding: 0.5rem 0.65rem; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; color: #0f172a;">
+                  <option value="detailed" selected>Detailed</option>
+                  <option value="concise">Concise</option>
                 </select>
               </div>
             </div>
