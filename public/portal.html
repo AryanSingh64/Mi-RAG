@@ -416,62 +416,6 @@
       height: 14px;
       stroke-width: 2;
     }
-    .checkbox-chips-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 0.35rem;
-    }
-    .model-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      background: #fff;
-      border: 1.5px solid #cbd5e1;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-      padding: 0.4rem 0.75rem;
-      border-radius: 6px;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700;
-      font-size: 0.8rem;
-      color: #0f172a;
-      cursor: pointer;
-      user-select: none;
-      transition: all 0.15s ease;
-    }
-    .model-chip:hover {
-      border-color: #94a3b8;
-      background: #f8fafc;
-    }
-    .model-chip.selected {
-      border-color: #0f172a;
-      background: #f1f5f9;
-    }
-    .model-chip input[type="checkbox"] {
-      accent-color: #0f172a;
-      width: 15px;
-      height: 15px;
-      cursor: pointer;
-      margin: 0;
-    }
-    .chip-badge {
-      font-size: 0.65rem;
-      font-weight: 800;
-      padding: 0.1rem 0.4rem;
-      border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-    }
-    .chip-badge-local {
-      background: #dcfce7;
-      color: #15803d;
-      border: 1px solid #bbf7d0;
-    }
-    .chip-badge-cloud {
-      background: #e0f2fe;
-      color: #0369a1;
-      border: 1px solid #bae6fd;
-    }
     .timer-badge {
       display: flex;
       align-items: center;
@@ -1368,14 +1312,13 @@
             <span style="font-size: 0.72rem; font-weight: 800; background: var(--green); color: #000; padding: 0.15rem 0.5rem; border: 1.5px solid #000; border-radius: 4px;">Offline Ready</span>
           </div>
           <div id="portal-local-model-body">
-            <div style="font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.4rem;">
-              Select Local Models to show in chatbox:
+            <div style="margin-bottom: 0.6rem;">
+              <select id="portal-setting-local-model-select" style="width: 100%; padding: 0.65rem; border: 2px solid #000; border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.88rem; background: #fff; box-shadow: 2px 2px 0px #000;">
+                <!-- Local Ollama options -->
+              </select>
             </div>
-            <div class="checkbox-chips-grid" id="portal-local-models-list">
-              <!-- Dynamically populated checkmark chips for local models -->
-            </div>
-            <div style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin-top: 0.5rem;">
-              Runs completely on-device. Only checked models will appear in the chatbox.
+            <div style="font-size: 0.78rem; color: #64748b; font-weight: 600;">
+              Runs completely on-device. No internet required.
             </div>
           </div>
         </div>
@@ -1394,11 +1337,11 @@
 
           <div id="portal-advanced-settings-panel" style="display: none; padding: 1rem; border-top: 2px solid #000; flex-direction: column; gap: 0.85rem;">
             <div style="font-size: 0.78rem; color: #475569; font-weight: 600; line-height: 1.4;">
-              Connect external AI providers for cloud inference. If unchecked, no cloud models will appear in the chatbox.
+              Connect external AI providers for cloud inference. Requires an active internet connection and your own API key.
             </div>
 
             <div>
-              <label style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; margin-bottom: 0.35rem; color: #0f172a;">Active Cloud Provider:</label>
+              <label style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; margin-bottom: 0.35rem; color: #0f172a;">Cloud Provider:</label>
               <select id="portal-provider-select" onchange="handlePortalProviderChange()" style="width: 100%; padding: 0.65rem; border: 2px solid #000; border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.85rem; background: #fff; box-shadow: 2px 2px 0px #000;">
                 <option value="openai">OpenAI (GPT-5, GPT-4o)</option>
                 <option value="gemini">Google Gemini (Gemini 3.7 Flash, 3.1 Pro)</option>
@@ -1408,6 +1351,14 @@
               </select>
             </div>
 
+            <div id="portal-cloud-model-container" style="display: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                <label style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; color: #0f172a;">Cloud Model:</label>
+                <button type="button" onclick="fetchLatestPortalModels()" id="btn-portal-fetch-models" style="background: var(--yellow); border: 1.5px solid #000; box-shadow: 1.5px 1.5px 0px #000; padding: 0.15rem 0.55rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.7rem; border-radius: 4px; cursor: pointer;">Fetch Models</button>
+              </div>
+              <select id="portal-model-select" style="width: 100%; padding: 0.65rem; border: 2px solid #000; border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.85rem; background: #fff; box-shadow: 2px 2px 0px #000;"></select>
+            </div>
+
             <div id="portal-api-key-container" style="display: none;">
               <label id="portal-api-key-label" style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; margin-bottom: 0.35rem; color: #0f172a;">API Key:</label>
               <div style="display: flex; gap: 0.5rem;">
@@ -1415,16 +1366,6 @@
                 <button type="button" onclick="testPortalKey()" id="btn-portal-test-key" style="background: var(--yellow); border: 2px solid #000; box-shadow: 2px 2px 0px #000; padding: 0.65rem 0.9rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.8rem; border-radius: 6px; cursor: pointer;">Test</button>
               </div>
               <div id="portal-key-test-feedback" style="margin-top: 0.4rem; font-size: 0.76rem; font-weight: 700; display: none;"></div>
-            </div>
-
-            <div id="portal-cloud-model-container" style="display: block;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                <label style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.82rem; color: #0f172a;">Select Cloud Models to show in chatbox:</label>
-                <button type="button" onclick="fetchLatestPortalModels()" id="btn-portal-fetch-models" style="background: var(--yellow); border: 1.5px solid #000; box-shadow: 1.5px 1.5px 0px #000; padding: 0.15rem 0.55rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.7rem; border-radius: 4px; cursor: pointer;">Fetch Models</button>
-              </div>
-              <div class="checkbox-chips-grid" id="portal-cloud-models-list" style="max-height: 180px; overflow-y: auto; padding: 0.2rem;">
-                <!-- Dynamically populated checkmark chips for cloud models -->
-              </div>
             </div>
           </div>
         </div>
@@ -2077,18 +2018,6 @@
       }
     };
 
-    const DEFAULT_CLOUD_PRESETS = [
-      { prov: "openai", model: "gpt-4o-mini", label: "OpenAI: GPT-4o Mini" },
-      { prov: "openai", model: "gpt-4o", label: "OpenAI: GPT-4o" },
-      { prov: "openai", model: "gpt-5.6-sol", label: "OpenAI: GPT-5.6 Sol" },
-      { prov: "gemini", model: "gemini-3.7-flash", label: "Gemini: 3.7 Flash" },
-      { prov: "gemini", model: "gemini-3.1-pro", label: "Gemini: 3.1 Pro" },
-      { prov: "anthropic", model: "claude-sonnet-5", label: "Claude: Sonnet 5" },
-      { prov: "anthropic", model: "claude-opus-5", label: "Claude: Opus 5" },
-      { prov: "grok", model: "grok-4.6", label: "Grok: Grok 4.6" },
-      { prov: "openrouter", model: "openrouter/auto", label: "OpenRouter: Auto" }
-    ];
-
     let currentProvider = localStorage.getItem("mirag_provider") || "ollama";
     let currentModel = localStorage.getItem("mirag_model") || "llama3.2:3b";
     let savedApiKeys = {};
@@ -2105,7 +2034,9 @@
       if (!select) return;
 
       const localEnabled = localStorage.getItem("mirag_enable_local") !== "false";
-      const cloudEnabled = localStorage.getItem("mirag_enable_cloud") === "true";
+      const cloudEnabled = localStorage.getItem("mirag_enable_cloud") === "true" || currentProvider !== 'ollama';
+      const cloudProvider = localStorage.getItem("mirag_cloud_provider") || (currentProvider !== 'ollama' ? currentProvider : 'openai');
+      const cloudModel = localStorage.getItem("mirag_cloud_model") || (currentProvider !== 'ollama' ? currentModel : 'gpt-4o');
 
       let localModels = ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b"];
       if (_cachedPortalModels) {
@@ -2123,73 +2054,69 @@
         } catch (e) {}
       }
 
-      let selectedLocal = null;
-      try {
-        const raw = localStorage.getItem("mirag_selected_local_models");
-        if (raw) selectedLocal = JSON.parse(raw);
-      } catch (e) {}
-      if (!Array.isArray(selectedLocal)) {
-        selectedLocal = localModels.slice(0, 2);
-      }
-
-      let selectedCloud = [];
-      if (cloudEnabled) {
-        try {
-          const raw = localStorage.getItem("mirag_selected_cloud_models");
-          if (raw) selectedCloud = JSON.parse(raw);
-        } catch (e) {}
-        if (!Array.isArray(selectedCloud)) {
-          selectedCloud = ["openai:gpt-4o-mini"];
-        }
-      }
-
       let html = '';
 
-      // 1. Local Models (only if local enabled AND specifically checked)
-      if (localEnabled && selectedLocal.length > 0) {
+      // 1. Local Models (if enabled)
+      if (localEnabled) {
         html += `<optgroup label="Local Models (Offline)">`;
         for (let m of localModels) {
-          if (!selectedLocal.includes(m)) continue;
           const isSel = (currentProvider === 'ollama' && currentModel === m);
           html += `<option value="ollama:${m}" ${isSel ? 'selected' : ''}>${m} (Local)</option>`;
         }
         html += `</optgroup>`;
       }
 
-      // 2. Cloud Models (ONLY if cloudEnabled is true AND models are checked)
-      if (cloudEnabled && selectedCloud.length > 0) {
+      // 2. Cloud Models (if enabled)
+      if (cloudEnabled) {
         html += `<optgroup label="Cloud Models (Online)">`;
-        for (let cp of DEFAULT_CLOUD_PRESETS) {
-          const key = `${cp.prov}:${cp.model}`;
-          if (!selectedCloud.includes(key) && !selectedCloud.includes(cp.model)) continue;
-          const isSel = (currentProvider === cp.prov && currentModel === cp.model);
-          html += `<option value="${key}" ${isSel ? 'selected' : ''}>${cp.label}</option>`;
+        const cloudPresets = [
+          { prov: "openai", model: "gpt-4o-mini", label: "OpenAI: GPT-4o Mini" },
+          { prov: "openai", model: "gpt-4o", label: "OpenAI: GPT-4o" },
+          { prov: "openai", model: "gpt-5.6-sol", label: "OpenAI: GPT-5.6 Sol" },
+          { prov: "gemini", model: "gemini-3.7-flash", label: "Gemini: 3.7 Flash" },
+          { prov: "gemini", model: "gemini-3.1-pro", label: "Gemini: 3.1 Pro" },
+          { prov: "anthropic", model: "claude-sonnet-5", label: "Claude: Sonnet 5" },
+          { prov: "anthropic", model: "claude-opus-5", label: "Claude: Opus 5" },
+          { prov: "grok", model: "grok-4.6", label: "Grok: Grok 4.6" },
+          { prov: "openrouter", model: "openrouter/auto", label: "OpenRouter: Auto" }
+        ];
+
+        // Add currently selected cloud model if it's not in presets
+        if (cloudProvider && cloudModel && !cloudPresets.some(p => p.prov === cloudProvider && p.model === cloudModel)) {
+          cloudPresets.unshift({
+            prov: cloudProvider,
+            model: cloudModel,
+            label: `${cloudProvider.toUpperCase()}: ${cloudModel}`
+          });
         }
-        // Custom fetched models that might be in selectedCloud
-        for (let sc of selectedCloud) {
-          const parts = sc.split(':');
-          const p = parts[0];
-          const m = parts.slice(1).join(':');
-          if (DEFAULT_CLOUD_PRESETS.some(cp => cp.prov === p && cp.model === m)) continue;
-          const isSel = (currentProvider === p && currentModel === m);
-          html += `<option value="${sc}" ${isSel ? 'selected' : ''}>${p.toUpperCase()}: ${m}</option>`;
+
+        for (let cp of cloudPresets) {
+          const isSel = (currentProvider === cp.prov && currentModel === cp.model);
+          html += `<option value="${cp.prov}:${cp.model}" ${isSel ? 'selected' : ''}>${cp.label}</option>`;
         }
         html += `</optgroup>`;
       }
 
       select.innerHTML = html;
 
-      // Ensure select value is synced with an available option
+      // Ensure select value is synced
       const currentVal = `${currentProvider}:${currentModel}`;
       if (Array.from(select.options).some(o => o.value === currentVal)) {
         select.value = currentVal;
-      } else if (select.options.length > 0) {
-        select.value = select.options[0].value;
-        const parts = select.value.split(':');
-        currentProvider = parts[0];
-        currentModel = parts.slice(1).join(':');
-        localStorage.setItem("mirag_provider", currentProvider);
-        localStorage.setItem("mirag_model", currentModel);
+      } else {
+        const found = Array.from(select.options).find(o => o.value.endsWith(`:${currentModel}`));
+        if (found) {
+          select.value = found.value;
+          currentProvider = select.value.split(':')[0];
+          localStorage.setItem("mirag_provider", currentProvider);
+        } else if (select.options.length > 0) {
+          select.value = select.options[0].value;
+          const parts = select.value.split(':');
+          currentProvider = parts[0];
+          currentModel = parts.slice(1).join(':');
+          localStorage.setItem("mirag_provider", currentProvider);
+          localStorage.setItem("mirag_model", currentModel);
+        }
       }
 
       syncHeaderModelDisplay();
@@ -2266,7 +2193,9 @@
       }
 
       const localCard = document.getElementById("portal-local-model-card");
+      const localSelect = document.getElementById("portal-setting-local-model-select");
       if (localCard) localCard.style.opacity = checkLocal.checked ? "1" : "0.5";
+      if (localSelect) localSelect.disabled = !checkLocal.checked;
 
       const cloudCard = document.getElementById("portal-cloud-model-card");
       if (cloudCard) cloudCard.style.opacity = checkCloud.checked ? "1" : "0.5";
@@ -2278,19 +2207,20 @@
       }
     };
 
-    function togglePortalAdvancedSettings(forceOpen) {
+    window.togglePortalAdvancedSettings = function(forceOpen) {
       const panel = document.getElementById("portal-advanced-settings-panel");
       const arrow = document.getElementById("portal-adv-arrow");
       if (!panel) return;
-      const isClosed = (panel.style.display === 'none' || panel.style.display === '');
-      const shouldOpen = forceOpen !== undefined ? forceOpen : isClosed;
-      panel.style.display = shouldOpen ? 'flex' : 'none';
-      if (arrow) arrow.style.transform = shouldOpen ? 'rotate(180deg)' : 'rotate(0deg)';
-    }
+      const isOpen = panel.style.display === "flex";
+      const shouldOpen = (typeof forceOpen === "boolean") ? forceOpen : !isOpen;
+
+      panel.style.display = shouldOpen ? "flex" : "none";
+      if (arrow) arrow.innerText = shouldOpen ? "▲" : "▼";
+    };
 
     window.openPortalSettingsModal = async function() {
       const localEnabled = localStorage.getItem("mirag_enable_local") !== "false";
-      const cloudEnabled = localStorage.getItem("mirag_enable_cloud") === "true";
+      const cloudEnabled = localStorage.getItem("mirag_enable_cloud") === "true" || currentProvider !== 'ollama';
 
       const checkLocal = document.getElementById("check-portal-enable-local");
       const checkCloud = document.getElementById("check-portal-enable-cloud");
@@ -2298,66 +2228,67 @@
       if (checkCloud) checkCloud.checked = cloudEnabled;
 
       const localCard = document.getElementById("portal-local-model-card");
+      const localSelect = document.getElementById("portal-setting-local-model-select");
       if (localCard) localCard.style.opacity = localEnabled ? "1" : "0.5";
+      if (localSelect) localSelect.disabled = !localEnabled;
 
       const cloudCard = document.getElementById("portal-cloud-model-card");
       if (cloudCard) cloudCard.style.opacity = cloudEnabled ? "1" : "0.5";
 
-      // 1. Setup Local Ollama Model checkboxes
-      let localModels = ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b"];
-      if (_cachedPortalModels) {
-        localModels = _cachedPortalModels;
-      } else {
-        try {
-          const res = await fetch('/api/models');
-          if (res.ok) {
-            const data = await res.json();
-            if (data.text_models && data.text_models.length > 0) {
-              _cachedPortalModels = data.text_models;
-              localModels = data.text_models;
+      // 1. Setup Local Ollama Model selection
+      if (localSelect) {
+        localSelect.innerHTML = "";
+        let localModels = ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b"];
+        if (_cachedPortalModels) {
+          localModels = _cachedPortalModels;
+        } else {
+          try {
+            const res = await fetch('/api/models');
+            if (res.ok) {
+              const data = await res.json();
+              if (data.text_models && data.text_models.length > 0) {
+                _cachedPortalModels = data.text_models;
+                localModels = data.text_models;
+              }
             }
-          }
-        } catch (e) {}
+          } catch (e) {}
+        }
+
+        for (let m of localModels) {
+          const opt = document.createElement("option");
+          opt.value = m;
+          opt.innerText = m;
+          localSelect.appendChild(opt);
+        }
+
+        const savedLocalModel = localStorage.getItem("mirag_local_model") || (currentProvider === 'ollama' ? currentModel : 'llama3.2:3b');
+        if (savedLocalModel && Array.from(localSelect.options).some(o => o.value === savedLocalModel)) {
+          localSelect.value = savedLocalModel;
+        } else if (localSelect.options.length > 0) {
+          localSelect.value = localSelect.options[0].value;
+        }
       }
 
-      let selectedLocal = null;
-      try {
-        const raw = localStorage.getItem("mirag_selected_local_models");
-        if (raw) selectedLocal = JSON.parse(raw);
-      } catch (e) {}
-      if (!Array.isArray(selectedLocal)) {
-        selectedLocal = localModels.slice(0, 2);
-      }
+      // 2. Setup Advanced Settings (Cloud & API)
+      const savedCloudProvider = localStorage.getItem("mirag_cloud_provider") || (currentProvider !== 'ollama' ? currentProvider : 'openai');
+      const savedCloudModel = localStorage.getItem("mirag_cloud_model") || (currentProvider !== 'ollama' ? currentModel : 'gpt-4o');
 
-      const localListContainer = document.getElementById("portal-local-models-list");
-      if (localListContainer) {
-        localListContainer.innerHTML = localModels.map(m => {
-          const isChk = selectedLocal.includes(m);
-          return `
-            <label class="model-chip ${isChk ? 'selected' : ''}">
-              <input type="checkbox" class="portal-local-chk" value="${m}" ${isChk ? 'checked' : ''} onchange="this.parentElement.classList.toggle('selected', this.checked)">
-              <span>${m}</span>
-              <span class="chip-badge chip-badge-local">Local</span>
-            </label>
-          `;
-        }).join('');
-      }
-
-      // 2. Setup Cloud Model checkboxes
-      const savedCloudProvider = localStorage.getItem("mirag_cloud_provider") || 'openai';
       const pSelect = document.getElementById("portal-provider-select");
       if (pSelect) pSelect.value = (savedCloudProvider !== 'ollama') ? savedCloudProvider : 'openai';
+      handlePortalProviderChange();
 
-      let selectedCloud = [];
-      try {
-        const raw = localStorage.getItem("mirag_selected_cloud_models");
-        if (raw) selectedCloud = JSON.parse(raw);
-      } catch (e) {}
-      if (!Array.isArray(selectedCloud)) {
-        selectedCloud = ["openai:gpt-4o-mini", "gemini:gemini-3.7-flash"];
+      const mSelect = document.getElementById("portal-model-select");
+      if (mSelect && savedCloudModel) {
+        if (Array.from(mSelect.options).some(opt => opt.value === savedCloudModel)) {
+          mSelect.value = savedCloudModel;
+        } else {
+          const opt = document.createElement("option");
+          opt.value = savedCloudModel;
+          opt.innerText = savedCloudModel;
+          mSelect.appendChild(opt);
+          mSelect.value = savedCloudModel;
+        }
       }
-
-      renderPortalCloudModelCheckboxes(selectedCloud);
 
       const keyInput = document.getElementById("portal-setting-api-key");
       if (keyInput) keyInput.value = savedApiKeys[pSelect?.value || 'openai'] || "";
@@ -2378,64 +2309,32 @@
       document.getElementById("portal-settings-modal").classList.remove("active");
     };
 
-    function renderPortalCloudModelCheckboxes(selectedCloud) {
-      if (!selectedCloud) {
-        try {
-          const raw = localStorage.getItem("mirag_selected_cloud_models");
-          if (raw) selectedCloud = JSON.parse(raw);
-        } catch (e) {}
-      }
-      if (!Array.isArray(selectedCloud)) selectedCloud = [];
-
-      const container = document.getElementById("portal-cloud-models-list");
-      if (!container) return;
-
-      const provider = document.getElementById("portal-provider-select")?.value || 'openai';
-      const cfg = PORTAL_FULL_PROVIDER_CONFIGS[provider] || PORTAL_FULL_PROVIDER_CONFIGS.openai;
-
-      // Presets
-      let modelsToShow = [];
-      for (let cp of DEFAULT_CLOUD_PRESETS) {
-        modelsToShow.push({ key: `${cp.prov}:${cp.model}`, label: cp.label, prov: cp.prov });
-      }
-
-      // Ensure any custom or fetched models for current provider are in list
-      for (let m of cfg.models) {
-        const key = `${provider}:${m}`;
-        if (!modelsToShow.some(item => item.key === key)) {
-          modelsToShow.push({ key, label: `${provider.toUpperCase()}: ${m}`, prov: provider });
-        }
-      }
-
-      // Also include any previously selected cloud models
-      for (let sc of selectedCloud) {
-        if (!modelsToShow.some(item => item.key === sc)) {
-          const parts = sc.split(':');
-          const p = parts[0];
-          const m = parts.slice(1).join(':');
-          modelsToShow.push({ key: sc, label: `${p.toUpperCase()}: ${m}`, prov: p });
-        }
-      }
-
-      container.innerHTML = modelsToShow.map(item => {
-        const isChk = selectedCloud.includes(item.key) || selectedCloud.includes(item.key.split(':')[1]);
-        return `
-          <label class="model-chip ${isChk ? 'selected' : ''}" data-prov="${item.prov}">
-            <input type="checkbox" class="portal-cloud-chk" value="${item.key}" ${isChk ? 'checked' : ''} onchange="this.parentElement.classList.toggle('selected', this.checked)">
-            <span>${item.label}</span>
-            <span class="chip-badge chip-badge-cloud">${item.prov.toUpperCase()}</span>
-          </label>
-        `;
-      }).join('');
-    }
-
     window.handlePortalProviderChange = function() {
       const provider = document.getElementById("portal-provider-select").value;
       const cfg = PORTAL_FULL_PROVIDER_CONFIGS[provider] || PORTAL_FULL_PROVIDER_CONFIGS.openai;
 
+      const cloudModelContainer = document.getElementById("portal-cloud-model-container");
       const keyContainer = document.getElementById("portal-api-key-container");
       const keyInput = document.getElementById("portal-setting-api-key");
       const keyLabel = document.getElementById("portal-api-key-label");
+
+      if (provider === 'ollama') {
+        if (cloudModelContainer) cloudModelContainer.style.display = 'none';
+        if (keyContainer) keyContainer.style.display = 'none';
+        return;
+      }
+
+      if (cloudModelContainer) cloudModelContainer.style.display = 'block';
+
+      const mSelect = document.getElementById("portal-model-select");
+      if (mSelect) {
+        mSelect.innerHTML = cfg.models.map(m => `<option value="${m}">${m}</option>`).join('');
+        if (provider === currentProvider && currentModel && cfg.models.includes(currentModel)) {
+          mSelect.value = currentModel;
+        } else if (cfg.models.length > 0) {
+          mSelect.value = cfg.models[0];
+        }
+      }
 
       if (cfg.requiresKey) {
         if (keyContainer) keyContainer.style.display = 'block';
@@ -2447,8 +2346,6 @@
       } else {
         if (keyContainer) keyContainer.style.display = 'none';
       }
-
-      renderPortalCloudModelCheckboxes();
     };
 
     window.fetchLatestPortalModels = async function() {
@@ -2467,13 +2364,11 @@
         });
         const data = await res.json();
         if (data.models && data.models.length > 0) {
-          const cfg = PORTAL_FULL_PROVIDER_CONFIGS[provider];
-          if (cfg) {
-            for (let m of data.models) {
-              if (!cfg.models.includes(m)) cfg.models.push(m);
-            }
+          const mSelect = document.getElementById("portal-model-select");
+          mSelect.innerHTML = data.models.map(m => `<option value="${m}">${m}</option>`).join('');
+          if (data.models.includes(currentModel)) {
+            mSelect.value = currentModel;
           }
-          renderPortalCloudModelCheckboxes();
           fetchBtn.innerText = "Synced (" + data.models.length + " Models)";
         } else {
           fetchBtn.innerText = "None Found";
@@ -2496,60 +2391,46 @@
       const isLocalEnabled = checkLocal ? checkLocal.checked : true;
       const isCloudEnabled = checkCloud ? checkCloud.checked : false;
 
-      const selectedLocal = Array.from(document.querySelectorAll('.portal-local-chk:checked')).map(cb => cb.value);
-      const selectedCloud = Array.from(document.querySelectorAll('.portal-cloud-chk:checked')).map(cb => cb.value);
-
       if (!isLocalEnabled && !isCloudEnabled) {
         alert("At least one model engine (Local or Cloud) must remain enabled.");
-        return;
-      }
-      if (isLocalEnabled && selectedLocal.length === 0) {
-        alert("Please select at least one Local model, or disable the Local Model engine.");
-        return;
-      }
-      if (isCloudEnabled && selectedCloud.length === 0) {
-        alert("Please select at least one Cloud model, or disable Advanced Cloud Settings.");
         return;
       }
 
       localStorage.setItem("mirag_enable_local", isLocalEnabled ? "true" : "false");
       localStorage.setItem("mirag_enable_cloud", isCloudEnabled ? "true" : "false");
-      localStorage.setItem("mirag_selected_local_models", JSON.stringify(selectedLocal));
-      localStorage.setItem("mirag_selected_cloud_models", JSON.stringify(selectedCloud));
 
       // Save Cloud settings
       const cloudProvider = document.getElementById("portal-provider-select")?.value || 'openai';
+      const cloudModel = document.getElementById("portal-model-select")?.value || 'gpt-4o';
       const apiKey = document.getElementById("portal-setting-api-key")?.value?.trim() || "";
+
       if (apiKey) {
         savedApiKeys[cloudProvider] = apiKey;
         localStorage.setItem("mirag_api_keys", JSON.stringify(savedApiKeys));
       }
       localStorage.setItem("mirag_cloud_provider", cloudProvider);
+      localStorage.setItem("mirag_cloud_model", cloudModel);
+
+      // Save Local settings
+      const localSelect = document.getElementById("portal-setting-local-model-select");
+      const localModel = localSelect?.value || "llama3.2:3b";
+      localStorage.setItem("mirag_local_model", localModel);
 
       // Determine active provider & model
-      if (!isCloudEnabled || selectedCloud.length === 0) {
+      if (isCloudEnabled && !isLocalEnabled) {
+        currentProvider = cloudProvider;
+        currentModel = cloudModel;
+      } else if (isLocalEnabled && !isCloudEnabled) {
         currentProvider = 'ollama';
-        if (!selectedLocal.includes(currentModel) && selectedLocal.length > 0) {
-          currentModel = selectedLocal[0];
-        }
-      } else if (!isLocalEnabled || selectedLocal.length === 0) {
-        const firstCloud = selectedCloud[0].split(':');
-        currentProvider = firstCloud[0];
-        currentModel = firstCloud.slice(1).join(':');
+        currentModel = localModel;
       } else {
-        // Both enabled: verify current selection is still in active set
-        const currentKey = `${currentProvider}:${currentModel}`;
-        const isStillValid = (currentProvider === 'ollama' && selectedLocal.includes(currentModel)) ||
-                             selectedCloud.includes(currentKey);
-        if (!isStillValid) {
-          if (selectedLocal.length > 0) {
-            currentProvider = 'ollama';
-            currentModel = selectedLocal[0];
-          } else {
-            const firstCloud = selectedCloud[0].split(':');
-            currentProvider = firstCloud[0];
-            currentModel = firstCloud.slice(1).join(':');
-          }
+        // Both are enabled: preserve current selection if compatible
+        if (currentProvider !== 'ollama') {
+          currentProvider = cloudProvider;
+          currentModel = cloudModel;
+        } else {
+          currentProvider = 'ollama';
+          currentModel = localModel;
         }
       }
 
