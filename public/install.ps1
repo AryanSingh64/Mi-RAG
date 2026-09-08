@@ -64,7 +64,7 @@ if not exist "%MIRAG_DIR%\.venv\Scripts\python.exe" (
 `$repoDir = '$escapedRepoDir'
 if (Test-Path ".\run_factory.py") {
     if (Test-Path ".\.venv\Scripts\python.exe") {
-        `$testUvi = & ".\.venv\Scripts\python.exe" -c "import uvicorn; print('ok')" 2>`$null
+        `$testUvi = & ".\.venv\Scripts\python.exe" -c "import importlib.util as u; print('ok' if u.find_spec('uvicorn') else 'missing')" 2>`$null
         if (`$testUvi -and `$testUvi.Trim() -eq "ok") {
             `$repoDir = (Get-Location).Path
         }
@@ -417,7 +417,7 @@ if (-not $detectedGpu -and (Get-Command nvidia-smi -ErrorAction SilentlyContinue
 
 $gpuPrefFile = "$venvDir\.gpu_preference"
 $installCuda = $false
-$hasTorchCuda = & $venvPython -c "import torch; print('CUDA' if torch.cuda.is_available() else 'CPU')" 2>$null
+$hasTorchCuda = & $venvPython -c "import importlib.util as u; s = u.find_spec('torch'); print('CUDA' if (s and __import__('torch').cuda.is_available()) else ('CPU' if s else 'NONE'))" 2>$null
 
 # Dynamic PyTorch CUDA index: Python 3.13+ officially requires cu124/cu126; Python 3.10-3.12 uses cu121
 $cudaTag = if ($activePython.Minor -ge 13) { "cu124" } else { "cu121" }
@@ -459,7 +459,7 @@ if ($detectedGpu) {
 }
 
 # 8. Dependencies Verification & Visual Live Progress Installation
-$hasDeps = & $venvPython -c "import uvicorn, fastapi, fitz, chromadb; print('OK')" 2>$null
+$hasDeps = & $venvPython -c "import importlib.util as u; pkgs = ['uvicorn', 'fastapi', 'chromadb']; print('OK' if all(u.find_spec(p) for p in pkgs) and (u.find_spec('pymupdf') or u.find_spec('fitz')) else 'MISSING')" 2>$null
 if ($hasDeps -ne "OK" -or ($installCuda -and $hasTorchCuda -ne "CUDA")) {
     Write-Host ""
     Write-Host " [*] Downloading & installing dependencies with live progress:" -ForegroundColor Yellow
@@ -524,7 +524,7 @@ if ($hasDeps -ne "OK" -or ($installCuda -and $hasTorchCuda -ne "CUDA")) {
     Write-Host " -----------------------------------------------------------------------" -ForegroundColor DarkGray
     
     # Verify critical dependencies actually installed
-    $verifyDeps = & $venvPython -c "import uvicorn, fastapi, fitz, chromadb; print('OK')" 2>$null
+    $verifyDeps = & $venvPython -c "import importlib.util as u; pkgs = ['uvicorn', 'fastapi', 'chromadb']; print('OK' if all(u.find_spec(p) for p in pkgs) and (u.find_spec('pymupdf') or u.find_spec('fitz')) else 'MISSING')" 2>$null
     if ($verifyDeps -eq "OK") {
         Write-Host " [OK] All dependencies installed successfully!" -ForegroundColor Green
     } else {
@@ -553,7 +553,7 @@ try {
 } catch {}
 
 # Pre-launch check: verify uvicorn exists before attempting to run
-$canLaunch = & $venvPython -c "import uvicorn; print('OK')" 2>$null
+$canLaunch = & $venvPython -c "import importlib.util as u; print('OK' if u.find_spec('uvicorn') else 'MISSING')" 2>$null
 if ($canLaunch -ne "OK") {
     Write-Host ""
     Write-Host " [!] Cannot launch Mi:RAG Studio because core packages (uvicorn) are not yet installed." -ForegroundColor Red
