@@ -135,6 +135,56 @@ class ChromaVectorStore:
 
         return search_results
 
+    def keyword_search(self, query_text: str, top_k: int = 4) -> List[SearchResult]:
+        """
+        Executes an exact/substring lexical search across document chunks in ChromaDB
+        to guarantee high recall for technical terms, keywords, and exact phrases.
+        """
+        if not query_text or not self.collection:
+            return []
+
+        import re
+        clean = query_text.strip().lower()
+        search_terms = []
+        if len(clean.split()) <= 4:
+            search_terms.append(clean)
+
+        words = [w for w in re.findall(r"\b\w{4,}\b", clean) if w not in {"what", "when", "where", "which", "show", "tell", "this", "that", "about", "from", "document", "paper"}]
+        search_terms.extend(words[:3])
+
+        matched_ids = set()
+        results = []
+
+        for term in search_terms:
+            try:
+                found = self.collection.get(
+                    where_document={"$contains": term},
+                    limit=top_k,
+                    include=["documents", "metadatas"]
+                )
+                if found and found.get("ids"):
+                    for doc_id, doc_text, metadata in zip(found["ids"], found["documents"], found["metadatas"]):
+                        if doc_id not in matched_ids:
+                            matched_ids.add(doc_id)
+                            results.append(
+                                SearchResult(
+                                    chunk_id=doc_id,
+                                    text=doc_text,
+                                    source_file=metadata.get("source_file", "unknown") if isinstance(metadata, dict) else "unknown",
+                                    metadata=metadata or {},
+                                    score=0.75,
+                                    distance=0.25
+                                )
+                            )
+                        if len(results) >= top_k:
+                            break
+            except Exception:
+                pass
+            if len(results) >= top_k:
+                break
+
+        return results
+
     def get_image_chunks(self, limit: int = 6) -> List[SearchResult]:
         """
         Retrieves document chunks that contain extracted diagrams, figures, or images.

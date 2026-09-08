@@ -567,96 +567,117 @@
       background: rgba(255, 255, 255, 0.02);
     }
 
-    /* Contextual Inline Diagram Card */
+    /* Contextual Inline Diagram Card - Sleek Floating Right-Side Card */
     .inline-diag-card {
-      margin: 0.85rem 0;
-      background: #0c101d;
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      float: right;
+      clear: right;
+      margin: 0.35rem 0 1rem 1.35rem;
+      width: 350px;
+      max-width: 46%;
+      background: #0d121f;
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-      transition: all 0.15s ease;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
       cursor: pointer;
-      max-width: 100%;
     }
     .inline-diag-card:hover {
-      border-color: rgba(255, 255, 255, 0.32);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+      border-color: rgba(56, 189, 248, 0.4);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      transform: translateY(-2px);
     }
-    .inline-diag-header {
+    .inline-diag-body {
+      position: relative;
+      background: #ffffff;
+      padding: 0.35rem;
       display: flex;
-      justify-content: space-between;
+      justify-content: center;
       align-items: center;
-      padding: 0.45rem 0.85rem;
-      background: #111827;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      min-height: 120px;
     }
-    .inline-diag-title {
+    .inline-diag-body img {
+      width: 100%;
+      height: auto;
+      max-height: 220px;
+      object-fit: contain;
+      display: block;
+      border-radius: 4px;
+    }
+    .inline-diag-zoom-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+      color: #cbd5e1;
+      width: 24px;
+      height: 24px;
       display: flex;
       align-items: center;
-      gap: 0.45rem;
-      font-family: 'Space Grotesk', sans-serif;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      transition: all 0.12s ease;
+    }
+    .inline-diag-card:hover .inline-diag-zoom-btn {
+      background: #38bdf8;
+      color: #000;
+      border-color: #38bdf8;
+    }
+    .inline-diag-caption {
+      padding: 0.45rem 0.65rem 0.5rem;
+      background: #0b0f19;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .inline-diag-caption .diag-title {
+      font-size: 0.75rem;
       font-weight: 700;
-      font-size: 0.8rem;
       color: #f1f5f9;
+      font-family: 'Space Grotesk', sans-serif;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 75%;
+      line-height: 1.3;
     }
-    .inline-diag-title svg {
-      color: #38bdf8;
-      flex-shrink: 0;
-    }
-    .inline-diag-meta {
+    .inline-diag-caption .diag-meta {
+      font-size: 0.68rem;
+      color: #94a3b8;
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 0.5rem;
-      flex-shrink: 0;
+      margin-top: 0.2rem;
     }
-    .inline-diag-rel {
-      font-size: 0.72rem;
+    .inline-diag-caption .inline-diag-rel {
+      font-size: 0.68rem;
       font-weight: 700;
       color: #34d399;
       background: rgba(52, 211, 153, 0.12);
       border: 1px solid rgba(52, 211, 153, 0.25);
-      padding: 0.1rem 0.4rem;
-      border-radius: 4px;
+      padding: 0.05rem 0.35rem;
+      border-radius: 3px;
     }
-    .inline-diag-zoom-icon {
-      color: #94a3b8;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0.2rem;
-      border-radius: 4px;
+
+    .msg-content::after {
+      content: "";
+      display: table;
+      clear: both;
     }
-    .inline-diag-card:hover .inline-diag-zoom-icon {
-      color: #fff;
+    .msg-content .msg-h1,
+    .msg-content .msg-h2,
+    .msg-content .msg-h3,
+    .msg-content .msg-h4 {
+      clear: both;
     }
-    .inline-diag-body {
-      padding: 0.6rem;
-      background: #07090e;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    .inline-diag-body img {
-      max-width: 100%;
-      max-height: 420px;
-      object-fit: contain;
-      border-radius: 4px;
-      display: block;
-    }
-    .inline-diag-footer {
-      padding: 0.35rem 0.85rem;
-      background: #0e1422;
-      font-size: 0.74rem;
-      color: #94a3b8;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    .inline-diag-footer strong {
-      color: #cbd5e1;
+
+    @media (max-width: 768px) {
+      .inline-diag-card {
+        float: none;
+        margin: 0.75rem 0;
+        width: 100%;
+        max-width: 100%;
+      }
     }
 
     /* KaTeX Typography */
@@ -1556,25 +1577,22 @@
     function renderInlineDiagram(url, caption, sourceFile, relevance) {
       const cap = caption || 'Visual Evidence / Diagram';
       const fileLabel = sourceFile ? `Extracted from <strong>${escapeHtml(sourceFile)}</strong>` : '';
-      const relBadge = relevance ? `<span class="inline-diag-rel">${relevance}% match</span>` : '';
+      const relBadge = relevance ? `<span class="inline-diag-rel">${relevance}%</span>` : '';
       return `
 <div class="inline-diag-card" onclick="openImageModal('${url}', '${escapeHtml(cap)}')">
-  <div class="inline-diag-header">
-    <div class="inline-diag-title">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-      <span>${escapeHtml(cap)}</span>
-    </div>
-    <div class="inline-diag-meta">
-      ${relBadge}
-      <span class="inline-diag-zoom-icon" title="View full size">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
-      </span>
-    </div>
-  </div>
   <div class="inline-diag-body">
     <img src="${url}" alt="${escapeHtml(cap)}" loading="lazy">
+    <button type="button" class="inline-diag-zoom-btn" title="Click to view full size">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+    </button>
   </div>
-  ${fileLabel ? `<div class="inline-diag-footer">${fileLabel}</div>` : ''}
+  <div class="inline-diag-caption">
+    <div class="diag-title">${escapeHtml(cap)}</div>
+    <div class="diag-meta">
+      <span>${escapeHtml(sourceFile || '')}</span>
+      ${relBadge}
+    </div>
+  </div>
 </div>`;
     }
 

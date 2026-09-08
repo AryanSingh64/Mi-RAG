@@ -158,13 +158,22 @@ class RAGPipeline:
             return []
 
         q_words = set(re.findall(r"\b\w{3,}\b", current_query.lower()))
-        
+        stop_words = {"what", "when", "where", "which", "who", "whom", "whose", "why", "how", "this", "that", "these", "those", "is", "are", "was", "were", "give", "tell", "show", "find", "the", "and", "for", "with", "from", "about"}
+        content_words = q_words - stop_words
+        if not content_words:
+            return []
+
         # Rank approved items by keyword overlap with current query
         scored = []
         for item in approved:
             item_q = item.get("query", "").lower()
-            overlap = sum(1 for w in q_words if w in item_q)
-            scored.append((overlap, item))
+            overlap = sum(1 for w in content_words if w in item_q)
+            # Strictly require overlap >= 1 to prevent unrelated cross-document topic contamination
+            if overlap >= 1:
+                scored.append((overlap, item))
+
+        if not scored:
+            return []
 
         scored.sort(key=lambda x: x[0], reverse=True)
         top_items = [item for _, item in scored[:max_exemplars]]
@@ -275,7 +284,7 @@ class RAGPipeline:
         negative_exemplars = self.get_negative_exemplars(cleaned_question)
         effective_top_k = top_k + 2 if negative_exemplars else top_k
 
-        # 3. Multi-strategy retrieval (corrected query + original query)
+        # 3. Multi-strategy retrieval (corrected query + original query + keyword search)
         raw_results = self.vector_store.query(search_query, top_k=effective_top_k)
         if search_query != user_question:
             direct_results = self.vector_store.query(user_question, top_k=effective_top_k)
@@ -283,6 +292,14 @@ class RAGPipeline:
             for dr in direct_results:
                 if dr.chunk_id not in seen:
                     raw_results.append(dr)
+
+        # Keyword search augmentation for exact technical terms (e.g. "confusion matrix", "keywords", "oncotype")
+        if hasattr(self.vector_store, "keyword_search"):
+            kw_results = self.vector_store.keyword_search(cleaned_question, top_k=3)
+            seen = {r.chunk_id: r for r in raw_results}
+            for kr in kw_results:
+                if kr.chunk_id not in seen:
+                    raw_results.append(kr)
 
         # Broad overview / summary query augmentation: pull in lead document chunks (abstract, intro)
         if is_summary_query and hasattr(self.vector_store, "get_initial_chunks"):
@@ -300,8 +317,8 @@ class RAGPipeline:
                 if fc.chunk_id not in seen:
                     raw_results.append(fc)
 
-        # 4. Filter and apply Attention-Guided Context Reranking
-        filtered_chunks = self.guardrails.filter_relevant_chunks(raw_results)
+        # 4. Filter with lexical keyword preservation and apply Attention-Guided Context Reranking
+        filtered_chunks = self.guardrails.filter_relevant_chunks(raw_results, query=cleaned_question)
 
         # Active feedback-guided citation weighting (boosts thumbs_up sources, demotes thumbs_down sources)
         if self.citation_boosts and filtered_chunks:
@@ -589,12 +606,13 @@ class RAGPipeline:
         """
         Intelligently determines when visual diagrams should be attached.
         - Suppresses diagrams if user explicitly asked for text-only / summary without diagrams.
-        - Matches diagram keywords and visual captions.
-        - Caps returned images to the top highest-confidence matches.
+        - Strictly verifies that candidate image captions/filenames match the visual subject requested.
+        - Prevents attaching unrelated images (e.g. attaching histograms to Grad-CAM or loss function queries).
         """
         if not relevant_chunks:
             return []
 
+        import re
         q_lower = user_question.lower()
 
         # Explicit negative diagram intent (user asked for text-only summary without images)
@@ -614,10 +632,20 @@ class RAGPipeline:
             "schema"
         ]
         explicit_visual_intent = any(kw in q_lower for kw in visual_keywords)
+        is_summary_query = any(w in q_lower for w in ["summary", "summarize", "overview", "what is this document", "what is this paper"])
 
-        matched_images = []
+        # Extract specific subject words from the user query
+        q_words = set(re.findall(r"\b\w{3,}\b", q_lower))
+        stop_words = {"what", "when", "where", "which", "who", "whom", "whose", "why", "how", "this", "that", "these", "those", "is", "are", "was", "were", "give", "tell", "show", "find", "the", "and", "for", "with", "from", "about", "diagram", "diagrams", "image", "images", "figure", "figures", "chart", "visual"}
+        subject_words = q_words - stop_words
+
+        # If it's a conceptual question ("what is X", "define X") without visual intent, do not attach images
+        is_conceptual = any(q_lower.startswith(p) for p in ["what is ", "what are ", "define ", "how does ", "explain the concept ", "why is "])
+        if is_conceptual and not explicit_visual_intent and not is_image_query:
+            return []
+
+        scored_images = []
         seen_urls = set()
-        import re
 
         for c in relevant_chunks:
             meta_url = c.metadata.get("image_url", "").strip() if isinstance(c.metadata, dict) else ""
@@ -626,32 +654,43 @@ class RAGPipeline:
             found_urls = re.findall(r"\[Image URL:\s*(.*?)\]", c.text)
             urls_to_check.extend([u.strip() for u in found_urls if u.strip()])
 
+            cap_match = re.search(r"\[IMAGE / FIGURE:\s*(.*?)\]", c.text, re.IGNORECASE)
+            chunk_caption = cap_match.group(1).strip() if cap_match else (c.metadata.get("caption", "") if isinstance(c.metadata, dict) else "")
+
             for url_clean in urls_to_check:
                 if url_clean and url_clean not in seen_urls:
-                    is_overview = "_page_" in url_clean.lower()
-                    if is_overview and not is_image_query and not explicit_visual_intent:
-                        continue
-
                     seen_urls.add(url_clean)
                     filename = Path(url_clean).name
                     page_num = c.metadata.get("page_number", "") if isinstance(c.metadata, dict) else ""
                     caption = f"{c.source_file}" + (f" (Page {page_num})" if page_num else "")
-                    raw_score = getattr(c, "score", 0.75)
-                    calibrated_rel = self.guardrails.calibrate_confidence(raw_score, has_lexical_match=True) * 100.0
 
-                    matched_images.append({
+                    # Calculate semantic relevance between the query and the image
+                    img_text = f"{filename} {chunk_caption} {c.text[:250]}".lower()
+                    overlap = sum(1 for w in subject_words if w in img_text) if subject_words else 0
+
+                    # If user asked for a specific visual item (e.g. "Grad-CAM", "ROC curve"), require subject overlap!
+                    if explicit_visual_intent and subject_words:
+                        if overlap == 0:
+                            continue
+
+                    raw_score = getattr(c, "score", 0.75)
+                    calibrated_rel = self.guardrails.calibrate_confidence(raw_score, has_lexical_match=(overlap > 0)) * 100.0
+                    final_rel = round(max(40.0, calibrated_rel + (overlap * 8)), 1)
+
+                    scored_images.append({
                         "url": url_clean,
                         "filename": filename,
                         "source_file": caption,
-                        "relevance": round(max(40.0, calibrated_rel), 1)
+                        "relevance": min(100.0, final_rel),
+                        "overlap": overlap
                     })
 
-                    max_imgs = 6 if (is_image_query or explicit_visual_intent) else 2
-                    if len(matched_images) >= max_imgs:
-                        break
+        # Sort images by genuine subject overlap first, then relevance
+        scored_images.sort(key=lambda x: (x["overlap"], x["relevance"]), reverse=True)
 
-            max_imgs = 6 if (is_image_query or explicit_visual_intent) else 2
-            if len(matched_images) >= max_imgs:
-                break
+        # If user did not have explicit visual intent and not a summary query, only attach if overlap > 0
+        if not explicit_visual_intent and not is_image_query and not is_summary_query:
+            scored_images = [img for img in scored_images if img["overlap"] > 0]
 
-        return matched_images
+        max_imgs = 3 if (is_image_query or explicit_visual_intent) else 1
+        return scored_images[:max_imgs]

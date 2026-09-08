@@ -26,11 +26,36 @@ class AntiHallucinationEngine:
     def __init__(self, min_similarity_threshold: float = 0.35):
         self.min_similarity_threshold = min_similarity_threshold
 
-    def filter_relevant_chunks(self, search_results: List[SearchResult]) -> List[SearchResult]:
+    def filter_relevant_chunks(self, search_results: List[SearchResult], query: Optional[str] = None) -> List[SearchResult]:
         """
-        Discards retrieved chunks that fall below the calibrated cosine similarity threshold.
+        Discards retrieved chunks that fall below the calibrated cosine similarity threshold,
+        while strictly preserving and boosting chunks that contain exact lexical keyword matches.
         """
-        return [r for r in search_results if r.score >= self.min_similarity_threshold]
+        if not search_results:
+            return []
+
+        content_words = set()
+        if query:
+            q_words = set(re.findall(r"\b\w{3,}\b", query.lower()))
+            stop_words = {"what", "when", "where", "which", "who", "whom", "whose", "why", "how", "this", "that", "these", "those", "is", "are", "was", "were", "give", "tell", "show", "find", "the", "and", "for", "with", "from", "about", "table", "chart"}
+            content_words = q_words - stop_words
+
+        kept = []
+        for r in search_results:
+            chunk_lower = r.text.lower()
+            has_exact = bool(query and len(query.strip()) >= 4 and query.strip().lower() in chunk_lower)
+            lex_matches = sum(1 for w in content_words if w in chunk_lower) if content_words else 0
+            
+            if has_exact:
+                r.score = max(r.score, 0.70)
+                kept.append(r)
+            elif lex_matches >= 1 and (len(content_words) <= 2 or lex_matches >= len(content_words) * 0.5):
+                r.score = max(r.score, 0.50)
+                kept.append(r)
+            elif r.score >= self.min_similarity_threshold:
+                kept.append(r)
+
+        return kept
 
     def calibrate_confidence(self, raw_score: float, has_lexical_match: bool = False) -> float:
         """
