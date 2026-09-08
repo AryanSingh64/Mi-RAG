@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-#  Mi:RAG — Mission RAG Factory Automated Installer (Linux / macOS)
+#  Mi:RAG — Minimal RAG Factory Automated Installer (Linux / macOS)
 #  Repository: https://github.com/AryanSingh64/Mi-RAG
 # ==============================================================================
 
@@ -25,7 +25,7 @@ echo -e "${RED} | |  | | | (_) |  _ <  / ___ \ |_| | ${NC}"
 echo -e "${RED} |_|  |_|_|     |_| \_\/_/   \_\____| ${NC}"
 echo ""
 echo -e "${DARKGRAY} ===========================================================${NC}"
-echo -e "${YELLOW}   [ MISSION RAG ] - Autonomous Multimodal RAG Engine       ${NC}"
+echo -e "${YELLOW}   [ MINIMAL RAG ] - Autonomous Multimodal RAG Engine       ${NC}"
 echo -e "${DARKGRAY} ===========================================================${NC}"
 echo ""
 

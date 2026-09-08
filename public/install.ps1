@@ -1,5 +1,5 @@
 # ==============================================================================
-#  Mi:RAG — Mission RAG Factory Automated Installer
+#  Mi:RAG — Minimal RAG Factory Automated Installer
 #  Repository: https://github.com/AryanSingh64/Mi-RAG
 # ==============================================================================
 
@@ -15,7 +15,7 @@ Write-Host " | |  | | | (_) |  _ <  / ___ \ |_| | " -ForegroundColor Red
 Write-Host " |_|  |_|_|     |_| \_\/_/   \_\____| " -ForegroundColor Red
 Write-Host ""
 Write-Host " ===========================================================" -ForegroundColor DarkGray
-Write-Host "   [ MISSION RAG ] - Autonomous Multimodal RAG Engine       " -ForegroundColor Yellow
+Write-Host "   [ MINIMAL RAG ] - Autonomous Multimodal RAG Engine       " -ForegroundColor Yellow
 Write-Host " ===========================================================" -ForegroundColor DarkGray
 Write-Host ""
 
