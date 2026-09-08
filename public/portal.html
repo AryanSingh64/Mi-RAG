@@ -314,26 +314,100 @@
       gap: 0.75rem;
     }
     .session-model-pill {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 0.45rem;
-      background: #182035;
-      border: 1.5px solid #000;
-      box-shadow: 2px 2px 0px #000;
-      border-radius: 20px;
-      padding: 0.25rem 0.7rem;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.78rem;
-      font-weight: 800;
-      color: #fff;
+      background: rgba(18, 24, 38, 0.78);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 9999px;
+      padding: 0.22rem 0.35rem 0.22rem 0.55rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .session-model-pill:hover {
+      border-color: rgba(255, 255, 255, 0.25);
+      background: rgba(24, 32, 52, 0.9);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
     }
     .provider-badge-icon {
-      padding: 0.1rem 0.45rem;
-      border-radius: 3px;
-      font-size: 0.68rem;
-      font-weight: 900;
-      background: var(--yellow);
-      color: #000;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.14rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.64rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      line-height: 1.2;
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+    .provider-badge-icon.badge-local {
+      background: rgba(16, 185, 129, 0.16);
+      color: #34d399;
+      border: 1px solid rgba(52, 211, 153, 0.35);
+    }
+    .provider-badge-icon.badge-cloud {
+      background: rgba(56, 189, 248, 0.16);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+    .chat-model-select {
+      background: transparent;
+      color: #f1f5f9;
+      border: none;
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-weight: 600;
+      font-size: 0.8rem;
+      cursor: pointer;
+      outline: none;
+      max-width: 175px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 0.1rem 0.2rem;
+      transition: color 0.15s ease;
+    }
+    .chat-model-select:hover {
+      color: #ffffff;
+    }
+    .chat-model-select option,
+    .chat-model-select optgroup {
+      background: #0f172a;
+      color: #f1f5f9;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 500;
+      font-size: 0.82rem;
+    }
+    .chat-model-select optgroup {
+      font-weight: 700;
+      color: #94a3b8;
+    }
+    .btn-header-settings {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      padding: 0;
+      transition: color 0.15s ease, background 0.15s ease, transform 0.25s ease;
+    }
+    .btn-header-settings:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #f8fafc;
+      transform: rotate(35deg);
+    }
+    .btn-header-settings svg {
+      width: 15px;
+      height: 15px;
+      stroke-width: 2;
     }
     .timer-badge {
       display: flex;
@@ -1363,13 +1437,13 @@
         <div class="session-badge" id="session-badge">Session: loading...</div>
       </div>
       <div class="top-header-right">
-        <div class="session-model-pill" style="display: flex; align-items: center; gap: 0.45rem; padding: 0.2rem 0.65rem;">
-          <span class="provider-badge-icon" id="header-provider-badge">OLLAMA</span>
-          <select id="chat-model-select" onchange="handleChatModelSelectChange()" style="background: transparent; color: #fff; border: none; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.8rem; cursor: pointer; outline: none; max-width: 175px;">
+        <div class="session-model-pill">
+          <span class="provider-badge-icon badge-local" id="header-provider-badge">OLLAMA</span>
+          <select id="chat-model-select" class="chat-model-select" onchange="handleChatModelSelectChange()">
             <option value="ollama:llama3.2:3b">llama3.2:3b (Local)</option>
           </select>
-          <button type="button" onclick="openPortalSettingsModal()" title="Settings" style="background: none; border: none; cursor: pointer; padding: 0 0.2rem; color: var(--yellow); line-height: 1; display: flex; align-items: center;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <button type="button" class="btn-header-settings" onclick="openPortalSettingsModal()" title="Settings / Configure Models">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="3"></circle>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>
@@ -2070,13 +2144,9 @@
       const badge = document.getElementById("header-provider-badge");
       if (badge) {
         badge.innerText = cfg.badge;
-        if (currentProvider === 'ollama') {
-          badge.style.background = "#2be26c";
-          badge.style.color = "#000";
-        } else {
-          badge.style.background = "var(--yellow)";
-          badge.style.color = "#000";
-        }
+        badge.className = "provider-badge-icon " + (currentProvider === 'ollama' ? 'badge-local' : 'badge-cloud');
+        badge.style.background = "";
+        badge.style.color = "";
       }
     }
 
