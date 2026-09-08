@@ -10,8 +10,13 @@ class HardwareDetector:
     Determines model compatibility based on detected GPU memory and RAM.
     """
 
-    @staticmethod
-    def get_specs() -> Dict[str, Any]:
+    _cached_specs: Dict[str, Any] = None
+
+    @classmethod
+    def get_specs(cls, force_refresh: bool = False) -> Dict[str, Any]:
+        if cls._cached_specs is not None and not force_refresh:
+            return dict(cls._cached_specs)
+
         specs = {
             "os": f"{platform.system()} {platform.release()}",
             "cpu": platform.processor() or "CPU",
@@ -75,6 +80,7 @@ class HardwareDetector:
         else:
             specs["performance_tier"] = "cpu_entry"
 
+        cls._cached_specs = specs
         return specs
 
     @classmethod

@@ -82,7 +82,10 @@ class SessionManager:
         model_name: str = "llama3.2:3b",
         vision_models: Optional[List[str] | str] = None,
         embedding_model: str = "BAAI/bge-base-en-v1.5",
-        ttl_hours: Optional[float] = None
+        ttl_hours: Optional[float] = None,
+        strictness: str = "balanced",
+        missing_answer_behavior: str = "refusal",
+        response_style: str = "detailed"
     ) -> RAGSession:
         """
         Atomically creates a new isolated session workspace with private vector store and extracted image gallery.
@@ -112,6 +115,9 @@ class SessionManager:
                 "model_name": model_name,
                 "embedding_model": embedding_model,
                 "vision_models": vision_models or ["moondream"],
+                "strictness": strictness,
+                "missing_answer_behavior": missing_answer_behavior,
+                "response_style": response_style,
                 "indexed_files": []
             }
             self._atomic_write_meta(session_dir, meta_data)
@@ -123,7 +129,10 @@ class SessionManager:
                 ollama_model=model_name,
                 vision_models=vision_models or ["moondream"],
                 extracted_images_dir=images_dir,
-                session_id=session_id
+                session_id=session_id,
+                strictness=strictness,
+                missing_answer_behavior=missing_answer_behavior,
+                response_style=response_style
             )
 
             session = RAGSession(

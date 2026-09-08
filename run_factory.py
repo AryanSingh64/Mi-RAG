@@ -50,9 +50,26 @@ if __name__ == "__main__":
     print(" [*] Web Interface: http://localhost:8000")
     print("==================================================")
     
-    try:
-        webbrowser.open("http://localhost:8000")
-    except Exception:
-        pass
+    def _open_when_ready():
+        import urllib.request
+        health_url = "http://127.0.0.1:8000/api/system/health"
+        t0 = time.time()
+        while time.time() - t0 < 20.0:
+            try:
+                with urllib.request.urlopen(health_url, timeout=0.8) as response:
+                    if response.status == 200:
+                        webbrowser.open("http://localhost:8000")
+                        return
+            except Exception:
+                pass
+            time.sleep(0.2)
+        try:
+            webbrowser.open("http://localhost:8000")
+        except Exception:
+            pass
+
+    import threading
+    ready_thread = threading.Thread(target=_open_when_ready, daemon=True)
+    ready_thread.start()
 
     uvicorn.run(app, host="127.0.0.1", port=8000)

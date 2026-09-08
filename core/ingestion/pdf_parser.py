@@ -184,9 +184,9 @@ class PdfDocumentParser(BaseDocumentParser):
                         pass
 
             # Fallback for scanned slides, catalogs, posters, and image-heavy pages
-            # If no bounded diagram was detected, but the page contains embedded images or is text-sparse:
+            # If no bounded diagram was detected, only render full page if it is truly text-sparse / scanned:
             raw_page_images = page.get_images()
-            if not image_regions and (raw_page_images or len(native_text) < 60):
+            if not image_regions and len(native_text) < 80 and (raw_page_images or len(native_text) < 30):
                 visual_filename = f"{clean_stem}_p{p_idx}_visual.jpg"
                 img_url = (
                     f"/api/sessions/{self.session_id}/images/{visual_filename}"

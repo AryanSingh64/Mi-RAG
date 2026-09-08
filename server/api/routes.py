@@ -27,13 +27,22 @@ class CreateSessionRequest(BaseModel):
     model_name: Optional[str] = "llama3.2:3b"
     vision_models: Optional[List[str]] = ["moondream"]
     vision_model: Optional[str] = None  # Backward compatibility
-    embedding_model: Optional[str] = "all-MiniLM-L6-v2"
+    embedding_model: Optional[str] = None
     ttl_hours: Optional[float] = 3.0
+    strictness: Optional[str] = "balanced"
+    missing_answer_behavior: Optional[str] = "refusal"
+    response_style: Optional[str] = "detailed"
 
 
 class ChatRequest(BaseModel):
     message: str
     top_k: Optional[int] = 6
+
+
+@router.get("/system/health")
+def get_system_health():
+    """Instantaneous health check endpoint (<1ms) for browser readiness & service telemetry."""
+    return {"status": "ok", "version": "2.0.0"}
 
 
 @router.get("/system/specs")
@@ -176,20 +185,32 @@ def create_session(req: CreateSessionRequest):
     if not models_to_use:
         models_to_use = ["moondream"]
 
-    chosen_embedder = req.embedding_model or "BAAI/bge-base-en-v1.5"
+    chosen_embedder = req.embedding_model
+    if not chosen_embedder:
+        specs = HardwareDetector.get_specs()
+        if specs.get("vram_gb", 0) >= 3.5 or specs.get("performance_tier") in ("recommended_4gb", "high", "ultra"):
+            chosen_embedder = "BAAI/bge-base-en-v1.5"
+        else:
+            chosen_embedder = "all-MiniLM-L6-v2"
 
     session = session_manager.create_session(
         model_name=req.model_name or "llama3.2:3b",
         vision_models=models_to_use,
         embedding_model=chosen_embedder,
-        ttl_hours=req.ttl_hours or 3.0
+        ttl_hours=req.ttl_hours or 3.0,
+        strictness=req.strictness or "balanced",
+        missing_answer_behavior=req.missing_answer_behavior or "refusal",
+        response_style=req.response_style or "detailed"
     )
-    print(f"\n[SESSION CREATED] ID: {session.session_id} | Model: {session.model_name} | Vision: {models_to_use} | Embedder: {session.embedding_model}")
+    print(f"\n[SESSION CREATED] ID: {session.session_id} | Model: {session.model_name} | Strictness: {req.strictness or 'balanced'} | Embedder: {session.embedding_model}")
     return {
         "session_id": session.session_id,
         "session_token": session.session_token,
         "model_name": session.model_name,
         "embedding_model": session.embedding_model,
+        "strictness": req.strictness or "balanced",
+        "missing_answer_behavior": req.missing_answer_behavior or "refusal",
+        "response_style": req.response_style or "detailed",
         "expires_at": session.expires_at,
         "time_remaining_seconds": session.time_remaining_seconds,
         "portal_url": f"/portal/{session.session_id}?token={session.session_token}"
@@ -470,8 +491,8 @@ async def chat_with_rag(session_id: str, request: Request):
         "answer": answer.answer,
         "confidence_score": answer.confidence_score,
         "is_grounded": answer.is_grounded,
-        "citations": list(unique_citations.values()),
-        "images": answer.images,
+        "citations": list(unique_citations.values()) if answer.is_grounded else [],
+        "images": answer.images if answer.is_grounded else [],
         "query_image_url": query_image_url
     }
 

@@ -28,9 +28,26 @@ class RAGPipeline:
         session_id: Optional[str] = None,
         chunk_size: int = 400,
         chunk_overlap: int = 60,
-        min_similarity_threshold: float = 0.08
+        min_similarity_threshold: Optional[float] = None,
+        strictness: str = "balanced",
+        missing_answer_behavior: str = "refusal",
+        response_style: str = "detailed"
     ):
         self.session_id = session_id
+        self.strictness = (strictness or "balanced").lower().strip()
+        self.missing_answer_behavior = (missing_answer_behavior or "refusal").lower().strip()
+        self.response_style = (response_style or "detailed").lower().strip()
+
+        if min_similarity_threshold is not None:
+            effective_threshold = min_similarity_threshold
+        elif self.strictness == "strict":
+            effective_threshold = 0.42
+        elif self.strictness == "creative":
+            effective_threshold = 0.22
+        else:  # balanced
+            effective_threshold = 0.35
+
+        self.min_similarity_threshold = effective_threshold
         self.extracted_images_dir = Path(extracted_images_dir) if extracted_images_dir else None
         self.vision_models = vision_models or ["moondream"]
         self.parser_factory = DocumentParserFactory(
@@ -47,7 +64,7 @@ class RAGPipeline:
             embedder=self.embedder
         )
         self.ollama = OllamaClient(base_url=ollama_url, default_model=ollama_model)
-        self.guardrails = AntiHallucinationEngine(min_similarity_threshold=min_similarity_threshold)
+        self.guardrails = AntiHallucinationEngine(min_similarity_threshold=self.min_similarity_threshold)
         self.rewriter = QueryRewriter(ollama_client=self.ollama)
         self.current_model = ollama_model
         self.persist_directory = Path(persist_directory)
@@ -310,19 +327,50 @@ class RAGPipeline:
         print("="*60 + "\n")
 
         if not relevant_chunks:
-            fallback_msg = "I could not find any information about this in the uploaded documentation."
-            self.conversation_memory.append({"role": "user", "content": user_question})
-            self.conversation_memory.append({"role": "assistant", "content": fallback_msg})
-            return GroundedAnswer(
-                answer=fallback_msg,
-                is_grounded=False,
-                confidence_score=0.0,
-                citations=[],
-                warning="No relevant chunks met the threshold."
-            )
+            if self.missing_answer_behavior == "general_knowledge":
+                gen_prompt = (
+                    f"Answer the following user question using your general knowledge: {cleaned_question}\n\n"
+                    "Requirement: You MUST start your response with: '[General Knowledge - Not found in your documents]'."
+                )
+                try:
+                    llm_resp = MultiProviderLLM.generate(
+                        user_prompt=gen_prompt,
+                        system_prompt="You are a helpful AI assistant answering from general knowledge because the topic was not found in the user's private documents.",
+                        provider=provider_name,
+                        model=target_model,
+                        api_key=api_key,
+                        temperature=0.3,
+                        ollama_url=self.ollama.base_url
+                    )
+                except Exception:
+                    llm_resp = f"I could not find any information about '{user_question}' in the uploaded documents."
+                self.conversation_memory.append({"role": "user", "content": user_question})
+                self.conversation_memory.append({"role": "assistant", "content": llm_resp})
+                return GroundedAnswer(
+                    answer=llm_resp,
+                    is_grounded=False,
+                    confidence_score=0.25,
+                    citations=[],
+                    warning="Answered from general knowledge."
+                )
+            else:
+                fallback_msg = f"I could not find any information about '{user_question}' in the uploaded documents. Please upload a document containing this topic or ask about your indexed files."
+                self.conversation_memory.append({"role": "user", "content": user_question})
+                self.conversation_memory.append({"role": "assistant", "content": fallback_msg})
+                return GroundedAnswer(
+                    answer=fallback_msg,
+                    is_grounded=False,
+                    confidence_score=0.0,
+                    citations=[],
+                    warning="No relevant chunks met the threshold."
+                )
 
         # 5. Construct grounded prompt with conversation memory, positive exemplars & negative constraints
         system_prompt = self.guardrails.build_grounded_system_prompt()
+        if self.response_style == "concise":
+            system_prompt += "\n\nRESPONSE FORMAT DIRECTIVE: Deliver a concise, direct answer using bullet points. Avoid filler introductions or long summaries."
+        elif self.response_style == "detailed":
+            system_prompt += "\n\nRESPONSE FORMAT DIRECTIVE: Deliver a comprehensive, in-depth explanation with complete context and clear headings."
         feedback_exemplars = self.get_feedback_exemplars(cleaned_question)
         user_prompt = self.guardrails.build_user_prompt(
             query=cleaned_question,

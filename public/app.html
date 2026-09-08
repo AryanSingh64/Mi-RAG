@@ -912,6 +912,41 @@
               <label class="model-chip"><input type="checkbox" value="moondream" checked> moondream:latest <span class="chip-badge badge-rec">PERFECT</span></label>
             </div>
           </div>
+
+          <!-- Gold Standard Pre-Build Intelligence Settings -->
+          <div class="input-group" style="grid-column: span 2; background: #f8fafc; border: 2px solid #000; padding: 0.9rem; border-radius: 8px; box-shadow: 2.5px 2.5px 0px #000;">
+            <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.88rem; color: #0f172a; margin-bottom: 0.6rem; display: flex; align-items: center; justify-content: space-between;">
+              <span>🎯 KNOWLEDGE ACCURACY & ANSWERING BEHAVIOR</span>
+              <span style="font-size: 0.7rem; font-weight: 800; background: var(--yellow); padding: 0.15rem 0.45rem; border: 1.5px solid #000; border-radius: 4px;">ANTI-HALLUCINATION ACTIVE</span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+              <div>
+                <label class="label" for="strictness-select" style="font-size: 0.78rem;">Document Strictness</label>
+                <select id="strictness-select" style="font-family: 'Space Grotesk', sans-serif; font-size: 0.82rem; padding: 0.45rem;">
+                  <option value="strict">🔒 Strict (Zero Guesswork • Exact Proof Only)</option>
+                  <option value="balanced" selected>⚖️ Balanced (Recommended • Accurate & Fluent)</option>
+                  <option value="creative">🌐 Open (Allows Broad AI General Knowledge)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="label" for="missing-behavior-select" style="font-size: 0.78rem;">If Answer Is Not in Your Files</label>
+                <select id="missing-behavior-select" style="font-family: 'Space Grotesk', sans-serif; font-size: 0.82rem; padding: 0.45rem;">
+                  <option value="refusal" selected>🚫 Say "Not found in files" (Safe & Grounded)</option>
+                  <option value="general_knowledge">💡 Answer from General Knowledge (With Warning Tag)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="label" for="style-select" style="font-size: 0.78rem;">Response Style</label>
+                <select id="style-select" style="font-family: 'Space Grotesk', sans-serif; font-size: 0.82rem; padding: 0.45rem;">
+                  <option value="detailed" selected>📖 Detailed (In-Depth Analysis & Citations)</option>
+                  <option value="concise">⚡ Direct & Short (Bulleted Facts Only)</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="dropzone" id="dropzone">
@@ -1070,6 +1105,10 @@
           document.getElementById('hw-tier').innerText = `RTX ${specs.vram_gb}GB ACCELERATED`;
         } else {
           document.getElementById('hw-tier').innerText = `CPU PARALLEL ENGINE`;
+          const embedSelect = document.getElementById('embedding-select');
+          if (embedSelect && embedSelect.value === 'BAAI/bge-base-en-v1.5') {
+            embedSelect.value = 'all-MiniLM-L6-v2';
+          }
         }
       } catch (err) {
         document.getElementById('hw-gpu').innerText = 'Hardware Telemetry Active';
@@ -1712,7 +1751,10 @@
             model_name: modelSelect.value,
             embedding_model: chosenEmbeddingModel,
             vision_models: checkedVisionModels.length > 0 ? checkedVisionModels : ["moondream"],
-            ttl_hours: parseFloat(document.getElementById('ttl-select').value)
+            ttl_hours: parseFloat(document.getElementById('ttl-select').value),
+            strictness: document.getElementById('strictness-select')?.value || 'balanced',
+            missing_answer_behavior: document.getElementById('missing-behavior-select')?.value || 'refusal',
+            response_style: document.getElementById('style-select')?.value || 'detailed'
           })
         });
         const session = await sessionRes.json();

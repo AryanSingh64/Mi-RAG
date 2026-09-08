@@ -477,7 +477,7 @@ async def chat_rag(request: Request):
         for i in range(len(results["ids"][0])):
             dist = results["distances"][0][i]
             sim = max(0.0, 1.0 - dist)
-            if sim >= 0.18:
+            if sim >= 0.35:
                 raw_chunks.append({{
                     "text": results["documents"][0][i],
                     "metadata": results["metadatas"][0][i],
@@ -487,7 +487,7 @@ async def chat_rag(request: Request):
 
     if not raw_chunks:
         return ChatResponse(
-            answer="I could not find any relevant information about this in the pre-indexed documents.",
+            answer=f"I could not find any information about '{user_message}' in the pre-indexed documents. Please ask a question related to your indexed files.",
             confidence_score=0.0,
             is_grounded=False,
             citations=[],
@@ -1093,13 +1093,16 @@ docker compose up --build
             encoding="utf-8"
         )
 
-        # 9. Compress into ZIP
+        # 9. Ultra-Fast Smart Hybrid ZIP (Instant image archiving + deflated code/data)
         zip_file_path = self.output_dir / f"rag_package_{session.session_id}.zip"
-        with zipfile.ZipFile(zip_file_path, "w", zipfile.ZIP_DEFLATED) as zip_out:
+        pre_compressed_exts = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".zip", ".tar", ".gz"}
+        
+        with zipfile.ZipFile(zip_file_path, "w") as zip_out:
             for root, _, files in os.walk(bundle_dir):
                 for file in files:
                     full_p = Path(root) / file
                     arc_name = full_p.relative_to(bundle_dir)
-                    zip_out.write(full_p, arcname=arc_name)
+                    comp_type = zipfile.ZIP_STORED if full_p.suffix.lower() in pre_compressed_exts else zipfile.ZIP_DEFLATED
+                    zip_out.write(full_p, arcname=arc_name, compress_type=comp_type)
 
         return zip_file_path
