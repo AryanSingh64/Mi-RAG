@@ -500,8 +500,14 @@ async def chat_rag(request: Request):
     context_blocks = []
     unique_citations = {{}}
     for idx, c in enumerate(reranked_chunks[:5], start=1):
-        clean_text = re.sub(r'\\[Image URL:\\s*[^\\]]+\\]', '', c['text']).strip()
-        context_blocks.append(f"--- DOCUMENT EXCERPT {{idx}} ({{c['source_file']}}) ---\\n{{clean_text}}")
+        raw_text = c['text']
+        img_url = ""
+        url_match = re.search(r'\\[Image URL:\\s*([^\\]]+)\\]', raw_text)
+        if url_match:
+            img_url = url_match.group(1).strip()
+        clean_text = re.sub(r'\\[Image URL:\\s*[^\\]]+\\]', '', raw_text).strip()
+        fig_inst = f"\\n[ATTACHED DIAGRAM AVAILABLE - Embed inline where discussed using: ![Figure from {{c['source_file']}}]({{img_url}})]" if img_url else ""
+        context_blocks.append(f"--- DOCUMENT EXCERPT {{idx}} ({{c['source_file']}}) ---\\n{{clean_text}}{{fig_inst}}")
         score_pct = round(c["score"] * 100, 1)
         if c["source_file"] not in unique_citations or score_pct > unique_citations[c["source_file"]]["relevance"]:
             unique_citations[c["source_file"]] = {{
@@ -521,17 +527,25 @@ async def chat_rag(request: Request):
 
     system_prompt = (
         "You are a 100% private, local offline document intelligence engine.\\n"
-        "1. Deliver a direct, finished, and well-structured answer in clean Markdown.\\n"
-        "2. Use conversation memory to resolve pronouns and follow-up references.\\n"
-        "3. Answer ONLY using the factual context provided. Do not hallucinate.\\n"
-        "4. Figures and diagrams are automatically displayed in the interactive gallery below your answer, so NEVER say 'I cannot display images' and NEVER output raw server file paths or URLs."
+        "1. Deliver a direct, finished, and well-structured answer in clean Markdown (use headers, bullet points, and tables).\\n"
+        "2. CONTEXTUAL INLINE DIAGRAMS: When discussing a figure or diagram from the context, embed it inline right where discussed using: ![Caption](image_url).\\n"
+        "3. DIRECTNESS & INTENT: Answer specifically what the user asks. If the user asks about a specific diagram, table, or concept, focus strictly on explaining that item. Do NOT reproduce a boilerplate paper template unless requested.\\n"
+        "4. Use conversation memory to resolve pronouns and follow-up references.\\n"
+        "5. Answer ONLY using the factual context provided. Do not hallucinate."
     )
+
+    intent_hint = ""
+    um_lower = (user_message or "").lower().strip()
+    is_general_sum = any(k in um_lower for k in ["summary", "summarise", "overview", "what is this paper about"])
+    if not is_general_sum and any(k in um_lower for k in ["diagram", "figure", "image", "chart", "table", "graph", "histogram", "architecture", "training", "model", "pipeline", "what is", "how does", "why"]):
+        intent_hint = f"TARGETED FOCUS DIRECTIVE: The user specifically asks about: '{{user_message}}'. Address ONLY this topic directly without generating an unrequested general paper summary.\\n\\n"
 
     joined_context = "\\n\\n".join(context_blocks)
     user_prompt = (
         f"KNOWLEDGE BASE CONTEXT:\\n"
         f"{{joined_context}}\\n\\n"
         f"{{history_block}}"
+        f"{{intent_hint}}"
         f"USER QUERY: {{user_message}}\\n\\n"
         f"FINISHED GROUNDED ANSWER:"
     )

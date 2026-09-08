@@ -176,9 +176,10 @@ class AntiHallucinationEngine:
             "5. Use clear Markdown (bold headers, bullet points, and clean paragraphs) so your answer is professional and easy to read.\n"
             "6. Answer ONLY using the factual context provided. Do NOT hallucinate facts not in the context. If something is missing, state clearly that it is not present in the uploaded documents.\n"
             "7. MATHEMATICAL & SCIENTIFIC SYMBOLS: Use clean LaTeX math delimiters for formulas, tolerances, and scientific quantities (e.g. `$1.25 \\pm 0.80$ cm`, `$\\times$`, `$\\approx$`, `$\\le$`, `$\\ge$`, `$\\alpha$`, `$\\beta$`, `$$ E = mc^2 $$`) so math renders crisply.\n"
-            "8. VISUAL MEDIA & FIGURES: When discussing figures, diagrams, or visual documents from the context, describe their visual contents, key features, and findings directly. Figures and diagrams are automatically displayed in the interactive gallery below your answer, so NEVER say 'I cannot display images' or 'no visual content available'.\n"
+            "8. CONTEXTUAL INLINE DIAGRAMS & FIGURES: When discussing or explaining an attached figure, diagram, or chart from the context, embed it directly within your explanation at the relevant point using Markdown: ![Figure Caption](image_url). Place the figure immediately below the paragraph or heading that explains it so the visual proof is in context.\n"
             "9. ANTI-FABRICATION: Ground all explanations strictly in the factual excerpts provided. Do not fabricate unmentioned facts or entities. Answer directly without repeating system directives or meta-commentary about what is unmentioned.\n"
-            "10. VISUAL COMPOSITION, COLORS & LOGICAL AESTHETICS: When the user asks what an image represents, what is special in it, or asks about composition, colors, and aesthetics, synthesize the visual details directly from '[Visual Scene, Composition & Details Analysis]'."
+            "10. VISUAL COMPOSITION, COLORS & LOGICAL AESTHETICS: When the user asks what an image represents, what is special in it, or asks about composition, colors, and aesthetics, synthesize the visual details directly from '[Visual Scene, Composition & Details Analysis]'.\n"
+            "11. DIRECTNESS & INTENT: Answer specifically what the user asks. If the user asks about a specific diagram, table, formula, or concept (e.g. 'model training diagram'), focus strictly on explaining that exact item. Do NOT reproduce a boilerplate paper template (Abstract, Introduction, Methods, Results, Conclusion) unless the user explicitly asks for a general paper overview."
         )
 
     def build_user_prompt(
@@ -196,17 +197,39 @@ class AntiHallucinationEngine:
         """
         context_blocks = []
         for idx, chunk in enumerate(context_chunks, start=1):
-            clean_chunk_text = re.sub(r"\[Image URL:\s*.*?\]", "", chunk.text).strip()
+            clean_chunk_text = chunk.text
             has_fig = False
-            if isinstance(chunk.metadata, dict) and (chunk.metadata.get("has_image") or chunk.metadata.get("image_url")):
-                has_fig = True
-            elif "[image / figure:" in chunk.text.lower():
+            img_url = ""
+            img_caption = ""
+
+            # Detect image URL from metadata or text
+            if isinstance(chunk.metadata, dict):
+                img_url = chunk.metadata.get("image_url", "")
+                img_caption = chunk.metadata.get("caption", "") or chunk.metadata.get("title", "")
+                if img_url or chunk.metadata.get("has_image"):
+                    has_fig = True
+
+            url_match = re.search(r"\[Image URL:\s*(.*?)\]", chunk.text)
+            if url_match:
+                img_url = img_url or url_match.group(1).strip()
                 has_fig = True
 
-            fig_tag = " [Attached Figure/Diagram Available]" if has_fig else ""
+            cap_match = re.search(r"\[IMAGE / FIGURE:\s*(.*?)\]", chunk.text, re.IGNORECASE)
+            if cap_match:
+                img_caption = img_caption or cap_match.group(1).strip()
+                has_fig = True
+
+            clean_chunk_text = re.sub(r"\[Image URL:\s*.*?\]", "", clean_chunk_text).strip()
+            
+            fig_instruction = ""
+            if has_fig and img_url:
+                cap_label = img_caption or f"Figure from {chunk.source_file}"
+                fig_instruction = f"\n[ATTACHED DIAGRAM AVAILABLE - Embed inline where discussed using: ![{cap_label}]({img_url})]"
+
+            fig_tag = " [Attached Figure Available]" if has_fig else ""
             context_blocks.append(
                 f"--- DOCUMENT EXCERPT {idx} ({chunk.source_file}{fig_tag}) ---\n"
-                f"{clean_chunk_text}"
+                f"{clean_chunk_text}{fig_instruction}"
             )
 
         formatted_context = "\n\n".join(context_blocks)
@@ -253,6 +276,16 @@ class AntiHallucinationEngine:
             if neg_items:
                 negative_block = "PREVIOUSLY REJECTED ANSWER PATTERNS (NEGATIVE CONSTRAINTS TO AVOID):\n" + "\n\n".join(neg_items) + "\n\n"
 
+        intent_hint = ""
+        q_lower = query.lower().strip()
+        is_general_summary = any(k in q_lower for k in ["summary", "summarise", "overview", "give me a summary", "what is this paper about"])
+        if not is_general_summary and any(k in q_lower for k in ["diagram", "figure", "image", "chart", "table", "graph", "histogram", "architecture", "training", "model", "pipeline", "what is", "how does", "why"]):
+            intent_hint = (
+                f"TARGETED FOCUS DIRECTIVE: The user is asking specifically about: '{query}'. "
+                f"Directly explain and address this specific item. Do NOT output a generic paper overview "
+                f"(do NOT generate Abstract, Introduction, Methods, Results, Conclusion sections) unless specifically asked for a full paper summary.\n\n"
+            )
+
         return (
             f"KNOWLEDGE BASE CONTEXT:\n"
             f"{formatted_context}\n\n"
@@ -260,6 +293,7 @@ class AntiHallucinationEngine:
             f"{history_block}"
             f"{exemplar_block}"
             f"{negative_block}"
+            f"{intent_hint}"
             f"USER QUERY: {query}\n\n"
             f"FINISHED GROUNDED ANSWER:"
         )

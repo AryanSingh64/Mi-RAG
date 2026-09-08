@@ -445,24 +445,69 @@
 
     .msg-content {
       font-size: 0.96rem;
-      line-height: 1.7;
+      line-height: 1.68;
       color: #f1f5f9;
       width: 100%;
     }
-    .msg-content p { margin-bottom: 0.65rem; }
-    .msg-content p:last-child { margin-bottom: 0; }
-    .msg-content strong { color: #ffffff; font-weight: 800; }
-    .msg-content em { color: var(--yellow); }
+    .msg-content p {
+      margin: 0 0 0.65rem 0;
+      line-height: 1.68;
+    }
+    .msg-content p:last-child {
+      margin-bottom: 0;
+    }
+    .msg-content strong {
+      color: #ffffff;
+      font-weight: 800;
+    }
+    .msg-content em {
+      color: #cbd5e1;
+      font-style: italic;
+    }
+    .msg-content .msg-h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 1.1rem 0 0.45rem 0;
+      font-family: 'Space Grotesk', sans-serif;
+      letter-spacing: -0.2px;
+    }
+    .msg-content .msg-h2 {
+      font-size: 1.12rem;
+      font-weight: 800;
+      color: #f8fafc;
+      margin: 1rem 0 0.4rem 0;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .msg-content .msg-h3 {
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin: 0.85rem 0 0.35rem 0;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .msg-content .msg-h4 {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin: 0.7rem 0 0.3rem 0;
+    }
     .msg-content ul, .msg-content ol {
-      margin: 0.4rem 0 0.65rem 1.4rem;
+      margin: 0.35rem 0 0.65rem 1.25rem;
+      padding-left: 0.25rem;
     }
     .msg-content li {
-      margin-bottom: 0.3rem;
+      margin-bottom: 0.25rem;
+      line-height: 1.55;
+      color: #e2e8f0;
+    }
+    .msg-content li:last-child {
+      margin-bottom: 0;
     }
     .msg-content code {
       font-family: 'JetBrains Mono', monospace;
       background: #182035;
-      color: var(--yellow);
+      color: #38bdf8;
       padding: 0.15rem 0.4rem;
       border-radius: 4px;
       font-size: 0.85rem;
@@ -480,6 +525,138 @@
       margin: 0.75rem 0;
       overflow-x: auto;
       width: 100%;
+    }
+
+    /* Modern Dark-Mode Tables (Matching ChatGPT/Claude aesthetics) */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      margin: 0.85rem 0;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #090d16;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+    }
+    .markdown-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+    .markdown-table thead {
+      background: #111827;
+      border-bottom: 1.5px solid rgba(255, 255, 255, 0.14);
+    }
+    .markdown-table th {
+      padding: 0.65rem 0.95rem;
+      font-weight: 700;
+      color: #f8fafc;
+      font-family: 'Space Grotesk', sans-serif;
+      letter-spacing: 0.2px;
+    }
+    .markdown-table td {
+      padding: 0.55rem 0.95rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      color: #cbd5e1;
+    }
+    .markdown-table tr:last-child td {
+      border-bottom: none;
+    }
+    .markdown-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Contextual Inline Diagram Card */
+    .inline-diag-card {
+      margin: 0.85rem 0;
+      background: #0c101d;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      transition: all 0.15s ease;
+      cursor: pointer;
+      max-width: 100%;
+    }
+    .inline-diag-card:hover {
+      border-color: rgba(255, 255, 255, 0.32);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+    }
+    .inline-diag-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.45rem 0.85rem;
+      background: #111827;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .inline-diag-title {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #f1f5f9;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 75%;
+    }
+    .inline-diag-title svg {
+      color: #38bdf8;
+      flex-shrink: 0;
+    }
+    .inline-diag-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    .inline-diag-rel {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #34d399;
+      background: rgba(52, 211, 153, 0.12);
+      border: 1px solid rgba(52, 211, 153, 0.25);
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+    }
+    .inline-diag-zoom-icon {
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.2rem;
+      border-radius: 4px;
+    }
+    .inline-diag-card:hover .inline-diag-zoom-icon {
+      color: #fff;
+    }
+    .inline-diag-body {
+      padding: 0.6rem;
+      background: #07090e;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .inline-diag-body img {
+      max-width: 100%;
+      max-height: 420px;
+      object-fit: contain;
+      border-radius: 4px;
+      display: block;
+    }
+    .inline-diag-footer {
+      padding: 0.35rem 0.85rem;
+      background: #0e1422;
+      font-size: 0.74rem;
+      color: #94a3b8;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .inline-diag-footer strong {
+      color: #cbd5e1;
     }
 
     /* KaTeX Typography */
@@ -1376,44 +1553,219 @@
       return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    function formatMarkdown(text) {
-      if (!text) return "";
-      
+    function renderInlineDiagram(url, caption, sourceFile, relevance) {
+      const cap = caption || 'Visual Evidence / Diagram';
+      const fileLabel = sourceFile ? `Extracted from <strong>${escapeHtml(sourceFile)}</strong>` : '';
+      const relBadge = relevance ? `<span class="inline-diag-rel">${relevance}% match</span>` : '';
+      return `
+<div class="inline-diag-card" onclick="openImageModal('${url}', '${escapeHtml(cap)}')">
+  <div class="inline-diag-header">
+    <div class="inline-diag-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+      <span>${escapeHtml(cap)}</span>
+    </div>
+    <div class="inline-diag-meta">
+      ${relBadge}
+      <span class="inline-diag-zoom-icon" title="View full size">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+      </span>
+    </div>
+  </div>
+  <div class="inline-diag-body">
+    <img src="${url}" alt="${escapeHtml(cap)}" loading="lazy">
+  </div>
+  ${fileLabel ? `<div class="inline-diag-footer">${fileLabel}</div>` : ''}
+</div>`;
+    }
+
+    function formatMarkdown(text, images = [], token = '') {
+      if (!text) {
+        const emptyRes = { html: "", unplacedImages: [], toString() { return ""; } };
+        return emptyRes;
+      }
+
+      let raw = String(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      raw = raw.replace(/\n{3,}/g, '\n\n').trim();
+
+      // Convert indented bullet lines (e.g. 2-4 space indented lines) into clean bullet items
+      raw = raw.replace(/((?:^[ \t]{2,}[^\n]+\n*)+)/gm, (match) => {
+        const items = match.split('\n')
+          .map(l => l.replace(/^[ \t]+/, '').trim())
+          .filter(Boolean);
+        return items.map(it => `- ${it}`).join('\n') + '\n\n';
+      });
+
+      // 1. Code blocks
       const codeBlocks = [];
-      let formatted = text.replace(/```([\s\S]*?)```/g, (_, code) => {
+      raw = raw.replace(/```([\s\S]*?)```/g, (_, code) => {
         const id = `__CODE_BLOCK_${codeBlocks.length}__`;
         codeBlocks.push(`<pre class="code-block"><code>${escapeHtml(code.trim())}</code></pre>`);
         return id;
       });
 
+      // 2. Inline code
       const inlineCodes = [];
-      formatted = formatted.replace(/`([^`]+)`/g, (_, code) => {
+      raw = raw.replace(/`([^`]+)`/g, (_, code) => {
         const id = `__INLINE_CODE_${inlineCodes.length}__`;
         inlineCodes.push(`<code>${escapeHtml(code)}</code>`);
         return id;
       });
 
-      formatted = formatted
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+      // 3. Tables (Markdown pipe tables)
+      const tableBlocks = [];
+      raw = raw.replace(/(?:^|\n)((?:\|[^\n]+\|\n?)+)/g, (match, tableText) => {
+        const lines = tableText.trim().split('\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length >= 2 && lines.some(l => /^\|?\s*:?-+:?\s*\|/.test(l))) {
+          const id = `__TABLE_BLOCK_${tableBlocks.length}__`;
+          let thead = '';
+          let tbody = '';
+          let isBody = false;
 
-      formatted = formatted.replace(/(?:^|\n)[*-]\s+(.+)/g, '\n<li>$1</li>');
-      formatted = formatted.replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>');
+          lines.forEach((line) => {
+            if (/^\|?(\s*:?-+:?\s*\|)+\s*$/.test(line)) {
+              isBody = true;
+              return;
+            }
+            const cells = line.split('|').slice(1, -1).map(c => c.trim());
+            if (!isBody && !thead) {
+              thead = '<thead><tr>' + cells.map(c => `<th>${escapeHtml(c)}</th>`).join('') + '</tr></thead>';
+            } else {
+              tbody += '<tr>' + cells.map(c => `<td>${escapeHtml(c)}</td>`).join('') + '</tr>';
+            }
+          });
 
-      formatted = formatted.replace(/\n\n+/g, '<br><br>').replace(/\n/g, '<br>');
-
-      // Markdown Images
-      formatted = formatted.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => {
-        const fullUrl = (typeof sessionToken !== 'undefined' && sessionToken && !url.includes('token='))
-          ? (url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(sessionToken))
-          : url;
-        return `<div class="msg-image-wrap" style="margin: 0.6rem 0;"><img src="${fullUrl}" alt="${escapeHtml(alt)}" style="max-width: 100%; max-height: 380px; border: 2.5px solid #000; border-radius: 6px; box-shadow: 3px 3px 0px #000; cursor: pointer; display: block;" onclick="openImageModal('${fullUrl}', '${escapeHtml(alt)}')"><div style="font-size: 0.74rem; font-weight: 800; color: #475569; margin-top: 0.35rem; font-family: 'Space Grotesk', sans-serif;">${escapeHtml(alt)}</div></div>`;
+          const tableHtml = `<div class="table-container"><table class="markdown-table">${thead}<tbody>${tbody}</tbody></table></div>`;
+          tableBlocks.push(tableHtml);
+          return '\n\n' + id + '\n\n';
+        }
+        return match;
       });
 
-      inlineCodes.forEach((ic, i) => { formatted = formatted.replace(`__INLINE_CODE_${i}__`, ic); });
-      codeBlocks.forEach((cb, i) => { formatted = formatted.replace(`__CODE_BLOCK_${i}__`, cb); });
+      // 4. Inline Images in Markdown: ![Alt](url)
+      const placedImageUrls = new Set();
+      raw = raw.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => {
+        const cleanUrl = url.trim();
+        placedImageUrls.add(cleanUrl.split('?')[0]);
+        const fullUrl = (token && !cleanUrl.includes('token='))
+          ? (cleanUrl + (cleanUrl.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token))
+          : cleanUrl;
+        return '\n\n' + renderInlineDiagram(fullUrl, alt) + '\n\n';
+      });
 
-      return formatted;
+      // 5. Headings
+      raw = raw.replace(/^#### (.*$)/gim, '<h4 class="msg-h4">$1</h4>');
+      raw = raw.replace(/^### (.*$)/gim, '<h3 class="msg-h3">$1</h3>');
+      raw = raw.replace(/^## (.*$)/gim, '<h2 class="msg-h2">$1</h2>');
+      raw = raw.replace(/^# (.*$)/gim, '<h1 class="msg-h1">$1</h1>');
+
+      // Headings without hash marks: e.g. "1. Confidence", "Abstract", "Visual Scene..."
+      raw = raw.replace(/^([0-9]+\.\s+[A-Za-z0-9\s,\/&-]+)$/gm, '<h3 class="msg-h3">$1</h3>');
+
+      // 6. Split into blocks/paragraphs
+      const blocks = raw.split(/\n\n+/);
+      const processedBlocks = [];
+
+      for (let block of blocks) {
+        block = block.trim();
+        if (!block) continue;
+
+        if (block.startsWith('__CODE_BLOCK_') || block.startsWith('__TABLE_BLOCK_') || block.startsWith('<div class="inline-diag-card"') || block.startsWith('<h1') || block.startsWith('<h2') || block.startsWith('<h3') || block.startsWith('<h4')) {
+          processedBlocks.push(block);
+          continue;
+        }
+
+        // Check if list (bullet or numbered)
+        const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+        const isBulletList = lines.every(l => /^([*\-•+]|\s*[*\-•+])\s+/.test(l));
+        const isNumberedList = lines.every(l => /^\d+\.\s+/.test(l));
+
+        if (isBulletList) {
+          const items = lines.map(l => l.replace(/^([*\-•+]|\s*[*\-•+])\s+/, '').trim());
+          processedBlocks.push('<ul class="msg-list">' + items.map(it => `<li>${formatInlines(it)}</li>`).join('') + '</ul>');
+        } else if (isNumberedList) {
+          const items = lines.map(l => l.replace(/^\d+\.\s+/, '').trim());
+          processedBlocks.push('<ol class="msg-list">' + items.map(it => `<li>${formatInlines(it)}</li>`).join('') + '</ol>');
+        } else {
+          // Standard paragraph
+          const formattedPara = formatInlines(block.replace(/\n/g, '<br>'));
+          processedBlocks.push(`<p>${formattedPara}</p>`);
+        }
+      }
+
+      function formatInlines(str) {
+        return str
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em>$1</em>');
+      }
+
+      // 7. Contextual Section-Anchor Placement for unplaced images
+      const unplacedImages = (images || []).filter(img => {
+        const rawUrl = (img.url || '').split('?')[0];
+        for (let u of placedImageUrls) {
+          if (rawUrl.includes(u) || u.includes(rawUrl)) return false;
+        }
+        return true;
+      });
+
+      if (unplacedImages.length > 0 && processedBlocks.length > 0) {
+        unplacedImages.forEach((img) => {
+          const imgKeywords = [];
+          const fn = (img.filename || '').toLowerCase().replace(/[^a-z0-9]/g, ' ');
+          const cap = (img.caption || '').toLowerCase().replace(/[^a-z0-9]/g, ' ');
+          const src = (img.source_file || '').toLowerCase().replace(/[^a-z0-9]/g, ' ');
+          
+          imgKeywords.push(...fn.split(/\s+/).filter(w => w.length > 3));
+          imgKeywords.push(...cap.split(/\s+/).filter(w => w.length > 3));
+          imgKeywords.push('visual', 'histogram', 'figure', 'diagram', 'chart', 'composition', 'image', 'pathology', 'recurrence', 'model', 'training');
+
+          let bestBlockIdx = -1;
+          let highestScore = 0;
+
+          processedBlocks.forEach((b, bIdx) => {
+            const bLower = b.toLowerCase();
+            let score = 0;
+            imgKeywords.forEach(kw => {
+              if (bLower.includes(kw)) {
+                score += (kw === 'visual' || kw === 'histogram' || kw === 'diagram' || kw === 'figure') ? 3 : 1;
+              }
+            });
+            if (score > highestScore) {
+              highestScore = score;
+              bestBlockIdx = bIdx;
+            }
+          });
+
+          const displayUrl = (token && !img.url.includes('token='))
+            ? (img.url + (img.url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token))
+            : img.url;
+
+          const diagramCard = renderInlineDiagram(displayUrl, img.caption || img.filename, img.source_file, img.relevance);
+
+          if (bestBlockIdx !== -1 && highestScore >= 2) {
+            processedBlocks.splice(bestBlockIdx + 1, 0, diagramCard);
+            placedImageUrls.add((img.url || '').split('?')[0]);
+          } else {
+            let targetIdx = 1;
+            if (processedBlocks.length > 2) targetIdx = 2;
+            processedBlocks.splice(targetIdx, 0, diagramCard);
+            placedImageUrls.add((img.url || '').split('?')[0]);
+          }
+        });
+      }
+
+      let finalHtml = processedBlocks.join('\n');
+
+      tableBlocks.forEach((tb, i) => { finalHtml = finalHtml.replace(`__TABLE_BLOCK_${i}__`, tb); });
+      inlineCodes.forEach((ic, i) => { finalHtml = finalHtml.replace(`__INLINE_CODE_${i}__`, ic); });
+      codeBlocks.forEach((cb, i) => { finalHtml = finalHtml.replace(`__CODE_BLOCK_${i}__`, cb); });
+
+      const remainingImages = (images || []).filter(img => !placedImageUrls.has((img.url || '').split('?')[0]));
+
+      return {
+        html: finalHtml,
+        unplacedImages: remainingImages,
+        toString() { return this.html; }
+      };
     }
 
     function renderMath(element) {
@@ -2141,12 +2493,15 @@
           ? `<div class="grounded-badge">Fact-Checked & Grounded (${Math.round(data.confidence_score * 100)}%)</div>`
           : `<div class="grounded-badge" style="color:#000; background:#fca5a5;">No Direct Evidence Found</div>`;
 
-        // Render interactive visual image gallery if present
+        const token = sessionToken || '';
+        const parsed = formatMarkdown(data.answer, data.images || [], token);
+
+        // Render interactive visual image gallery ONLY for unplaced images
         let visualGalleryHtml = '';
-        if (data.images && data.images.length > 0) {
-          visualGalleryHtml = '<div class="visual-gallery"><div class="visual-gallery-title">Visual Evidence / Diagrams:</div><div class="visual-grid">' +
-            data.images.map(img => {
-              const displayUrl = sessionToken ? `${img.url}${img.url.includes('?') ? '&' : '?'}token=${encodeURIComponent(sessionToken)}` : img.url;
+        if (parsed.unplacedImages && parsed.unplacedImages.length > 0) {
+          visualGalleryHtml = '<div class="visual-gallery"><div class="visual-gallery-title">Additional Visual Evidence / Diagrams:</div><div class="visual-grid">' +
+            parsed.unplacedImages.map(img => {
+              const displayUrl = token ? `${img.url}${img.url.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}` : img.url;
               return `
               <div class="visual-card" onclick="openImageModal('${displayUrl}', 'Extracted from ${img.source_file}')">
                 <img src="${displayUrl}" alt="${img.filename}" loading="lazy">
@@ -2186,7 +2541,7 @@
         botElement.innerHTML = `
           <div class="bot-body">
             ${badgeHtml}
-            <div class="msg-content">${formatMarkdown(data.answer)}</div>
+            <div class="msg-content">${parsed.html}</div>
             ${visualGalleryHtml}
             ${citationsHtml}
             ${actionsHtml}
@@ -2461,18 +2816,23 @@
               ? `<div class="grounded-badge">Fact-Checked & Grounded (${Math.round((msg.confidenceScore || 1) * 100)}%)</div>`
               : `<div class="grounded-badge" style="color:#000; background:#fca5a5;">No Direct Evidence Found</div>`;
 
+            const token = sessionToken || '';
+            const parsed = formatMarkdown(msg.content, msg.images || [], token);
+
             let visualGalleryHtml = '';
-            if (msg.images && msg.images.length > 0) {
-              visualGalleryHtml = '<div class="visual-gallery"><div class="visual-gallery-title">Visual Evidence / Diagrams:</div><div class="visual-grid">' +
-                msg.images.map(img => `
-                  <div class="visual-card" onclick="openImageModal('${img.url}', 'Extracted from ${img.source_file}')">
-                    <img src="${img.url}" alt="${img.filename}" loading="lazy">
+            if (parsed.unplacedImages && parsed.unplacedImages.length > 0) {
+              visualGalleryHtml = '<div class="visual-gallery"><div class="visual-gallery-title">Additional Visual Evidence / Diagrams:</div><div class="visual-grid">' +
+                parsed.unplacedImages.map(img => {
+                  const displayUrl = token ? `${img.url}${img.url.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}` : img.url;
+                  return `
+                  <div class="visual-card" onclick="openImageModal('${displayUrl}', 'Extracted from ${img.source_file}')">
+                    <img src="${displayUrl}" alt="${img.filename}" loading="lazy">
                     <div class="visual-card-info">
                       <span>${img.source_file}</span>
                       <span style="color:var(--yellow);">${img.relevance}%</span>
                     </div>
                   </div>
-                `).join('') + '</div></div>';
+                `;}).join('') + '</div></div>';
             }
 
             let citationsHtml = '';
@@ -2507,7 +2867,7 @@
             botRow.innerHTML = `
               <div class="bot-body">
                 ${badgeHtml}
-                <div class="msg-content">${formatMarkdown(msg.content)}</div>
+                <div class="msg-content">${parsed.html}</div>
                 ${visualGalleryHtml}
                 ${citationsHtml}
                 ${actionsHtml}
