@@ -1174,7 +1174,7 @@ PrivilegesRequired=lowest
 DisableWelcomePage=no
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a &desktop shortcut (⚡ Electric Icon)"; GroupDescription: "Additional shortcuts:"; Flags: checkedonce
+Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: checkedonce
 Name: "addtopath"; Description: "Add application directory to User &PATH environment variable"; GroupDescription: "System integration:"; Flags: unchecked
 
 [Files]
