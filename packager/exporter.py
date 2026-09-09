@@ -112,6 +112,9 @@ collection = None
 
 def init_engine_background():
     global embedder, chroma_client, collection, ENGINE_STATE
+    import sys
+    sys.modules["torchvision"] = None
+    sys.modules["torchvision.io"] = None
     try:
         # Step 1: ChromaDB
         ENGINE_STATE["step"] = "Mounting Vector Database..."
@@ -747,6 +750,7 @@ if __name__ == "__main__":
     import sys
     import os
     import socket
+    import subprocess
     import threading
     import time
     import urllib.request
@@ -755,6 +759,45 @@ if __name__ == "__main__":
 
     port_file = Path(__file__).parent / ".port"
 
+    def find_desktop_app_browser():
+        candidates = [
+            Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Google" / "Chrome" / "Application" / "chrome.exe",
+            Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)")) / "Google" / "Chrome" / "Application" / "chrome.exe",
+            Path(os.environ.get("LOCALAPPDATA", "")) / "Google" / "Chrome" / "Application" / "chrome.exe",
+            Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "BraveSoftware" / "Brave-Browser" / "Application" / "brave.exe",
+            Path(os.environ.get("LOCALAPPDATA", "")) / "BraveSoftware" / "Brave-Browser" / "Application" / "brave.exe",
+        ]
+        return next((p for p in candidates if p and p.exists()), None)
+
+    def launch_app_window(target_url):
+        browser_exe = find_desktop_app_browser()
+        user_data = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "Mi-RAG" / "AppProfile"
+        user_data.mkdir(parents=True, exist_ok=True)
+        if browser_exe:
+            try:
+                print(f"[*] Opening dedicated desktop app window: {{browser_exe}}")
+                proc = subprocess.Popen([
+                    str(browser_exe),
+                    f"--app={{target_url}}",
+                    "--window-size=1280,840",
+                    f"--user-data-dir={{user_data}}",
+                    "--no-first-run",
+                    "--no-default-browser-check"
+                ])
+                def watch_proc(p):
+                    try:
+                        p.wait()
+                        time.sleep(0.4)
+                        os._exit(0)
+                    except Exception:
+                        pass
+                threading.Thread(target=watch_proc, args=(proc,), daemon=True).start()
+                return True
+            except Exception as e:
+                print(f"[!] Desktop window error: {{e}}")
+        webbrowser.open(target_url)
+        return False
+
     # Fast-check if an instance of this assistant is already running on this machine
     if port_file.exists():
         try:
@@ -762,8 +805,8 @@ if __name__ == "__main__":
             test_url = f"http://127.0.0.1:{{old_port}}"
             with urllib.request.urlopen(f"{{test_url}}/api/health", timeout=0.8) as resp:
                 if resp.status == 200:
-                    print(f"[*] Assistant is already running at {{test_url}}. Opening browser tab...")
-                    webbrowser.open(test_url)
+                    print(f"[*] Assistant is already running at {{test_url}}. Refocusing desktop window...")
+                    launch_app_window(test_url)
                     sys.exit(0)
         except Exception:
             try:
@@ -797,8 +840,8 @@ if __name__ == "__main__":
     except Exception:
         pass
 
-    # 2. Open standard default browser tab as soon as FastAPI server is verified answering 200 OK
-    def open_browser_when_ready(target_url):
+    # 2. Open dedicated desktop app window as soon as FastAPI server is verified answering 200 OK
+    def open_desktop_window_when_ready(target_url):
         t0 = time.time()
         while time.time() - t0 < 30.0:
             try:
@@ -808,10 +851,9 @@ if __name__ == "__main__":
             except Exception:
                 pass
             time.sleep(0.12)
-        print(f"[*] Opening browser tab: {{target_url}}")
-        webbrowser.open(target_url)
+        launch_app_window(target_url)
 
-    threading.Thread(target=open_browser_when_ready, args=(url,), daemon=True).start()
+    threading.Thread(target=open_desktop_window_when_ready, args=(url,), daemon=True).start()
 
     # 3. Run FastAPI / Uvicorn directly on the main thread so the server process NEVER terminates unexpectedly
     try:

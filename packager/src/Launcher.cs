@@ -25,7 +25,7 @@ namespace MiRAGLauncher
                 return;
             }
 
-            // 1.5. If server is already running on this port, open the default browser tab immediately!
+            // 1.5. If server is already running on this port, open the desktop app window immediately!
             string portFile = Path.Combine(baseDir, ".port");
             if (File.Exists(portFile)) {
                 try {
@@ -34,7 +34,7 @@ namespace MiRAGLauncher
                     if (int.TryParse(savedPort, out p)) {
                         string testUrl = "http://127.0.0.1:" + p;
                         if (IsServerAlive(testUrl)) {
-                            Process.Start(new ProcessStartInfo(testUrl) { UseShellExecute = true });
+                            OpenDesktopAppWindow(testUrl);
                             return;
                         }
                     }
@@ -85,7 +85,7 @@ namespace MiRAGLauncher
             }
 
             // 4. If a working Python environment is found, launch server.py silently
-            // server.py initializes the FastAPI server, tests health, and opens the default browser tab
+            // server.py initializes the FastAPI server, tests health, and opens the desktop application window
             if (workingPython != null) {
                 string pyDir = Path.GetDirectoryName(workingPython) ?? "";
                 string pyw = Path.Combine(pyDir, "pythonw.exe");
@@ -130,6 +130,46 @@ namespace MiRAGLauncher
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information
             );
+        }
+
+        static void OpenDesktopAppWindow(string targetUrl)
+        {
+            string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+            string[] candidates = new string[] {
+                Path.Combine(programFiles, "Google", "Chrome", "Application", "chrome.exe"),
+                Path.Combine(programFilesX86, "Google", "Chrome", "Application", "chrome.exe"),
+                Path.Combine(localAppData, "Google", "Chrome", "Application", "chrome.exe"),
+                Path.Combine(programFiles, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"),
+                Path.Combine(localAppData, "BraveSoftware", "Brave-Browser", "Application", "brave.exe")
+            };
+
+            string browserExe = null;
+            foreach (string c in candidates) {
+                if (!string.IsNullOrEmpty(c) && File.Exists(c)) {
+                    browserExe = c;
+                    break;
+                }
+            }
+
+            if (browserExe != null) {
+                try {
+                    string userData = Path.Combine(localAppData, "Mi-RAG", "AppProfile");
+                    Directory.CreateDirectory(userData);
+                    ProcessStartInfo psi = new ProcessStartInfo();
+                    psi.FileName = browserExe;
+                    psi.Arguments = "--app=\"" + targetUrl + "\" --window-size=1280,840 --user-data-dir=\"" + userData + "\" --no-first-run --no-default-browser-check";
+                    psi.UseShellExecute = false;
+                    Process.Start(psi);
+                    return;
+                } catch {}
+            }
+
+            try {
+                Process.Start(new ProcessStartInfo(targetUrl) { UseShellExecute = true });
+            } catch {}
         }
 
         static bool IsServerAlive(string url)
