@@ -640,9 +640,14 @@ def shutdown_server():
     return {{"status": "ok", "message": "Server shutting down."}}
 
 if __name__ == "__main__":
+    import sys
+    import os
     import socket
-    import webbrowser
+    import subprocess
+    import shutil
     import threading
+    import time
+    import urllib.request
 
     def get_free_port(preferred=8000):
         for p in [preferred, 8001, 8080, 8088, 8888]:
@@ -655,10 +660,81 @@ if __name__ == "__main__":
         return preferred
 
     port = get_free_port(8000)
-    url = f"http://localhost:{{port}}"
+    url = f"http://127.0.0.1:{{port}}"
     print(f"[*] Starting Standalone Enterprise RAG Assistant on {{url}} (Model: {{MODEL_NAME}})...")
-    threading.Timer(1.2, lambda: webbrowser.open(url)).start()
-    uvicorn.run(app, host="0.0.0.0", port=port)
+
+    # Start FastAPI server in background daemon thread
+    server_thread = threading.Thread(
+        target=lambda: uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning"),
+        daemon=True
+    )
+    server_thread.start()
+
+    # Wait until server responds
+    t0 = time.time()
+    while time.time() - t0 < 15.0:
+        try:
+            with urllib.request.urlopen(f"{{url}}/api/health", timeout=0.8) as response:
+                if response.status == 200:
+                    break
+        except Exception:
+            pass
+        time.sleep(0.15)
+
+    def launch_standalone_window(target_url):
+        # 1. Native pywebview window if available
+        try:
+            import webview
+            window = webview.create_window(
+                "Mi-RAG Assistant",
+                target_url,
+                width=1280,
+                height=840,
+                min_size=(960, 640),
+                background_color="#090c15"
+            )
+            webview.start(private_mode=False)
+            return
+        except Exception:
+            pass
+
+        # 2. Standalone App Mode via Edge/Chrome (window without browser tabs or address bar)
+        candidates = []
+        if sys.platform == "win32":
+            candidates = [
+                r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+                r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+                r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            ]
+        for c in ["msedge.exe", "chrome.exe"]:
+            w = shutil.which(c)
+            if w:
+                candidates.insert(0, w)
+
+        for exe in candidates:
+            if os.path.exists(exe):
+                try:
+                    proc = subprocess.Popen([
+                        exe,
+                        f"--app={{target_url}}",
+                        "--window-size=1280,840"
+                    ])
+                    proc.wait()
+                    return
+                except Exception:
+                    pass
+
+        # 3. Fallback
+        import webbrowser
+        webbrowser.open(target_url)
+        while True:
+            time.sleep(1.0)
+
+    try:
+        launch_standalone_window(url)
+    except KeyboardInterrupt:
+        print("\\n[*] Shutting down...")
 '''
 
     def _generate_standalone_ui(self, model_name: str, session_id: str, indexed_files: list) -> str:
@@ -700,18 +776,28 @@ if __name__ == "__main__":
             # 3. Pre-render indexed documents
             files_pills = "".join([f'<div class="file-pill">📄 {Path(f).name}</div>' for f in indexed_files]) or '<div class="file-pill">📄 Knowledge Base Documents</div>'
             content = content.replace('Loading documents...', files_pills)
+            content = content.replace('No documents in this session', files_pills)
             
-            # 4. Completely remove redundant "Standalone Package" download card in the offline package
+            # 4. Remove all training buttons, studio links, and download button in the desktop installed app
+            content = re.sub(r'<a href="/studio" id="sidebar-new-kb-btn"[\s\S]*?</a>', '', content)
+            content = re.sub(r'<a href="/studio" id="sidebar-studio-link"[\s\S]*?</a>', '', content)
+            content = re.sub(r'<div class="sidebar-footer" id="sidebar-footer-download"[\s\S]*?</div>\s*</aside>', '</aside>', content)
+            content = re.sub(r'<button type="button" class="btn-header-settings"[\s\S]*?</button>', '', content)
+            content = re.sub(r'<div id="portal-settings-modal"[\s\S]*?</div>\s*</div>\s*</div>', '', content)
+            content = re.sub(r'<a href="/" class="sidebar-brand">([\s\S]*?)</a>', r'<div class="sidebar-brand" style="cursor:default;">\1</div>', content)
+
+            # 5. Lock model pill strictly to the selected model
+            clean_m = model_name.replace("ollama:", "").replace("local:", "")
             content = re.sub(
-                r'<div class="panel-card">\s*<div class="panel-title">Standalone Package</div>[\s\S]*?</a>\s*</div>',
-                '',
-                content,
-                count=1
+                r'<select id="chat-model-select"[\s\S]*?</select>',
+                f'<select id="chat-model-select" class="chat-model-select" disabled style="opacity:0.95;cursor:default;"><option value="ollama:{clean_m}" selected>{clean_m} (Local)</option></select>',
+                content
             )
-            
-            # 5. Standalone SVG Favicon fallback for immediate tab icon rendering
+
+            # 6. Standalone SVG Favicon fallback for immediate tab icon rendering
             svg_fav = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%23ff2d87\' stroke=\'%23000000\' stroke-width=\'1.5\'%3E%3Cpath d=\'M13 2L3 14h9l-1 8 10-12h-9l1-8z\'/%3E%3C/svg%3E'
             content = content.replace('<link rel="icon" type="image/png" sizes="32x32" href="/static/assets/favicon.png">', f'<link rel="icon" type="image/svg+xml" href="{svg_fav}">\n  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/favicon.png">')
+            content = content.replace("<script>", "<script>\n    window.IS_STANDALONE = true;")
             
             # 6. Inject Standalone LocalStorage Auto-Save & Quit Script
             standalone_js = f'''

@@ -69,23 +69,17 @@ def main():
             pass
         time.sleep(0.15)
 
-    # 3. Launch native standalone desktop window via pywebview (Edge WebView2)
+    # 3. Open browser tab for Training RAG Studio
+    import webbrowser
+    print(" [*] Opening browser tab to Training RAG Studio (http://127.0.0.1:8000)...")
+    webbrowser.open("http://127.0.0.1:8000")
+
+    # Keep server running until terminal is closed or Ctrl+C is pressed
     try:
-        import webview
-        window = webview.create_window(
-            title="Mi:RAG Assistant",
-            url="http://127.0.0.1:8000",
-            width=1280,
-            height=820,
-            min_size=(960, 640),
-            background_color="#090c15"
-        )
-        webview.start(private_mode=False)
-    except Exception as e:
-        print(f"[!] pywebview desktop window error: {e}. Falling back to browser...")
-        import webbrowser
-        webbrowser.open("http://127.0.0.1:8000")
-        server_thread.join()
+        while True:
+            time.sleep(1.0)
+    except KeyboardInterrupt:
+        print("\n [!] Stopping Mi:RAG Server...")
 
 if __name__ == "__main__":
     main()

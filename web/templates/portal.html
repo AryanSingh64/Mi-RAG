@@ -1400,7 +1400,7 @@
     </div>
 
     <div class="sidebar-scroll">
-      <a href="/studio" class="sidebar-nav-item" style="background: var(--pink); color: #fff; border: 1.5px solid #000; box-shadow: 2px 2px 0px #000; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 800; text-transform: uppercase; margin-bottom: 0.75rem;" title="Train & Ingest New Knowledge Base or Documents">
+      <a href="/studio" id="sidebar-new-kb-btn" class="sidebar-nav-item" style="background: var(--pink); color: #fff; border: 1.5px solid #000; box-shadow: 2px 2px 0px #000; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 800; text-transform: uppercase; margin-bottom: 0.75rem;" title="Train & Ingest New Knowledge Base or Documents">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         <span>+ New Knowledge Base</span>
       </a>
@@ -1415,7 +1415,7 @@
       <div>
         <div class="sidebar-section-title">Navigation</div>
         <div class="sidebar-menu-list">
-          <a href="/studio" class="sidebar-nav-item">
+          <a href="/studio" id="sidebar-studio-link" class="sidebar-nav-item">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
             <span>Studio / Training</span>
           </a>
@@ -1435,7 +1435,7 @@
     </div>
 
     <!-- Bottom Sidebar Footer with Export Standalone Button -->
-    <div class="sidebar-footer">
+    <div class="sidebar-footer" id="sidebar-footer-download">
       <a href="#" id="download-zip-btn" class="sidebar-export-btn" title="Download standalone Windows Setup Installer (.exe)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
         <span>Export Standalone (.exe)</span>
@@ -1458,10 +1458,10 @@
       <div class="top-header-right">
         <div class="session-model-pill">
           <span class="provider-badge-icon badge-local" id="header-provider-badge">OLLAMA</span>
-          <select id="chat-model-select" class="chat-model-select" onchange="handleChatModelSelectChange()">
+          <select id="chat-model-select" class="chat-model-select" disabled style="cursor: default; opacity: 0.95;">
             <option value="ollama:llama3.2:3b">llama3.2:3b (Local)</option>
           </select>
-          <button type="button" class="btn-header-settings" onclick="openPortalSettingsModal()" title="Settings / Configure Models">
+          <button type="button" class="btn-header-settings" id="btn-open-settings" onclick="openPortalSettingsModal()" title="Settings / Configure Models" style="display: none;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="3"></circle>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -1610,6 +1610,10 @@
         const data = await res.json();
         timeRemaining = data.time_remaining_seconds;
         startTimer();
+
+        // Lock model dropdown to only the session's selected model
+        populateChatModelDropdown(data.model_name);
+        enforceDesktopLockdown();
 
         // Safely record session in local storage for session tracking & history
         recordCurrentSession(data);
@@ -2042,95 +2046,53 @@
 
     let _cachedPortalModels = null;
 
-    async function populateChatModelDropdown() {
+    const isDesktopApp = !!window.pywebview || window.IS_STANDALONE === true || window.location.pathname.startsWith('/portal/standalone') || window.location.search.includes('mode=desktop');
+
+    function enforceDesktopLockdown() {
+      if (isDesktopApp) {
+        const newKbBtn = document.getElementById('sidebar-new-kb-btn');
+        if (newKbBtn) newKbBtn.remove();
+
+        const studioNav = document.getElementById('sidebar-studio-link');
+        if (studioNav) studioNav.remove();
+
+        const footerDownload = document.getElementById('sidebar-footer-download');
+        if (footerDownload) footerDownload.remove();
+
+        const settingsTrigger = document.getElementById('btn-open-settings');
+        if (settingsTrigger) settingsTrigger.remove();
+
+        const brandLink = document.querySelector('.sidebar-brand');
+        if (brandLink) {
+          brandLink.removeAttribute('href');
+          brandLink.style.cursor = 'default';
+        }
+      }
+    }
+
+    enforceDesktopLockdown();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', enforceDesktopLockdown);
+    }
+
+    async function populateChatModelDropdown(selectedModelFromSession) {
       const select = document.getElementById("chat-model-select");
       if (!select) return;
 
-      const localEnabled = localStorage.getItem("mirag_enable_local") !== "false";
-      const cloudEnabled = localStorage.getItem("mirag_enable_cloud") === "true" || currentProvider !== 'ollama';
-      const cloudProvider = localStorage.getItem("mirag_cloud_provider") || (currentProvider !== 'ollama' ? currentProvider : 'openai');
-      const cloudModel = localStorage.getItem("mirag_cloud_model") || (currentProvider !== 'ollama' ? currentModel : 'gpt-4o');
+      const activeMod = selectedModelFromSession || currentModel || "llama3.2:3b";
+      const cleanName = activeMod.replace(/^(local:|cloud:|ollama:)/, '');
+      const isCloud = activeMod.startsWith('cloud:') || (currentProvider !== 'ollama' && !activeMod.startsWith('local:') && !activeMod.startsWith('ollama:'));
+      const labelText = isCloud ? `${cleanName} (Cloud)` : `${cleanName} (Local)`;
+      const val = isCloud ? `cloud:${cleanName}` : `ollama:${cleanName}`;
 
-      let localModels = ["llama3.2:3b", "llama3.2:1b", "qwen2.5:3b"];
-      if (_cachedPortalModels) {
-        localModels = _cachedPortalModels;
-      } else {
-        try {
-          const res = await fetch('/api/models');
-          if (res.ok) {
-            const data = await res.json();
-            if (data.text_models && data.text_models.length > 0) {
-              _cachedPortalModels = data.text_models;
-              localModels = data.text_models;
-            }
-          }
-        } catch (e) {}
-      }
+      currentModel = cleanName;
+      currentProvider = isCloud ? "cloud" : "ollama";
 
-      let html = '';
-
-      // 1. Local Models (if enabled)
-      if (localEnabled) {
-        html += `<optgroup label="Local Models (Offline)">`;
-        for (let m of localModels) {
-          const isSel = (currentProvider === 'ollama' && currentModel === m);
-          html += `<option value="ollama:${m}" ${isSel ? 'selected' : ''}>${m} (Local)</option>`;
-        }
-        html += `</optgroup>`;
-      }
-
-      // 2. Cloud Models (if enabled)
-      if (cloudEnabled) {
-        html += `<optgroup label="Cloud Models (Online)">`;
-        const cloudPresets = [
-          { prov: "openai", model: "gpt-4o-mini", label: "OpenAI: GPT-4o Mini" },
-          { prov: "openai", model: "gpt-4o", label: "OpenAI: GPT-4o" },
-          { prov: "openai", model: "gpt-5.6-sol", label: "OpenAI: GPT-5.6 Sol" },
-          { prov: "gemini", model: "gemini-3.7-flash", label: "Gemini: 3.7 Flash" },
-          { prov: "gemini", model: "gemini-3.1-pro", label: "Gemini: 3.1 Pro" },
-          { prov: "anthropic", model: "claude-sonnet-5", label: "Claude: Sonnet 5" },
-          { prov: "anthropic", model: "claude-opus-5", label: "Claude: Opus 5" },
-          { prov: "grok", model: "grok-4.6", label: "Grok: Grok 4.6" },
-          { prov: "openrouter", model: "openrouter/auto", label: "OpenRouter: Auto" }
-        ];
-
-        // Add currently selected cloud model if it's not in presets
-        if (cloudProvider && cloudModel && !cloudPresets.some(p => p.prov === cloudProvider && p.model === cloudModel)) {
-          cloudPresets.unshift({
-            prov: cloudProvider,
-            model: cloudModel,
-            label: `${cloudProvider.toUpperCase()}: ${cloudModel}`
-          });
-        }
-
-        for (let cp of cloudPresets) {
-          const isSel = (currentProvider === cp.prov && currentModel === cp.model);
-          html += `<option value="${cp.prov}:${cp.model}" ${isSel ? 'selected' : ''}>${cp.label}</option>`;
-        }
-        html += `</optgroup>`;
-      }
-
-      select.innerHTML = html;
-
-      // Ensure select value is synced
-      const currentVal = `${currentProvider}:${currentModel}`;
-      if (Array.from(select.options).some(o => o.value === currentVal)) {
-        select.value = currentVal;
-      } else {
-        const found = Array.from(select.options).find(o => o.value.endsWith(`:${currentModel}`));
-        if (found) {
-          select.value = found.value;
-          currentProvider = select.value.split(':')[0];
-          localStorage.setItem("mirag_provider", currentProvider);
-        } else if (select.options.length > 0) {
-          select.value = select.options[0].value;
-          const parts = select.value.split(':');
-          currentProvider = parts[0];
-          currentModel = parts.slice(1).join(':');
-          localStorage.setItem("mirag_provider", currentProvider);
-          localStorage.setItem("mirag_model", currentModel);
-        }
-      }
+      // The model switch pill ONLY has the model selected for this session
+      select.innerHTML = `<option value="${val}" selected>${labelText}</option>`;
+      select.disabled = true;
+      select.style.cursor = "default";
+      select.style.opacity = "0.95";
 
       syncHeaderModelDisplay();
     }
@@ -2905,6 +2867,10 @@
     async function loadSidebarSessions() {
       const listEl = document.getElementById('sidebar-sessions-list');
       if (!listEl) return;
+      if (isDesktopApp || window.IS_STANDALONE) {
+        listEl.innerHTML = '<div style="font-size: 0.74rem; color: #64748b; padding: 0.3rem 0.5rem;">Offline Dedicated Assistant</div>';
+        return;
+      }
       try {
         const res = await fetch('/api/sessions');
         let sessions = [];

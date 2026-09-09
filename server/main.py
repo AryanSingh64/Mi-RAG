@@ -12,7 +12,7 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -111,12 +111,7 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 app.include_router(api_router, prefix="/api")
 
 
-@app.get("/")
-def root():
-    session = session_manager.get_or_create_default_session()
-    return RedirectResponse(url=f"/portal/{session.session_id}?token={session.session_token}")
-
-
+@app.get("/", response_class=HTMLResponse)
 @app.get("/app", response_class=HTMLResponse)
 @app.get("/studio", response_class=HTMLResponse)
 def app_studio():
