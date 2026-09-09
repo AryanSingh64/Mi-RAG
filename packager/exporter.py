@@ -649,17 +649,20 @@ if __name__ == "__main__":
     import time
     import urllib.request
 
-    def get_free_port(preferred=8000):
-        for p in [preferred, 8001, 8080, 8088, 8888]:
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    if s.connect_ex(('127.0.0.1', p)) != 0:
-                        return p
-            except Exception:
-                pass
-        return preferred
+    def find_available_port(preferred=8000, max_tries=100):
+        for p in range(preferred, preferred + max_tries):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                try:
+                    s.bind(('127.0.0.1', p))
+                    return p
+                except OSError:
+                    continue
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('127.0.0.1', 0))
+            return s.getsockname()[1]
 
-    port = get_free_port(8000)
+    port = find_available_port(8000)
     url = f"http://127.0.0.1:{{port}}"
     print(f"[*] Starting Standalone Enterprise RAG Assistant on {{url}} (Model: {{MODEL_NAME}})...")
 
@@ -682,51 +685,8 @@ if __name__ == "__main__":
         time.sleep(0.15)
 
     def launch_standalone_window(target_url):
-        # 1. Native pywebview window if available
-        try:
-            import webview
-            window = webview.create_window(
-                "Mi-RAG Assistant",
-                target_url,
-                width=1280,
-                height=840,
-                min_size=(960, 640),
-                background_color="#090c15"
-            )
-            webview.start(private_mode=False)
-            return
-        except Exception:
-            pass
-
-        # 2. Standalone App Mode via Edge/Chrome (window without browser tabs or address bar)
-        candidates = []
-        if sys.platform == "win32":
-            candidates = [
-                "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
-                "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
-                "C:/Program Files/Google/Chrome/Application/chrome.exe",
-                "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
-            ]
-        for c in ["msedge.exe", "chrome.exe"]:
-            w = shutil.which(c)
-            if w:
-                candidates.insert(0, w)
-
-        for exe in candidates:
-            if os.path.exists(exe):
-                try:
-                    proc = subprocess.Popen([
-                        exe,
-                        f"--app={{target_url}}",
-                        "--window-size=1280,840"
-                    ])
-                    proc.wait()
-                    return
-                except Exception:
-                    pass
-
-        # 3. Fallback
         import webbrowser
+        print(f"[*] Opening browser window at: {{target_url}}")
         webbrowser.open(target_url)
         while True:
             time.sleep(1.0)

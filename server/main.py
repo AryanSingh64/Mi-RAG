@@ -156,9 +156,25 @@ def favicon():
 
 
 if __name__ == "__main__":
+    import socket
+
+    def find_available_port(preferred=8000, max_tries=100):
+        for p in range(preferred, preferred + max_tries):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                try:
+                    s.bind(('127.0.0.1', p))
+                    return p
+                except OSError:
+                    continue
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('127.0.0.1', 0))
+            return s.getsockname()[1]
+
+    port = find_available_port(8000)
     print("==================================================")
-    print("🚀 Starting Autonomous RAG Factory Web App...")
-    print("🌐 Access Dashboard at: http://localhost:8000")
+    print(" [*] Starting Autonomous RAG Factory Web App...")
+    print(f" [*] Access Dashboard at: http://127.0.0.1:{port}")
     print("==================================================")
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=port)
 

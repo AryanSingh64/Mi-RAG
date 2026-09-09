@@ -18,47 +18,37 @@ if str(ROOT_DIR) not in sys.path:
 import uvicorn
 from server.main import app
 
-def free_port(port=8000):
-    """Automatically find and terminate any stale process blocking the port on Windows/Linux."""
-    if sys.platform == "win32":
-        try:
-            result = subprocess.run(
-                ["netstat", "-ano", "-p", "TCP"],
-                capture_output=True,
-                text=True
-            )
-            for line in result.stdout.splitlines():
-                if f":{port}" in line and "LISTENING" in line:
-                    parts = line.strip().split()
-                    pid = parts[-1]
-                    if pid and pid != "0" and int(pid) != os.getpid():
-                        subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True)
-                        time.sleep(0.5)
-        except Exception:
-            pass
-    else:
-        try:
-            subprocess.run(f"fuser -k {port}/tcp", shell=True, capture_output=True)
-        except Exception:
-            pass
+def find_available_port(preferred=8000, max_tries=100):
+    """Find preferred port if free, or dynamically bind to next available port without overriding."""
+    for p in range(preferred, preferred + max_tries):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                s.bind(('127.0.0.1', p))
+                return p
+            except OSError:
+                continue
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('127.0.0.1', 0))
+        return s.getsockname()[1]
 
 def main():
-    free_port(8000)
+    port = find_available_port(8000)
     print("==================================================")
     print(" [⚡] Starting Mi:RAG Desktop Application...")
-    print(" [*] Local Server: http://127.0.0.1:8000")
+    print(f" [*] Local Server: http://127.0.0.1:{port}")
     print("==================================================")
 
     # 1. Start FastAPI server in background thread
     server_thread = threading.Thread(
-        target=lambda: uvicorn.run(app, host="127.0.0.1", port=8000, log_level="warning"),
+        target=lambda: uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning"),
         daemon=True
     )
     server_thread.start()
 
     # 2. Wait until server responds
     import urllib.request
-    health_url = "http://127.0.0.1:8000/api/system/health"
+    health_url = f"http://127.0.0.1:{port}/api/system/health"
     t0 = time.time()
     while time.time() - t0 < 15.0:
         try:
@@ -71,8 +61,8 @@ def main():
 
     # 3. Open browser tab for Training RAG Studio
     import webbrowser
-    print(" [*] Opening browser tab to Training RAG Studio (http://127.0.0.1:8000)...")
-    webbrowser.open("http://127.0.0.1:8000")
+    print(f" [*] Opening browser tab to Training RAG Studio (http://127.0.0.1:{port})...")
+    webbrowser.open(f"http://127.0.0.1:{port}")
 
     # Keep server running until terminal is closed or Ctrl+C is pressed
     try:
