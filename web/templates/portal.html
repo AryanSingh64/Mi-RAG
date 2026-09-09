@@ -1400,12 +1400,24 @@
     </div>
 
     <div class="sidebar-scroll">
+      <a href="/studio" class="sidebar-nav-item" style="background: var(--pink); color: #fff; border: 1.5px solid #000; box-shadow: 2px 2px 0px #000; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 800; text-transform: uppercase; margin-bottom: 0.75rem;" title="Train & Ingest New Knowledge Base or Documents">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <span>+ New Knowledge Base</span>
+      </a>
+
+      <div>
+        <div class="sidebar-section-title">Previous Chats & Workspaces</div>
+        <div id="sidebar-sessions-list" class="sidebar-menu-list">
+          <div style="font-size: 0.76rem; color: #64748b; padding: 0.3rem 0.5rem;">Loading chats...</div>
+        </div>
+      </div>
+
       <div>
         <div class="sidebar-section-title">Navigation</div>
         <div class="sidebar-menu-list">
-          <a href="/" class="sidebar-nav-item">
+          <a href="/studio" class="sidebar-nav-item">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
-            <span>Studio Home</span>
+            <span>Studio / Training</span>
           </a>
           <div class="sidebar-nav-item" onclick="clearMemory()" title="Reset session dialogue memory">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
@@ -1415,9 +1427,9 @@
       </div>
 
       <div>
-        <div class="sidebar-section-title">Indexed Knowledge Base</div>
+        <div class="sidebar-section-title">Indexed Documents</div>
         <div id="indexed-files-container">
-          <div style="font-size: 0.78rem; color: #64748b; padding: 0.4rem;">Loading documents...</div>
+          <div style="font-size: 0.78rem; color: #64748b; padding: 0.4rem;">No documents in this session</div>
         </div>
       </div>
     </div>
@@ -1601,6 +1613,7 @@
 
         // Safely record session in local storage for session tracking & history
         recordCurrentSession(data);
+        loadSidebarSessions();
 
         const filesContainer = document.getElementById('indexed-files-container');
         if (data.indexed_files && data.indexed_files.length > 0) {
@@ -2887,6 +2900,58 @@
         // Keep top 12 recent sessions
         SafeStorage.setItem("recent_sessions", filtered.slice(0, 12));
       } catch (e) {}
+    }
+
+    async function loadSidebarSessions() {
+      const listEl = document.getElementById('sidebar-sessions-list');
+      if (!listEl) return;
+      try {
+        const res = await fetch('/api/sessions');
+        let sessions = [];
+        if (res.ok) {
+          const data = await res.json();
+          sessions = data.sessions || [];
+        }
+        
+        const localRecent = SafeStorage.getItem("recent_sessions", []) || [];
+        const combinedMap = {};
+        sessions.forEach(s => { combinedMap[s.session_id] = s; });
+        localRecent.forEach(r => {
+          if (!combinedMap[r.id]) {
+            combinedMap[r.id] = {
+              session_id: r.id,
+              session_token: sessionStorage.getItem('mirag_token_' + r.id) || '',
+              model_name: r.model || 'llama3.2:3b',
+              indexed_files: r.indexed_files || [],
+              doc_count: (r.indexed_files || []).length
+            };
+          }
+        });
+        const allList = Object.values(combinedMap);
+        if (allList.length === 0) {
+          listEl.innerHTML = '<div style="font-size: 0.74rem; color: #64748b; padding: 0.3rem 0.5rem;">No previous chats yet</div>';
+          return;
+        }
+
+        listEl.innerHTML = allList.map(s => {
+          const isCur = (s.session_id === sessionId);
+          const name = s.indexed_files && s.indexed_files.length > 0 
+            ? s.indexed_files[0] + (s.indexed_files.length > 1 ? ` (+${s.indexed_files.length - 1})` : '')
+            : `Chat ${s.session_id.slice(0, 6)}`;
+          const countBadge = s.indexed_files && s.indexed_files.length > 0
+            ? `${s.indexed_files.length} docs`
+            : 'General';
+          return `
+            <a href="/portal/${s.session_id}?token=${s.session_token || ''}" class="sidebar-nav-item ${isCur ? 'active' : ''}" style="${isCur ? 'background: var(--sidebar-hover); border-color: var(--pink); color: #fff;' : ''}">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78rem;">${name}</span>
+              <span style="font-size: 0.65rem; background: #1e293b; color: #94a3b8; padding: 0.1rem 0.3rem; border-radius: 4px; border: 1px solid #334155;">${countBadge}</span>
+            </a>
+          `;
+        }).join('');
+      } catch (e) {
+        listEl.innerHTML = '<div style="font-size: 0.74rem; color: #64748b; padding: 0.3rem 0.5rem;">No previous chats</div>';
+      }
     }
 
     function saveChatToStorage() {

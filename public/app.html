@@ -905,11 +905,16 @@
           </div>
 
           <div class="input-group" style="grid-column: span 2;">
-            <div class="label-row">
-              <label class="label">Vision OCR Models</label>
+            <div class="label-row" style="display: flex; justify-content: space-between; align-items: center;">
+              <label class="label" style="margin-bottom: 0;">Vision OCR Models</label>
+              <button type="button" onclick="openModelHubModal()" style="background: none; border: none; font-family: 'Space Grotesk', sans-serif; font-size: 0.75rem; font-weight: 700; color: #475569; text-decoration: underline; cursor: pointer; padding: 0;">
+                Model Hub ↗
+              </button>
             </div>
             <div class="checkbox-chips-grid" id="vision-checkbox-group">
-              <label class="model-chip"><input type="checkbox" value="moondream" checked> moondream:latest <span class="chip-badge badge-rec">PERFECT</span></label>
+              <div class="model-chip" style="color: #64748b; font-weight: 600;">
+                <span>Checking installed models...</span>
+              </div>
             </div>
           </div>
 
@@ -1204,6 +1209,58 @@
       };
     };
 
+    window.installVisionModelInline = function(modelTag, btnEl) {
+      if (!btnEl) return;
+      btnEl.disabled = true;
+      btnEl.style.cursor = 'wait';
+      const badge = btnEl.querySelector('.chip-badge');
+      if (badge) {
+        badge.innerText = 'CONNECTING...';
+        badge.className = 'chip-badge badge-warn';
+      }
+
+      const evtSource = new EventSource(`/api/models/pull/stream?model=${encodeURIComponent(modelTag)}`);
+      evtSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.total && data.completed) {
+            const pct = Math.round((data.completed / data.total) * 100);
+            if (badge) badge.innerText = `${pct}%`;
+          }
+          if (data.status === 'success') {
+            if (badge) {
+              badge.className = 'chip-badge badge-rec';
+              badge.innerText = 'INSTALLED ✓';
+            }
+            evtSource.close();
+            setTimeout(() => {
+              loadModels();
+              if (typeof loadHubCatalog === 'function') loadHubCatalog();
+            }, 1000);
+          }
+        } catch (e) {}
+      };
+
+      evtSource.onerror = () => {
+        evtSource.close();
+        if (badge) {
+          badge.className = 'chip-badge badge-heavy';
+          badge.innerText = 'RETRY';
+        }
+        btnEl.disabled = false;
+        btnEl.style.cursor = 'pointer';
+        setTimeout(() => { loadModels(); }, 2000);
+      };
+    };
+
+    window.openModelHubModal = function() {
+      const hubModal = document.getElementById('hub-modal');
+      if (hubModal) {
+        hubModal.style.display = 'flex';
+        loadHubCatalog();
+      }
+    };
+
     window.deleteModel = async function(modelTag, btnEl) {
       if (!confirm(`Are you sure you want to delete ${modelTag} from your PC?`)) return;
       if (btnEl) {
@@ -1259,20 +1316,63 @@
 
         modelSelect.innerHTML = optionsHtml;
 
-        if (data.vision_models && data.vision_models.length > 0) {
-          visionCheckboxGroup.innerHTML = data.vision_models.map(m => `
-            <label class="model-chip recommended">
-              <input type="checkbox" name="vision_model" value="${m}" checked> ${m}
-              <span class="chip-badge badge-rec">ACCELERATED</span>
-            </label>
-          `).join('');
-        } else {
+        const installedVision = data.vision_models || [];
+        const recommendedVision = [
+          { tag: "qwen2.5vl:3b", name: "qwen2.5vl:3b", size: "2.5 GB" },
+          { tag: "moondream:latest", name: "moondream:latest", size: "1.7 GB" }
+        ];
+
+        if (installedVision.length === 0) {
+          // If a user doesn't have these models installed, show a msg with similar UI to install them first
           visionCheckboxGroup.innerHTML = `
-            <label class="model-chip recommended">
-              <input type="checkbox" name="vision_model" value="moondream" checked> moondream:latest
-              <span class="chip-badge badge-rec">ACCELERATED</span>
-            </label>
+            <div class="vision-install-banner" style="width: 100%; background: #ffffff; border: 2px solid #000; border-radius: 8px; padding: 0.85rem 1rem; box-shadow: 2px 2px 0px #000; display: flex; flex-direction: column; gap: 0.55rem;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 0.45rem; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.84rem; color: #000;">
+                  <span style="font-size: 1rem;">⚠️</span>
+                  <span>No Vision OCR models installed yet. Install a model first:</span>
+                </div>
+                <span class="chip-badge badge-warn" style="font-size: 0.68rem; font-weight: 800;">REQUIRED FOR DIAGRAMS & OCR</span>
+              </div>
+              <p style="margin: 0; font-size: 0.78rem; color: #475569; font-weight: 600; line-height: 1.4;">
+                Extract diagrams, schematics, handwritten notes, and layout from PDFs and images:
+              </p>
+              <div class="checkbox-chips-grid" style="margin-top: 0.15rem; gap: 0.6rem;">
+                <button type="button" class="model-chip btn-inline-install" onclick="installVisionModelInline('qwen2.5vl:3b', this)" style="cursor: pointer; background: #fff;">
+                  <span style="font-weight: 700;">⚡ qwen2.5vl:3b</span>
+                  <span class="chip-badge badge-rec" style="font-weight: 800;">INSTALL (2.5GB)</span>
+                </button>
+                <button type="button" class="model-chip btn-inline-install" onclick="installVisionModelInline('moondream:latest', this)" style="cursor: pointer; background: #fff;">
+                  <span style="font-weight: 700;">⚡ moondream:latest</span>
+                  <span class="chip-badge badge-warn" style="font-weight: 800;">INSTALL (1.7GB)</span>
+                </button>
+              </div>
+            </div>
           `;
+        } else {
+          let chipsHtml = '';
+          installedVision.forEach(m => {
+            const isChecked = m.includes('qwen2.5vl') || installedVision.length === 1;
+            chipsHtml += `
+              <label class="model-chip recommended">
+                <input type="checkbox" name="vision_model" value="${m}" ${isChecked ? 'checked' : ''}> ${m}
+                <span class="chip-badge badge-rec">ACCELERATED</span>
+              </label>
+            `;
+          });
+
+          recommendedVision.forEach(rec => {
+            const isInstalled = installedVision.some(m => m === rec.tag || m.startsWith(rec.tag.split(':')[0]));
+            if (!isInstalled) {
+              chipsHtml += `
+                <button type="button" class="model-chip btn-inline-install" onclick="installVisionModelInline('${rec.tag}', this)" style="border: 2px dashed #000; background: #fff; cursor: pointer;" title="Click to install ${rec.tag}">
+                  <span style="font-weight: 700; color: #555;">+ ${rec.tag}</span>
+                  <span class="chip-badge badge-warn" style="font-weight: 800;">INSTALL (${rec.size})</span>
+                </button>
+              `;
+            }
+          });
+
+          visionCheckboxGroup.innerHTML = chipsHtml;
         }
 
         syncHeaderModelDisplay();
@@ -1750,7 +1850,7 @@
           body: JSON.stringify({
             model_name: modelSelect.value,
             embedding_model: chosenEmbeddingModel,
-            vision_models: checkedVisionModels.length > 0 ? checkedVisionModels : ["moondream"],
+            vision_models: checkedVisionModels.length > 0 ? checkedVisionModels : [],
             ttl_hours: parseFloat(document.getElementById('ttl-select').value),
             strictness: document.getElementById('strictness-select')?.value || 'balanced',
             missing_answer_behavior: document.getElementById('missing-behavior-select')?.value || 'refusal',

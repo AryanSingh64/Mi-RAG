@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 import uvicorn
 
 # Suppress repetitive polling endpoint logs from cluttering terminal
@@ -48,6 +48,7 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
         # 1. Whitelist all public routes, static files, hub catalog, and media
         if (
             path in ["/", "/app", "/docs", "/docs.html", "/studio", "/favicon.ico"]
+            or path == "/api/sessions"
             or path.startswith("/static")
             or path.startswith("/api/system")
             or path.startswith("/api/models")
@@ -110,7 +111,12 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 app.include_router(api_router, prefix="/api")
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
+def root():
+    session = session_manager.get_or_create_default_session()
+    return RedirectResponse(url=f"/portal/{session.session_id}?token={session.session_token}")
+
+
 @app.get("/app", response_class=HTMLResponse)
 @app.get("/studio", response_class=HTMLResponse)
 def app_studio():

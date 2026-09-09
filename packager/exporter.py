@@ -1035,6 +1035,7 @@ docker compose up --build
             "sentence-transformers>=2.6.0\n"
             "httpx>=0.27.0\n"
             "python-multipart>=0.0.9\n"
+            "pywebview>=5.0.0\n"
         )
         (bundle_dir / "requirements.txt").write_text(requirements_txt, encoding="utf-8")
 
@@ -1155,7 +1156,7 @@ docker compose up --build
 
         iss_content = f"""[Setup]
 AppName=Mi-RAG Assistant
-AppVersion=2.0.0
+AppVersion=1.0.0
 AppPublisher=Autonomous RAG Factory
 AppPublisherURL=https://mirag.me
 DefaultDirName={{localappdata}}\\Programs\\Mi-RAG

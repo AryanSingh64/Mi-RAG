@@ -237,6 +237,53 @@ class SessionManager:
 
             return session
 
+    def list_all_sessions(self) -> List[Dict[str, Any]]:
+        """Returns metadata list of all active sessions sorted by creation date."""
+        results = []
+        with self._lock:
+            if self.base_dir.exists():
+                session_dirs = [d for d in self.base_dir.iterdir() if d.is_dir() and (d / "meta.json").exists()]
+                session_dirs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
+                for s_dir in session_dirs:
+                    try:
+                        with open(s_dir / "meta.json", "r", encoding="utf-8") as f:
+                            meta = json.load(f)
+                        if time.time() <= meta.get("expires_at", 0) + 86400 * 30:
+                            results.append({
+                                "session_id": meta.get("session_id", s_dir.name),
+                                "session_token": meta.get("session_token", ""),
+                                "created_at": meta.get("created_at", 0),
+                                "model_name": meta.get("model_name", "llama3.2:3b"),
+                                "indexed_files": meta.get("indexed_files", []),
+                                "doc_count": len(meta.get("indexed_files", []))
+                            })
+                    except Exception:
+                        pass
+        return results
+
+    def get_or_create_default_session(self) -> RAGSession:
+        """Retrieves latest active session or creates a primary persistent session."""
+        with self._lock:
+            valid_active = [s for s in self.active_sessions.values() if not s.is_expired]
+            if valid_active:
+                return sorted(valid_active, key=lambda s: s.created_at, reverse=True)[0]
+
+            if self.base_dir.exists():
+                session_dirs = [d for d in self.base_dir.iterdir() if d.is_dir() and (d / "meta.json").exists()]
+                session_dirs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
+                for s_dir in session_dirs:
+                    s = self.get_session(s_dir.name)
+                    if s and not s.is_expired:
+                        return s
+
+            return self.create_session(
+                model_name="llama3.2:3b",
+                vision_models=["qwen2.5vl:3b", "moondream:latest"],
+                embedding_model="BAAI/bge-base-en-v1.5",
+                ttl_hours=168.0,
+                strictness="balanced"
+            )
+
     def update_session_indexed_files(self, session_id: str, new_files: List[str]):
         """
         Atomically updates indexed files list in memory and on disk under session lock.

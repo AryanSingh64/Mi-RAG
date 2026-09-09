@@ -25,7 +25,7 @@ ollama_client = OllamaClient()
 # Request/Response Schemas
 class CreateSessionRequest(BaseModel):
     model_name: Optional[str] = "llama3.2:3b"
-    vision_models: Optional[List[str]] = ["moondream"]
+    vision_models: Optional[List[str]] = None
     vision_model: Optional[str] = None  # Backward compatibility
     embedding_model: Optional[str] = None
     ttl_hours: Optional[float] = 3.0
@@ -139,16 +139,15 @@ def get_available_models():
         else:
             text_models.append(m)
 
-    # Defaults if not installed
-    if not text_models:
-        text_models = ["llama3.2:3b", "llama3.2:1b"]
-    if not vision_models:
-        vision_models = ["moondream:latest"]
-
     return {
         "text_models": text_models,
         "vision_models": vision_models,
-        "models": all_models
+        "models": all_models,
+        "installed_vision_models": vision_models,
+        "installed_text_models": text_models,
+        "has_vision_models": len(vision_models) > 0,
+        "has_text_models": len(text_models) > 0,
+        "recommended_vision_models": ["qwen2.5vl:3b", "moondream:latest"]
     }
 
 
@@ -176,14 +175,20 @@ def get_embedding_models():
     return {"catalog": LocalEmbedder.get_catalog(), "default": "BAAI/bge-base-en-v1.5"}
 
 
+@router.get("/sessions")
+def list_sessions():
+    """Returns all active sessions for sidebar navigation."""
+    return {"sessions": session_manager.list_all_sessions()}
+
+
 @router.post("/sessions/create")
 def create_session(req: CreateSessionRequest):
     """Creates a new ephemeral RAG session with modular embedding & multi-model Vision ensemble."""
     models_to_use = req.vision_models
     if not models_to_use and req.vision_model:
         models_to_use = [req.vision_model]
-    if not models_to_use:
-        models_to_use = ["moondream"]
+    if models_to_use is None:
+        models_to_use = []
 
     chosen_embedder = req.embedding_model
     if not chosen_embedder:
