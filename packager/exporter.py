@@ -779,9 +779,29 @@ if __name__ == "__main__":
             pass
         time.sleep(0.08)
 
-    # 4. Open browser window INSTANTLY
+    # 4. Open dedicated desktop window INSTANTLY
     def launch_standalone_window(target_url):
+        import subprocess
         import webbrowser
+
+        app_browsers = [
+            Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)")) / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+            Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+            Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+            Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Google" / "Chrome" / "Application" / "chrome.exe",
+            Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)")) / "Google" / "Chrome" / "Application" / "chrome.exe",
+        ]
+        browser_exe = next((p for p in app_browsers if p and p.exists()), None)
+        if browser_exe:
+            try:
+                print(f"[*] Launching dedicated desktop window: {{browser_exe}}")
+                proc = subprocess.Popen([str(browser_exe), f"--app={{target_url}}", "--window-size=1280,840"])
+                while proc.poll() is None:
+                    time.sleep(1.0)
+                return
+            except Exception:
+                pass
+
         print(f"[*] Opening browser window at: {{target_url}}")
         webbrowser.open(target_url)
         while True:
