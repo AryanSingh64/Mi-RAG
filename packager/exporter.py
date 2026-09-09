@@ -1133,7 +1133,7 @@ docker compose up --build
 
         # 2. Copy Sciter DirectX engine & native launcher
         packager_bin = Path(__file__).parent / "bin"
-        for bin_file in ["MiRAG.exe", "scapp.exe", "sciter.dll"]:
+        for bin_file in ["MiRAG.exe"]:
             src = packager_bin / bin_file
             if src.exists():
                 shutil.copy2(src, bundle_dir / bin_file)
