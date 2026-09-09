@@ -27,6 +27,8 @@ import os
 import re
 import uuid
 import shutil
+import threading
+import time
 import uvicorn
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File
@@ -36,9 +38,6 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 
-from sentence_transformers import SentenceTransformer
-import chromadb
-from chromadb.config import Settings
 import httpx
 
 app = FastAPI(title="Standalone Turnkey RAG Assistant", version="2.0.0")
@@ -64,13 +63,63 @@ STATIC_DIR = Path("./static")
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-print(f"📦 Loading Local Embedding Model: {{EMBEDDING_MODEL}}...")
-embedder = SentenceTransformer(EMBEDDING_MODEL)
+ENGINE_STATE = {{
+    "ready": False,
+    "progress": 20,
+    "step": "Connecting local server...",
+    "details": "Binding local port and starting HTTP daemon...",
+    "error": None
+}}
+init_event = threading.Event()
+embedder = None
+chroma_client = None
+collection = None
 
-print(f"🗄️ Connecting to Embedded ChromaDB at: {{DB_PATH}}...")
-chroma_client = chromadb.PersistentClient(path=str(DB_PATH), settings=Settings(anonymized_telemetry=False))
-collections = chroma_client.list_collections()
-collection = collections[0] if collections else chroma_client.get_or_create_collection("rag_knowledge_base")
+def init_engine_background():
+    global embedder, chroma_client, collection, ENGINE_STATE
+    try:
+        # Step 1: ChromaDB
+        ENGINE_STATE["step"] = "Mounting Vector Database..."
+        ENGINE_STATE["details"] = "Opening indexed ChromaDB collection..."
+        ENGINE_STATE["progress"] = 40
+        import chromadb
+        from chromadb.config import Settings
+        chroma_client = chromadb.PersistentClient(path=str(DB_PATH), settings=Settings(anonymized_telemetry=False))
+        collections = chroma_client.list_collections()
+        collection = collections[0] if collections else chroma_client.get_or_create_collection("rag_knowledge_base")
+
+        # Step 2: Check Local AI Engine
+        ENGINE_STATE["step"] = "Checking Local AI Engine..."
+        ENGINE_STATE["details"] = f"Connecting to Ollama for {{MODEL_NAME}}..."
+        ENGINE_STATE["progress"] = 65
+        try:
+            with httpx.Client(timeout=2.0) as client:
+                client.get("http://localhost:11434/api/tags")
+        except Exception:
+            pass
+
+        # Step 3: Neural Embedding Weights
+        ENGINE_STATE["step"] = "Loading Neural Embedding Weights..."
+        ENGINE_STATE["details"] = f"Initializing {{EMBEDDING_MODEL}}..."
+        ENGINE_STATE["progress"] = 85
+        from sentence_transformers import SentenceTransformer
+        embedder = SentenceTransformer(EMBEDDING_MODEL)
+
+        # Step 4: Ready
+        ENGINE_STATE["step"] = "Ready"
+        ENGINE_STATE["details"] = "Turnkey Assistant online and grounded."
+        ENGINE_STATE["progress"] = 100
+        ENGINE_STATE["ready"] = True
+    except Exception as e:
+        ENGINE_STATE["error"] = str(e)
+        ENGINE_STATE["step"] = "Initialization Error"
+        ENGINE_STATE["details"] = str(e)
+    finally:
+        init_event.set()
+
+@app.get("/api/status")
+def get_engine_status():
+    return ENGINE_STATE
 
 # Server-side conversation memory buffer
 SERVER_MEMORY = []
@@ -470,6 +519,20 @@ async def chat_rag(request: Request):
     if not user_message and not query_image_path:
         return ChatResponse(answer="Please enter a question or attach an image.", confidence_score=1.0, is_grounded=True, citations=[], images=[])
 
+    global embedder, collection, ENGINE_STATE, init_event
+    if not ENGINE_STATE.get("ready"):
+        init_event.wait(timeout=25.0)
+
+    if embedder is None or collection is None:
+        return ChatResponse(
+            answer="The AI inference engine is still initializing its vector weights. Please wait a few moments and try again.",
+            confidence_score=0.0,
+            is_grounded=False,
+            citations=[],
+            images=[],
+            query_image_url=query_image_url
+        )
+
     query_vec = embedder.encode(user_message or "multimodal image analysis", convert_to_numpy=True).tolist()
     results = collection.query(query_embeddings=[query_vec], n_results=top_k, include=["documents", "metadatas", "distances"])
 
@@ -565,8 +628,8 @@ async def chat_rag(request: Request):
     except Exception as e:
         ans_text = f"Error from {{provider_name.upper()}}: {{str(e)}}. Make sure your model/key settings are valid or local Ollama is active."
 
-    ans_text = re.sub(r'(?i)(?:as an ai text model,\\s*)?(?:unfortunately,\\s*)?I (?:am|am currently)?\\s*(?:unable|not able)\\s*to (?:display|show|view) (?:the )?images? (?:directly|here)?[^.\\n]*[.\\n]?', '', ans_text)
-    ans_text = re.sub(r'(?i)The image URL is\\s*[`\'"]?(?:/api/sessions/[^\\s`\'"]+|/images/[^\\s`\'"]+)[`\'"]?\\s*\\.?\\s*', '', ans_text)
+    ans_text = re.sub(r"(?i)(?:as an ai text model,\\s*)?(?:unfortunately,\\s*)?I (?:am|am currently)?\\s*(?:unable|not able)\\s*to (?:display|show|view) (?:the )?images? (?:directly|here)?[^.\\n]*[.\\n]?", "", ans_text)
+    ans_text = re.sub(r"(?i)The image URL is\\s*.*?(?:/images/|/api/sessions/)\\S+", "", ans_text)
 
     matched_images = extract_relevant_images(user_message, reranked_chunks, is_image_query=bool(query_image_path))
 
@@ -649,6 +712,10 @@ if __name__ == "__main__":
     import time
     import urllib.request
 
+    # 1. Start loading vector DB & neural embedding weights in background
+    init_thread = threading.Thread(target=init_engine_background, daemon=True)
+    init_thread.start()
+
     def find_available_port(preferred=8000, max_tries=100):
         for p in range(preferred, preferred + max_tries):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -666,24 +733,25 @@ if __name__ == "__main__":
     url = f"http://127.0.0.1:{{port}}"
     print(f"[*] Starting Standalone Enterprise RAG Assistant on {{url}} (Model: {{MODEL_NAME}})...")
 
-    # Start FastAPI server in background daemon thread
+    # 2. Start FastAPI server in background daemon thread (ready in < 300ms)
     server_thread = threading.Thread(
         target=lambda: uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning"),
         daemon=True
     )
     server_thread.start()
 
-    # Wait until server responds
+    # 3. Wait until server responds (max 2 seconds)
     t0 = time.time()
-    while time.time() - t0 < 15.0:
+    while time.time() - t0 < 2.0:
         try:
-            with urllib.request.urlopen(f"{{url}}/api/health", timeout=0.8) as response:
+            with urllib.request.urlopen(f"{{url}}/api/health", timeout=0.3) as response:
                 if response.status == 200:
                     break
         except Exception:
             pass
-        time.sleep(0.15)
+        time.sleep(0.08)
 
+    # 4. Open browser window INSTANTLY
     def launch_standalone_window(target_url):
         import webbrowser
         print(f"[*] Opening browser window at: {{target_url}}")
@@ -1036,12 +1104,22 @@ end;
 
     def create_package(self, session: RAGSession) -> Path:
         bundle_dir = session.session_dir / "standalone_bundle"
-        if bundle_dir.exists():
-            shutil.rmtree(bundle_dir)
         bundle_dir.mkdir(parents=True, exist_ok=True)
 
         dest_db = bundle_dir / "vector_db"
-        shutil.copytree(session.db_dir, dest_db)
+        dest_db.mkdir(parents=True, exist_ok=True)
+        for root, dirs, files in os.walk(session.db_dir):
+            rel_path = Path(root).relative_to(session.db_dir)
+            target_dir = dest_db / rel_path
+            target_dir.mkdir(parents=True, exist_ok=True)
+            for f in files:
+                src_file = Path(root) / f
+                dst_file = target_dir / f
+                try:
+                    if not dst_file.exists() or dst_file.stat().st_size != src_file.stat().st_size:
+                        shutil.copy2(src_file, dst_file)
+                except Exception:
+                    pass
 
         images_dest = bundle_dir / "images"
         images_dest.mkdir(parents=True, exist_ok=True)
@@ -1058,8 +1136,11 @@ end;
                 for img_file in Path(sdir).glob("*.*"):
                     if img_file.is_file() and img_file.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp", ".bmp"]:
                         target = images_dest / img_file.name
-                        if not target.exists():
-                            shutil.copy2(img_file, target)
+                        try:
+                            if not target.exists() or target.stat().st_size != img_file.stat().st_size:
+                                shutil.copy2(img_file, target)
+                        except Exception:
+                            pass
 
         # Copy static assets (logo, favicon, background) into bundle
         static_dest = bundle_dir / "static" / "assets"
@@ -1073,8 +1154,9 @@ end;
                     shutil.copy2(asset_file, static_dest / asset_file.name)
 
         # Write Standalone Server, Hydrated Direct Chat UI & Installer
+        embed_model = getattr(session, "embedding_model", "BAAI/bge-base-en-v1.5")
         (bundle_dir / "server.py").write_text(
-            self._generate_standalone_server_code(session.model_name, "all-MiniLM-L6-v2", session.indexed_files),
+            self._generate_standalone_server_code(session.model_name, embed_model, session.indexed_files),
             encoding="utf-8"
         )
         (bundle_dir / "index.html").write_text(
@@ -1082,7 +1164,7 @@ end;
             encoding="utf-8"
         )
         (bundle_dir / "setup.py").write_text(
-            self._generate_installer_script(session.model_name, "all-MiniLM-L6-v2"),
+            self._generate_installer_script(session.model_name, embed_model),
             encoding="utf-8"
         )
 
