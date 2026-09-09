@@ -1,3 +1,4 @@
+import threading
 import io
 import re
 from pathlib import Path
@@ -18,38 +19,41 @@ from core.ingestion.base import BaseDocumentParser, ParsedDocument
 
 class DiagramDetector:
     """
-    Intelligent Layout & Vector Diagram Detector using PyMuPDF.
+    Intelligent Layout & Multimodal Diagram Detector using PyMuPDF.
     Finds exact bounding boxes for genuine figures, charts, architecture drawings,
-    and tables with captions, skipping slide backgrounds, headers, and decorative shapes.
+    vector plots, and tables with captions, skipping slide backgrounds, headers, and decorative shapes.
     """
 
-    CAPTION_REGEX = re.compile(r"(fig(?:ure)?\.?\s*\d+|diagram\s*\d+|table\s*\d+|algorithm\s*\d+|architecture|workflow)", re.IGNORECASE)
+    CAPTION_REGEX = re.compile(
+        r"^\s*(fig(?:ure)?\.?\s*\d+|table\s*\d+|chart\s*\d+|diagram\s*\d+|algorithm\s*\d+|scheme\s*\d+|plate\s*\d+|photo\s*\d+|map\s*\d+|workflow|architecture)",
+        re.IGNORECASE
+    )
 
     @classmethod
     def detect_diagram_regions(cls, page: Any) -> List[Tuple[Any, str, str]]:
         """
-        Analyzes page to return genuine diagrams: (cropped_bbox, caption_text, diagram_type)
-        Skips slide backgrounds, headers, thin divider lines, and decorative shapes.
+        Analyzes page to return all genuine diagrams and figures: (cropped_bbox, caption_text, diagram_type).
+        Extracts both embedded raster images AND vector diagrams (charts, plots, flowcharts).
         """
         page_rect = page.rect
         page_area = page_rect.width * page_rect.height
-        diagrams = []
+        native_page_text = (page.get_text() or "").strip()
+        is_sparse_text_page = len(native_page_text) < 120
 
         # 1. Find Figure/Diagram captions in text blocks
         blocks = page.get_text("blocks")
         caption_blocks = []
         for b in blocks:
             text = b[4].strip()
-            if cls.CAPTION_REGEX.search(text) and len(text) < 350:
+            lines = [l.strip() for l in text.split("\n") if l.strip()]
+            if lines and cls.CAPTION_REGEX.search(lines[0]) and len(text) < 450:
                 b_rect = fitz.Rect(b[:4])
-                caption_blocks.append((b_rect, text))
+                caption_blocks.append((b_rect, lines[0]))
 
-        page_rect = page.rect
-        page_area = page_rect.width * page_rect.height
-        native_page_text = (page.get_text() or "").strip()
-        is_sparse_text_page = len(native_page_text) < 120
+        diagrams = []
+        covered_rects = []
 
-        # 2. Collect genuine standalone image bounding boxes
+        # 2. Collect genuine standalone raster image bounding boxes
         img_info_list = page.get_image_info(xrefs=True)
         img_rects = []
         for img_info in img_info_list:
@@ -58,35 +62,37 @@ class DiagramDetector:
                 w, h = bbox.width, bbox.height
                 area = w * h
                 aspect = w / max(1.0, h)
-                area_pct = (area / page_area) * 100
-
-                # 1. Skip tiny icons / logos (width < 60 or height < 50 or area < 1.0%)
-                if w < 60 or h < 50 or area_pct < 1.0:
+                # Filter out tiny icon decorations / bullets (<22x22 or <450 area)
+                if w < 22 or h < 22 or (area < 450):
                     continue
-
-                # 2. Skip thin 1px horizontal / vertical divider lines (aspect > 6.0 or aspect < 0.15)
-                if aspect > 6.0 or aspect < 0.15:
+                # Filter out extreme thin divider rules
+                if aspect > 25.0 or aspect < 0.04:
                     continue
-
-                # 3. Skip full-page background slide templates (area > 80%) ONLY if the page has dense digital text
-                # For magazines, catalogs, photos, and scanned slides, full-page images are PRIMARY content!
-                if area_pct > 80.0 and not is_sparse_text_page:
+                # Filter out background slide templates (>88% area on text-dense pages)
+                if (area / page_area) > 0.88 and not is_sparse_text_page:
                     continue
-
-                # 4. Skip tiny footer icons that touch bottom 8%
-                if h < 50 and bbox.y1 > page_rect.height * 0.92:
+                # Deduplicate identical boxes
+                if any(abs(bbox.x0 - cr.x0) < 6 and abs(bbox.y0 - cr.y0) < 6 for cr in img_rects):
                     continue
-
                 img_rects.append(bbox)
 
-        # If no captions and no genuine images, skip
-        if not caption_blocks and not img_rects:
-            return []
+        # Also inspect page.get_images() for xrefs that have on-page rects not in image_info
+        raw_images = page.get_images(full=True)
+        for img_tuple in raw_images:
+            xref = img_tuple[0]
+            try:
+                for r in page.get_image_rects(xref):
+                    if r.is_valid and not r.is_empty:
+                        if r.width >= 22 and r.height >= 22 and (r.width * r.height >= 450):
+                            if not any(abs(r.x0 - cr.x0) < 6 and abs(r.y0 - cr.y0) < 6 for cr in img_rects):
+                                img_rects.append(r)
+            except Exception:
+                pass
 
-        # 3. Associate images with nearest captions
-        for idx, img_bbox in enumerate(img_rects[:2]):
+        # 3. Associate raster images with nearest captions
+        for idx, img_bbox in enumerate(img_rects, start=1):
             matched_caption = ""
-            best_dist = 140.0
+            best_dist = 180.0
             for c_rect, c_text in caption_blocks:
                 dist = min(abs(c_rect.y0 - img_bbox.y1), abs(img_bbox.y0 - c_rect.y1))
                 if dist < best_dist:
@@ -94,15 +100,60 @@ class DiagramDetector:
                     matched_caption = c_text
 
             padded_rect = fitz.Rect(
-                max(0, img_bbox.x0 - 10),
-                max(0, img_bbox.y0 - 10),
-                min(page_rect.width, img_bbox.x1 + 10),
-                min(page_rect.height, img_bbox.y1 + 10)
+                max(0, img_bbox.x0 - 6),
+                max(0, img_bbox.y0 - 6),
+                min(page_rect.width, img_bbox.x1 + 6),
+                min(page_rect.height, img_bbox.y1 + 6)
             )
-            diag_name = matched_caption.split("\n")[0][:60] if matched_caption else f"Figure {idx + 1}"
-            diagrams.append((padded_rect, diag_name, "embedded_figure"))
+            diag_name = matched_caption.split("\n")[0][:70] if matched_caption else f"Figure {idx}"
+            diagrams.append((padded_rect, diag_name, "raster_figure"))
+            covered_rects.append(img_bbox)
 
-        return diagrams[:2]
+        # 4. Extract Vector Diagrams, Charts & Plots (drawings) for remaining unassigned captions
+        drawings = page.get_drawings()
+        if drawings and caption_blocks:
+            for c_rect, c_text in caption_blocks:
+                # Check if this caption was already matched to a raster image
+                already_covered = any(abs(c_rect.y0 - cr.y1) < 40 or abs(cr.y0 - c_rect.y1) < 40 for cr in covered_rects)
+                if already_covered:
+                    continue
+
+                # Check vector drawings located above caption (standard for figures)
+                d_above = [d for d in drawings if d['rect'].y1 <= c_rect.y0 + 6 and d['rect'].y0 >= c_rect.y0 - 450]
+                if d_above:
+                    vbox = fitz.Rect(d_above[0]['rect'])
+                    for d in d_above[1:]:
+                        vbox |= d['rect']
+                    if vbox.width >= 50 and vbox.height >= 35:
+                        padded_vbox = fitz.Rect(
+                            max(0, vbox.x0 - 6),
+                            max(0, vbox.y0 - 6),
+                            min(page_rect.width, vbox.x1 + 6),
+                            min(page_rect.height, vbox.y1 + 6)
+                        )
+                        cap_name = c_text.split("\n")[0][:70]
+                        diagrams.append((padded_vbox, cap_name, "vector_figure"))
+                        covered_rects.append(padded_vbox)
+                        continue
+
+                # Check vector drawings located below caption (standard for tables/top titles)
+                d_below = [d for d in drawings if d['rect'].y0 >= c_rect.y1 - 6 and d['rect'].y1 <= c_rect.y1 + 450]
+                if d_below:
+                    vbox = fitz.Rect(d_below[0]['rect'])
+                    for d in d_below[1:]:
+                        vbox |= d['rect']
+                    if vbox.width >= 50 and vbox.height >= 35:
+                        padded_vbox = fitz.Rect(
+                            max(0, vbox.x0 - 6),
+                            max(0, vbox.y0 - 6),
+                            min(page_rect.width, vbox.x1 + 6),
+                            min(page_rect.height, vbox.y1 + 6)
+                        )
+                        cap_name = c_text.split("\n")[0][:70]
+                        diagrams.append((padded_vbox, cap_name, "vector_figure"))
+                        covered_rects.append(padded_vbox)
+
+        return diagrams
 
 
 class PdfDocumentParser(BaseDocumentParser):
@@ -119,6 +170,7 @@ class PdfDocumentParser(BaseDocumentParser):
         vision_parser: Optional[Any] = None
     ):
         self.ocr_engine = None
+        self._ocr_lock = threading.Lock()
         self.output_images_dir = Path(output_images_dir) if output_images_dir else None
         if self.output_images_dir:
             self.output_images_dir.mkdir(parents=True, exist_ok=True)
@@ -127,7 +179,9 @@ class PdfDocumentParser(BaseDocumentParser):
 
     def _get_ocr(self):
         if self.ocr_engine is None:
-            self.ocr_engine = RapidOCR()
+            with self._ocr_lock:
+                if self.ocr_engine is None:
+                    self.ocr_engine = RapidOCR()
         return self.ocr_engine
 
     def _process_single_page(self, doc_path: str, page_num: int, clean_stem: str, total_pages: int) -> Tuple[str, List[str]]:
@@ -144,8 +198,8 @@ class PdfDocumentParser(BaseDocumentParser):
             native_text = (page.get_text() or "").strip()
             is_visual_doc_page = len(native_text) < 120
 
-            # 2. Detect & Crop Genuine Images/Figures (Only isolated real figures)
-            image_regions = DiagramDetector.detect_diagram_regions(page)[:2]
+            # 2. Detect & Crop Genuine Images/Figures (All isolated real figures and vector charts)
+            image_regions = DiagramDetector.detect_diagram_regions(page)
 
             for d_idx, (diag_bbox, caption, diag_type) in enumerate(image_regions, start=1):
                 clean_cap = "".join(c if c.isalnum() else "_" for c in caption[:25])
@@ -183,10 +237,28 @@ class PdfDocumentParser(BaseDocumentParser):
                     except Exception:
                         pass
 
-            # Fallback for scanned slides, catalogs, posters, and image-heavy pages
-            # If no bounded diagram was detected, only render full page if it is truly text-sparse / scanned:
-            raw_page_images = page.get_images()
-            if not image_regions and len(native_text) < 80 and (raw_page_images or len(native_text) < 30):
+            # 3. Direct Image XObject Extraction for any embedded image not cropped via on-page bboxes
+            try:
+                for img_tuple in page.get_images(full=True):
+                    xref = img_tuple[0]
+                    img_dict = thread_doc.extract_image(xref)
+                    if img_dict:
+                        w, h = img_dict.get("width", 0), img_dict.get("height", 0)
+                        if w >= 50 and h >= 50 and (w * h >= 4000):
+                            ext = img_dict.get("ext", "jpg")
+                            raw_filename = f"{clean_stem}_p{p_idx}_raw_xref{xref}.{ext}"
+                            raw_url = f"/api/sessions/{self.session_id}/images/{raw_filename}" if self.session_id else f"/images/{raw_filename}"
+                            if raw_url not in page_image_urls and self.output_images_dir:
+                                raw_target = self.output_images_dir / raw_filename
+                                if not raw_target.exists():
+                                    raw_target.write_bytes(img_dict["image"])
+                                page_image_urls.append(raw_url)
+                                page_sections.append(f"[IMAGE / FIGURE: Embedded Graphic {xref} (Page {p_idx})]\n[Image URL: {raw_url}]")
+            except Exception:
+                pass
+
+            # 4. Fallback for scanned slides, catalogs, posters, and image-heavy pages
+            if not page_image_urls and len(native_text) < 60:
                 visual_filename = f"{clean_stem}_p{p_idx}_visual.jpg"
                 img_url = (
                     f"/api/sessions/{self.session_id}/images/{visual_filename}"
@@ -230,7 +302,8 @@ class PdfDocumentParser(BaseDocumentParser):
                     if ocr_engine:
                         pix = page.get_pixmap(dpi=140)
                         img_bytes = pix.tobytes("png")
-                        ocr_res, _ = ocr_engine(img_bytes)
+                        with self._ocr_lock:
+                            ocr_res, _ = ocr_engine(img_bytes)
                         if ocr_res:
                             extracted_lines = [line[1] for line in ocr_res if len(line) > 1 and line[1]]
                             if extracted_lines:
@@ -286,6 +359,7 @@ class PdfDocumentParser(BaseDocumentParser):
                     "total_doc_pages": total_doc_pages,
                     "page_range": f"{s_idx + 1}-{e_idx}",
                     "char_count": len(full_text),
+                    "extracted_images": [],
                     "diagram_count": 0
                 }
             )
@@ -356,6 +430,7 @@ class PdfDocumentParser(BaseDocumentParser):
                 "total_doc_pages": total_doc_pages,
                 "page_range": f"{s_idx + 1}-{e_idx}",
                 "char_count": len(full_text),
+                "extracted_images": extracted_images,
                 "diagram_count": len(extracted_images)
             }
         )

@@ -237,9 +237,10 @@ class SessionManager:
 
             return session
 
-    def list_all_sessions(self) -> List[Dict[str, Any]]:
-        """Returns metadata list of all active sessions sorted by creation date."""
+    def list_all_sessions(self, max_count: int = 8) -> List[Dict[str, Any]]:
+        """Returns deduplicated metadata list of recent unique workspaces, skipping duplicates and empty runs."""
         results = []
+        seen_signatures = set()
         with self._lock:
             if self.base_dir.exists():
                 session_dirs = [d for d in self.base_dir.iterdir() if d.is_dir() and (d / "meta.json").exists()]
@@ -248,18 +249,48 @@ class SessionManager:
                     try:
                         with open(s_dir / "meta.json", "r", encoding="utf-8") as f:
                             meta = json.load(f)
-                        if time.time() <= meta.get("expires_at", 0) + 86400 * 30:
-                            results.append({
-                                "session_id": meta.get("session_id", s_dir.name),
-                                "session_token": meta.get("session_token", ""),
-                                "created_at": meta.get("created_at", 0),
-                                "model_name": meta.get("model_name", "llama3.2:3b"),
-                                "indexed_files": meta.get("indexed_files", []),
-                                "doc_count": len(meta.get("indexed_files", []))
-                            })
+                        indexed_files = meta.get("indexed_files", [])
+                        # Skip empty sessions without documents
+                        if not indexed_files:
+                            continue
+
+                        # Deduplicate identical document sets: keep only the latest session
+                        sig = "::".join(sorted(indexed_files))
+                        if sig in seen_signatures:
+                            continue
+                        seen_signatures.add(sig)
+
+                        results.append({
+                            "session_id": meta.get("session_id", s_dir.name),
+                            "session_token": meta.get("session_token", ""),
+                            "created_at": meta.get("created_at", 0),
+                            "model_name": meta.get("model_name", "llama3.2:3b"),
+                            "indexed_files": indexed_files,
+                            "doc_count": len(indexed_files)
+                        })
+                        if len(results) >= max_count:
+                            break
                     except Exception:
                         pass
         return results
+
+    def clear_all_sessions(self, preserve_session_id: Optional[str] = None) -> int:
+        """Deletes all inactive/past sessions, optionally preserving the current active one."""
+        cleared = 0
+        with self._lock:
+            if self.base_dir.exists():
+                for s_dir in list(self.base_dir.iterdir()):
+                    if s_dir.is_dir():
+                        if preserve_session_id and s_dir.name == preserve_session_id:
+                            continue
+                        try:
+                            self.active_sessions.pop(s_dir.name, None)
+                            self._progress_store.pop(s_dir.name, None)
+                            shutil.rmtree(s_dir, ignore_errors=True)
+                            cleared += 1
+                        except Exception:
+                            pass
+        return cleared
 
     def get_or_create_default_session(self) -> RAGSession:
         """Retrieves latest active session or creates a primary persistent session."""

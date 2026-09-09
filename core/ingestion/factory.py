@@ -24,7 +24,10 @@ class DocumentParserFactory:
         self.session_id = session_id
 
         self._text_parser = TextDocumentParser()
-        self._docx_parser = DocxDocumentParser()
+        self._docx_parser = DocxDocumentParser(
+            output_images_dir=self.output_images_dir,
+            session_id=self.session_id
+        )
         self._image_parser = VisionImageParser(
             vision_models=self.vision_models,
             output_images_dir=self.output_images_dir,

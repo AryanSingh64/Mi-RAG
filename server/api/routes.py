@@ -177,8 +177,22 @@ def get_embedding_models():
 
 @router.get("/sessions")
 def list_sessions():
-    """Returns all active sessions for sidebar navigation."""
+    """Returns deduplicated active sessions for sidebar navigation."""
     return {"sessions": session_manager.list_all_sessions()}
+
+
+@router.delete("/sessions/{session_id}")
+def delete_session(session_id: str):
+    """Deletes a specific session and wipes its data from disk."""
+    session_manager.delete_session(session_id)
+    return {"status": "success", "session_id": session_id}
+
+
+@router.delete("/sessions")
+def clear_sessions(preserve: Optional[str] = None):
+    """Clears all previous inactive sessions from disk."""
+    cleared = session_manager.clear_all_sessions(preserve_session_id=preserve)
+    return {"status": "success", "cleared_count": cleared}
 
 
 @router.post("/sessions/create")

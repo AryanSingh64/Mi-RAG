@@ -582,6 +582,12 @@
           </a>
         </li>
         <li>
+          <a href="#embedding-models" class="sidebar-link" data-cursor="Dense Embeddings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            Dense Embeddings Guide
+          </a>
+        </li>
+        <li>
           <a href="#multimodal" class="sidebar-link" data-cursor="Multimodal OCR">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
             Diagram & Visual Parser
@@ -761,25 +767,83 @@ python run_factory.py</pre>
         </div>
       </article>
 
+      <!-- Dense Embedding Models Guide -->
+      <article class="docs-card" id="embedding-models">
+        <span class="card-badge blue">EMBEDDINGS</span>
+        <h1 class="docs-title">Dense Embedding Models Guide</h1>
+        <p class="docs-p">
+          Select the optimal dense vector embedding model for your specific document corpus and hardware profile:
+        </p>
+
+        <div class="api-table-wrapper">
+          <table class="api-table">
+            <thead>
+              <tr>
+                <th>When to Use</th>
+                <th>Model ID</th>
+                <th>Vector Dim</th>
+                <th>Optimization Target</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Best Overall</strong></td>
+                <td><span style="color: #64748b; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">BAAI/bge-base-en-v1.5</span></td>
+                <td>768-dim</td>
+                <td>Default recommendation. SOTA MTEB retrieval accuracy for standard documents, technical manuals, and general corpora.</td>
+              </tr>
+              <tr>
+                <td><strong>Fastest</strong></td>
+                <td><span style="color: #64748b; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">all-MiniLM-L6-v2</span></td>
+                <td>384-dim</td>
+                <td>Ultra-fast CPU indexing with minimal memory footprint. Best for rapid prototyping or lower-spec hardware.</td>
+              </tr>
+              <tr>
+                <td><strong>Multilingual</strong></td>
+                <td><span style="color: #64748b; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">BAAI/bge-m3</span></td>
+                <td>1024-dim</td>
+                <td>Multi-lingual support across 100+ languages with extended 8192-token context window for long-document attention.</td>
+              </tr>
+              <tr>
+                <td><strong>Deep Research</strong></td>
+                <td><span style="color: #64748b; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">BAAI/bge-large-en-v1.5</span></td>
+                <td>1024-dim</td>
+                <td>Maximum semantic precision for dense academic research papers, legal contracts, and engineering specifications.</td>
+              </tr>
+              <tr>
+                <td><strong>Long Documents</strong></td>
+                <td><span style="color: #64748b; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">nomic-ai/nomic-embed-text-v1.5</span></td>
+                <td>768-dim</td>
+                <td>Full-chapter retrieval with 8192-token attention span and Matryoshka dimensionality support.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
       <!-- Multimodal Parser -->
       <article class="docs-card" id="multimodal">
         <span class="card-badge purple">MULTIMODAL</span>
-        <h1 class="docs-title">Vector Diagram & OCR Parser</h1>
+        <h1 class="docs-title">High-Recall Multimodal Parser</h1>
         <p class="docs-p">
-          Standard RAG solutions discard charts, flowcharts, and math formulas by stripping PDFs down to plain text. Mi:RAG uses an object-level layout detector to isolate, crop, and index diagrams alongside text.
+          Standard RAG solutions discard charts, flowcharts, and diagrams by stripping documents to raw text. Mi:RAG uses a high-recall multi-mode extractor supporting raster images, vector drawings, and embedded office graphics:
         </p>
 
         <div class="spec-grid">
           <div class="spec-item">
-            <div class="spec-title">Vector Shape Clustering</div>
-            <div class="spec-desc">Detects architectural diagrams, graphs, and drawings from raw page vectors.</div>
+            <div class="spec-title">Vector Drawing Plots & Charts</div>
+            <div class="spec-desc">Isolates and renders canvas drawing paths directly from research and technical PDFs (e.g. arXiv / IEEE papers).</div>
           </div>
           <div class="spec-item">
-            <div class="spec-title">Proximity Caption Matching</div>
+            <div class="spec-title">Proximity Caption Alignment</div>
             <div class="spec-desc">Matches diagram bounding boxes to nearby figure captions (e.g. <em>Figure 2: Architecture Overview</em>).</div>
           </div>
           <div class="spec-item">
-            <div class="spec-title">Reverse Image Search</div>
+            <div class="spec-title">Embedded Word (.docx) Media</div>
+            <div class="spec-desc">Extracts and indexes embedded graphics and images packaged within Microsoft Word documents.</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-title">Reverse Visual Search</div>
             <div class="spec-desc">Allows users to paste or upload an image (Ctrl+V) to find matching diagrams and formulas across documents.</div>
           </div>
         </div>

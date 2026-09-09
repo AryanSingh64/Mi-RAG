@@ -8,11 +8,21 @@ from core.ingestion.base import BaseDocumentParser, ParsedDocument
 class DocxDocumentParser(BaseDocumentParser):
     """
     Parser for Microsoft Word (.docx) files.
-    Extracts structured paragraphs and table cells, with two-way page slicing.
+    Extracts structured paragraphs, table cells, and embedded images.
     """
 
     WORDS_PER_PAGE = 450
     PARAS_PER_PAGE = 15
+
+    def __init__(
+        self,
+        output_images_dir: Optional[Path] = None,
+        session_id: Optional[str] = None
+    ):
+        self.output_images_dir = Path(output_images_dir) if output_images_dir else None
+        if self.output_images_dir:
+            self.output_images_dir.mkdir(parents=True, exist_ok=True)
+        self.session_id = session_id
 
     def parse(
         self,
@@ -27,8 +37,38 @@ class DocxDocumentParser(BaseDocumentParser):
 
         doc = Document(str(file_path))
         extracted_sections = []
+        extracted_images = []
 
-        # 1. Extract body paragraphs (headings and text)
+        # 1. Extract embedded images from docx package parts
+        if self.output_images_dir:
+            clean_stem = "".join(c if c.isalnum() else "_" for c in file_path.stem)
+            img_idx = 1
+            try:
+                for rel_id, part in doc.part.related_parts.items():
+                    content_type = getattr(part, "content_type", "")
+                    if content_type.startswith("image/"):
+                        img_bytes = part.blob
+                        ext = content_type.split("/")[-1].replace("jpeg", "jpg")
+                        if not ext or len(ext) > 4:
+                            ext = "jpg"
+                        img_filename = f"{clean_stem}_img{img_idx}.{ext}"
+                        img_path = self.output_images_dir / img_filename
+                        try:
+                            img_path.write_bytes(img_bytes)
+                            img_url = (
+                                f"/api/sessions/{self.session_id}/images/{img_filename}"
+                                if self.session_id
+                                else f"/images/{img_filename}"
+                            )
+                            extracted_images.append(img_url)
+                            extracted_sections.append(f"[IMAGE / FIGURE: Embedded Document Graphic {img_idx}]\n[Image URL: {img_url}]")
+                            img_idx += 1
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+        # 2. Extract body paragraphs (headings and text)
         for para in doc.paragraphs:
             text = para.text.strip()
             if text:
@@ -75,5 +115,7 @@ class DocxDocumentParser(BaseDocumentParser):
                 "total_pages": active_pages,
                 "total_doc_pages": total_doc_pages,
                 "page_range": f"{s_p}-{e_p}",
+                "extracted_images": extracted_images,
+                "diagram_count": len(extracted_images),
             }
         )

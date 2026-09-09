@@ -74,22 +74,22 @@ Open `http://localhost:8000` in your web browser.
 ```text
 +-------------------------------------------------------------------------+
 |                              INGESTION                                  |
-|   PDFs / Word Docs / Images -> PyMuPDF Vector Clustering + RapidOCR    |
-|   -> Semantic Chunks with Extracted High-Resolution Diagrams            |
+|   PDFs / Word Docs / Images -> PyMuPDF Vector + Raster Multi-Extractor  |
+|   -> Semantic Chunks + Isolated High-Resolution Diagrams & Plots        |
 +-------------------------------------------------------------------------+
                                     |
                                     v
 +-------------------------------------------------------------------------+
 |                              EMBEDDING                                  |
-|   Local SentenceTransformers (all-MiniLM-L6-v2, 384-dim vectors)       |
-|   -> Embedded ChromaDB Vector Store with Metadata Linking               |
+|   Local SentenceTransformers (Modular BGE / MiniLM / Nomic Vectors)     |
+|   -> Embedded ChromaDB HNSW Vector Store (In-Process Cosine Space)      |
 +-------------------------------------------------------------------------+
                                     |
                                     v
 +-------------------------------------------------------------------------+
 |                              RETRIEVAL                                  |
-|   User Query / Attached Image -> Multi-Turn Attention Reranking         |
-|   -> Top-K Relevant Document & Diagram Chunks                           |
+|   User Query / Attached Image -> Dense Vector Search + BM25 Lexical     |
+|   -> Top-K Relevant Document Chunks & Figure Evidence Cards             |
 +-------------------------------------------------------------------------+
                                     |
                                     v
@@ -99,6 +99,20 @@ Open `http://localhost:8000` in your web browser.
 |   -> Verified Answer + High-Resolution Diagram Evidence Cards           |
 +-------------------------------------------------------------------------+
 ```
+
+---
+
+## Dense Embedding Models Guide
+
+Choose the embedding engine best suited for your corpus and hardware profile:
+
+| When to Use | Model ID | Dimensions | Optimization Target |
+| :--- | :--- | :--- | :--- |
+| **Best Overall** | `BAAI/bge-base-en-v1.5` | 768-dim | Default recommendation. SOTA MTEB retrieval accuracy for standard documents, technical manuals, and general corpora. |
+| **Fastest** | `all-MiniLM-L6-v2` | 384-dim | Ultra-fast CPU indexing with minimal memory footprint. Best for rapid prototyping or lower-spec hardware. |
+| **Multilingual** | `BAAI/bge-m3` | 1024-dim | Multi-lingual support across 100+ languages with extended 8192-token context window for long-document attention. |
+| **Deep Research** | `BAAI/bge-large-en-v1.5` | 1024-dim | Maximum semantic precision for dense academic research papers, legal contracts, and engineering specifications. |
+| **Long Documents** | `nomic-ai/nomic-embed-text-v1.5` | 768-dim | Full-chapter retrieval with 8192-token attention span and Matryoshka dimensionality support. |
 
 ---
 

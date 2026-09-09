@@ -1,5 +1,9 @@
+import sys
 from pathlib import Path
 from PIL import Image, ImageDraw
+
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
 from core.ingestion.factory import DocumentParserFactory
 
 def run_test():

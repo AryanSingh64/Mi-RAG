@@ -20,44 +20,54 @@ if sys.platform == "win32":
 EMBEDDING_CATALOG: Dict[str, Dict[str, Any]] = {
     "BAAI/bge-base-en-v1.5": {
         "name": "BAAI/bge-base-en-v1.5",
-        "label": "BGE Base v1.5 (Recommended • 768-dim • SOTA Accuracy)",
+        "use_case": "Best Overall",
+        "summary": "Balanced high precision for standard documents, articles, and manuals",
+        "label": "Best Overall: High Accuracy [BAAI/bge-base-en-v1.5]",
         "dim": 768,
         "is_default": True,
         "query_prefix": "Represent this sentence for searching relevant passages: ",
-        "description": "State-of-the-art embedding model with exceptional MTEB benchmark score and high-precision semantic retrieval."
+        "description": "Recommended for general documents and high-precision semantic retrieval."
     },
     "all-MiniLM-L6-v2": {
         "name": "all-MiniLM-L6-v2",
-        "label": "MiniLM L6 v2 (Ultra-Fast • 384-dim • Low Memory)",
+        "use_case": "Fastest",
+        "summary": "Ultra-fast and low memory for rapid CPU indexing",
+        "label": "Fastest: Low Memory [all-MiniLM-L6-v2]",
         "dim": 384,
         "is_default": False,
         "query_prefix": "",
-        "description": "Extremely lightweight and fast CPU-friendly model for rapid indexing."
+        "description": "Lightweight model suited for fast processing on lower-spec machines."
     },
     "BAAI/bge-m3": {
         "name": "BAAI/bge-m3",
-        "label": "BGE M3 (Multilingual • 1024-dim • 8192 Token Context)",
+        "use_case": "Multilingual",
+        "summary": "100+ languages and extended 8192-token attention span",
+        "label": "Multilingual: 100+ Languages [BAAI/bge-m3]",
         "dim": 1024,
         "is_default": False,
         "query_prefix": "",
-        "description": "Multi-lingual, multi-granularity model with 8192 token long-context support."
+        "description": "Multi-lingual retrieval across diverse languages and long documents."
     },
     "BAAI/bge-large-en-v1.5": {
         "name": "BAAI/bge-large-en-v1.5",
-        "label": "BGE Large v1.5 (Deep Reasoning • 1024-dim)",
+        "use_case": "Deep Research",
+        "summary": "Maximum semantic precision for complex technical papers",
+        "label": "Deep Research: Maximum Precision [BAAI/bge-large-en-v1.5]",
         "dim": 1024,
         "is_default": False,
         "query_prefix": "Represent this sentence for searching relevant passages: ",
-        "description": "Large-capacity model designed for complex technical manuals and research papers."
+        "description": "Large-capacity model designed for complex research papers and technical specifications."
     },
     "nomic-ai/nomic-embed-text-v1.5": {
         "name": "nomic-ai/nomic-embed-text-v1.5",
-        "label": "Nomic Embed Text v1.5 (8192 Context • 768-dim)",
+        "use_case": "Long Documents",
+        "summary": "Full-chapter retrieval with 8192-token context window",
+        "label": "Long Documents: Extended Context [nomic-ai/nomic-embed-text-v1.5]",
         "dim": 768,
         "is_default": False,
         "query_prefix": "search_query: ",
         "passage_prefix": "search_document: ",
-        "description": "Long-context embedding model with Matryoshka dimensionality truncation support."
+        "description": "Long-context embedding model with Matryoshka dimensionality support."
     }
 }
 
