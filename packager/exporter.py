@@ -702,10 +702,10 @@ if __name__ == "__main__":
         candidates = []
         if sys.platform == "win32":
             candidates = [
-                r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-                r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-                r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-                r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+                "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+                "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
+                "C:/Program Files/Google/Chrome/Application/chrome.exe",
+                "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
             ]
         for c in ["msedge.exe", "chrome.exe"]:
             w = shutil.which(c)

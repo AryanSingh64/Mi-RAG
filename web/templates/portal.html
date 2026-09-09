@@ -1405,12 +1405,6 @@
         <span>+ New Knowledge Base</span>
       </a>
 
-      <div>
-        <div class="sidebar-section-title">Previous Chats & Workspaces</div>
-        <div id="sidebar-sessions-list" class="sidebar-menu-list">
-          <div style="font-size: 0.76rem; color: #64748b; padding: 0.3rem 0.5rem;">Loading chats...</div>
-        </div>
-      </div>
 
       <div>
         <div class="sidebar-section-title">Navigation</div>
@@ -1629,12 +1623,10 @@
           `).join('');
         }
 
-        const saved = SafeStorage.getItem("chat_" + sessionId, []);
-        if (Array.isArray(saved) && saved.length > 0) {
-          loadChatFromStorage();
-        } else {
-          document.getElementById('chat-box').innerHTML = defaultGreetingHtml;
-        }
+        // In browser testing playground, always start fresh for clean experimentation
+        document.getElementById('chat-box').innerHTML = defaultGreetingHtml;
+        storedChatMessages = [];
+        conversationTurns = [];
       } catch (err) {
         alert("Session is invalid or has expired!");
         window.location.href = '/';
