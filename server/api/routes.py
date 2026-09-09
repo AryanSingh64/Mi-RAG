@@ -585,14 +585,18 @@ def get_session_image(session_id: str, filename: str):
 
 @router.get("/sessions/{session_id}/export")
 def export_package(session_id: str):
-    """Creates and downloads the standalone ZIP package."""
+    """Creates and downloads the standalone turnkey Windows Setup (.exe) package."""
     session = session_manager.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session expired or not found.")
 
-    zip_path = packager.create_package(session)
+    pkg_path = packager.create_package(session)
+    is_exe = pkg_path.suffix.lower() == ".exe"
+    media_type = "application/vnd.microsoft.portable-executable" if is_exe else "application/zip"
+    filename = f"Mi-RAG_Setup_{session.session_id[:8]}.exe" if is_exe else f"rag_deployment_{session.session_id}.zip"
+
     return FileResponse(
-        path=str(zip_path),
-        filename=f"rag_deployment_{session.session_id}.zip",
-        media_type="application/zip"
+        path=str(pkg_path),
+        filename=filename,
+        media_type=media_type
     )

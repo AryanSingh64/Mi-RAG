@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import zipfile
+import subprocess
 from pathlib import Path
 from typing import Optional
 from server.sessions.session_manager import RAGSession
@@ -487,7 +488,7 @@ async def chat_rag(request: Request):
 
     if not raw_chunks:
         return ChatResponse(
-            answer=f"I could not find any information about '{user_message}' in the pre-indexed documents. Please ask a question related to your indexed files.",
+            answer=f"I could not find any information about '{{user_message}}' in the pre-indexed documents. Please ask a question related to your indexed files.",
             confidence_score=0.0,
             is_grounded=False,
             citations=[],
@@ -612,6 +613,10 @@ def clear_memory():
     global SERVER_MEMORY
     SERVER_MEMORY = []
     return {{"status": "ok", "message": "Conversation memory cleared."}}
+
+@app.get("/api/health")
+def health_check():
+    return {{"status": "ok", "service": "Mi-RAG Turnkey Assistant"}}
 
 @app.get("/api/info")
 def get_info():
@@ -1107,7 +1112,254 @@ docker compose up --build
             encoding="utf-8"
         )
 
-        # 9. Ultra-Fast Smart Hybrid ZIP (Instant image archiving + deflated code/data)
+    def _build_windows_installer(self, bundle_dir: Path, session: RAGSession) -> Optional[Path]:
+        """
+        Compiles the turnkey standalone session into a single-file Windows setup executable (.exe)
+        modeled after the DaVinci Resolve modern wizard installer.
+        """
+        # 1. Locate iscc.exe
+        iscc_candidates = [
+            Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Inno Setup 6" / "iscc.exe",
+            Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "Inno Setup 6" / "iscc.exe",
+            Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Inno Setup 6" / "iscc.exe",
+        ]
+        which_iscc = shutil.which("iscc")
+        if which_iscc:
+            iscc_candidates.insert(0, Path(which_iscc))
+
+        iscc_exe = next((p for p in iscc_candidates if p and p.exists()), None)
+        if not iscc_exe:
+            return None
+
+        # 2. Copy Sciter DirectX engine & native launcher
+        packager_bin = Path(__file__).parent / "bin"
+        for bin_file in ["MiRAG.exe", "scapp.exe", "sciter.dll"]:
+            src = packager_bin / bin_file
+            if src.exists():
+                shutil.copy2(src, bundle_dir / bin_file)
+
+        # 3. Copy DaVinci Resolve style wizard sidebar & header bitmaps
+        packager_assets = Path(__file__).parent / "assets"
+        sidebar_bmp = bundle_dir / "wizard_sidebar.bmp"
+        small_bmp = bundle_dir / "wizard_small.bmp"
+        if (packager_assets / "wizard_sidebar.bmp").exists():
+            shutil.copy2(packager_assets / "wizard_sidebar.bmp", sidebar_bmp)
+        if (packager_assets / "wizard_small.bmp").exists():
+            shutil.copy2(packager_assets / "wizard_small.bmp", small_bmp)
+
+        # 4. Generate installer.iss
+        setup_base_name = f"Mi-RAG_Setup_{session.session_id[:8]}"
+        icon_path = bundle_dir / "static" / "assets" / "favicon.ico"
+        if not icon_path.exists():
+            icon_path = Path("public/static/assets/favicon.ico").resolve()
+
+        iss_content = f"""[Setup]
+AppName=Mi-RAG Assistant
+AppVersion=2.0.0
+AppPublisher=Autonomous RAG Factory
+AppPublisherURL=https://mirag.me
+DefaultDirName={{localappdata}}\\Programs\\Mi-RAG
+DefaultGroupName=Mi-RAG
+AllowNoIcons=yes
+OutputDir={self.output_dir.resolve()}
+OutputBaseFilename={setup_base_name}
+SetupIconFile={icon_path.resolve()}
+WizardStyle=modern
+WizardImageFile={sidebar_bmp.resolve()}
+WizardSmallImageFile={small_bmp.resolve()}
+Compression=lzma2/ultra64
+SolidCompression=yes
+ArchitecturesInstallIn64BitMode=x64compatible
+PrivilegesRequired=lowest
+DisableWelcomePage=no
+
+[Tasks]
+Name: "desktopicon"; Description: "Create a &desktop shortcut (⚡ Electric Icon)"; GroupDescription: "Additional shortcuts:"; Flags: checkedonce
+Name: "addtopath"; Description: "Add application directory to User &PATH environment variable"; GroupDescription: "System integration:"; Flags: unchecked
+
+[Files]
+Source: "{bundle_dir.resolve()}\\*"; DestDir: "{{app}}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[Icons]
+Name: "{{userdesktop}}\\Mi-RAG Assistant"; Filename: "{{app}}\\MiRAG.exe"; IconFilename: "{{app}}\\static\\assets\\favicon.ico"; Tasks: desktopicon
+Name: "{{autoprograms}}\\Mi-RAG Assistant"; Filename: "{{app}}\\MiRAG.exe"; IconFilename: "{{app}}\\static\\assets\\favicon.ico"
+
+[Registry]
+Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{{olddata}};{{app}}"; Tasks: addtopath; Check: NeedsAddPath(ExpandConstant('{{app}}'))
+
+[Run]
+Filename: "{{app}}\\MiRAG.exe"; Description: "Launch Mi-RAG Assistant now"; Flags: postinstall nowait skipifsilent
+
+[Code]
+function NeedsAddPath(Param: string): boolean;
+var
+  OrigPath: string;
+begin
+  if not RegQueryStringValue(HKEY_CURRENT_USER, 'Environment', 'Path', OrigPath)
+  then begin
+    Result := True;
+    exit;
+  end;
+  Result := Pos(';' + UpperCase(Param) + ';', ';' + UpperCase(OrigPath) + ';') = 0;
+end;
+"""
+        iss_file = bundle_dir / "installer.iss"
+        iss_file.write_text(iss_content, encoding="utf-8")
+
+        # 5. Compile with ISCC
+        try:
+            res = subprocess.run([str(iscc_exe), str(iss_file)], capture_output=True, text=True, timeout=120)
+            target_exe = self.output_dir / f"{setup_base_name}.exe"
+            if res.returncode == 0 and target_exe.exists():
+                return target_exe
+        except Exception:
+            pass
+
+        return None
+
+    def create_package(self, session: RAGSession) -> Path:
+        bundle_dir = session.session_dir / "standalone_bundle"
+        if bundle_dir.exists():
+            shutil.rmtree(bundle_dir)
+        bundle_dir.mkdir(parents=True, exist_ok=True)
+
+        dest_db = bundle_dir / "vector_db"
+        shutil.copytree(session.db_dir, dest_db)
+
+        images_dest = bundle_dir / "images"
+        images_dest.mkdir(parents=True, exist_ok=True)
+        search_dirs = [
+            getattr(session, "images_dir", None),
+            getattr(session, "uploads_dir", None),
+            session.session_dir / "images",
+            session.session_dir / "extracted_images",
+            session.session_dir / "uploads",
+            session.session_dir
+        ]
+        for sdir in search_dirs:
+            if sdir and Path(sdir).exists():
+                for img_file in Path(sdir).glob("*.*"):
+                    if img_file.is_file() and img_file.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp", ".bmp"]:
+                        target = images_dest / img_file.name
+                        if not target.exists():
+                            shutil.copy2(img_file, target)
+
+        # Copy static assets (logo, favicon, background) into bundle
+        static_dest = bundle_dir / "static" / "assets"
+        static_dest.mkdir(parents=True, exist_ok=True)
+        source_assets = Path("public/static/assets")
+        if not source_assets.exists():
+            source_assets = Path(__file__).parent.parent / "public" / "static" / "assets"
+        if source_assets.exists():
+            for asset_file in source_assets.glob("*.*"):
+                if asset_file.is_file():
+                    shutil.copy2(asset_file, static_dest / asset_file.name)
+
+        # Write Standalone Server, Hydrated Direct Chat UI & Installer
+        (bundle_dir / "server.py").write_text(
+            self._generate_standalone_server_code(session.model_name, "all-MiniLM-L6-v2", session.indexed_files),
+            encoding="utf-8"
+        )
+        (bundle_dir / "index.html").write_text(
+            self._generate_standalone_ui(session.model_name, session.session_id, session.indexed_files),
+            encoding="utf-8"
+        )
+        (bundle_dir / "setup.py").write_text(
+            self._generate_installer_script(session.model_name, "all-MiniLM-L6-v2"),
+            encoding="utf-8"
+        )
+
+        requirements_txt = (
+            "fastapi>=0.110.0\n"
+            "uvicorn>=0.28.0\n"
+            "pydantic>=2.6.0\n"
+            "chromadb>=0.4.24\n"
+            "sentence-transformers>=2.6.0\n"
+            "httpx>=0.27.0\n"
+            "python-multipart>=0.0.9\n"
+        )
+        (bundle_dir / "requirements.txt").write_text(requirements_txt, encoding="utf-8")
+
+        # Write run.bat (Instant Launch with direct Chatbot server execution)
+        run_bat = (
+            "@echo off\n"
+            "setlocal enabledelayedexpansion\n"
+            "title Standalone Enterprise RAG Assistant\n"
+            "\n"
+            ":: 1. Fast check if active python environment already has required modules\n"
+            "python -c \"import fastapi, chromadb, sentence_transformers, httpx\" 2>nul\n"
+            "if %errorlevel% equ 0 (\n"
+            "    echo [*] System environment verified. Launching Chatbot Assistant...\n"
+            "    python server.py\n"
+            "    if !errorlevel! neq 0 (\n"
+            "        echo.\n"
+            "        echo =========================================================\n"
+            "        echo  [!] Server exited with an error code.\n"
+            "        echo =========================================================\n"
+            "        pause\n"
+            "    )\n"
+            "    exit /b\n"
+            ")\n"
+            "\n"
+            ":: 2. Otherwise create venv inheriting system site packages if available\n"
+            "if not exist .venv (\n"
+            "    echo [1/2] Setting up local environment...\n"
+            "    python -m venv --system-site-packages .venv\n"
+            ")\n"
+            "call .venv\\Scripts\\activate.bat\n"
+            "python setup.py\n"
+            "python server.py\n"
+            "if %errorlevel% neq 0 (\n"
+            "    echo.\n"
+            "    echo =========================================================\n"
+            "    echo  [!] Server exited with an error code.\n"
+            "    echo =========================================================\n"
+            "    pause\n"
+            ")\n"
+        )
+        (bundle_dir / "run.bat").write_text(run_bat, encoding="utf-8")
+
+        # Write run.sh (Linux/Mac Launcher)
+        run_sh = (
+            "#!/bin/bash\n"
+            "python3 -c \"import fastapi, chromadb, sentence_transformers, httpx\" 2>/dev/null\n"
+            "if [ $? -eq 0 ]; then\n"
+            "    echo '[OK] System environment has all packages cached. Launching Chatbot Assistant...'\n"
+            "    python3 server.py\n"
+            "    exit 0\n"
+            "fi\n"
+            "if [ ! -d '.venv' ]; then\n"
+            "    python3 -m venv --system-site-packages .venv\n"
+            "fi\n"
+            "source .venv/bin/activate\n"
+            "python3 setup.py\n"
+            "python3 server.py\n"
+        )
+        (bundle_dir / "run.sh").write_text(run_sh, encoding="utf-8")
+
+        dockerfile = (
+            "FROM python:3.11-slim\n"
+            "WORKDIR /app\n"
+            "COPY requirements.txt .\n"
+            "RUN pip install --no-cache-dir -r requirements.txt\n"
+            "COPY . .\n"
+            "EXPOSE 8000\n"
+            "CMD [\"python\", \"server.py\"]\n"
+        )
+        (bundle_dir / "Dockerfile").write_text(dockerfile, encoding="utf-8")
+
+        # 8. Write Installation & Setup Guide
+        (bundle_dir / "INSTALL_GUIDE.md").write_text(
+            self._generate_install_guide(session.model_name),
+            encoding="utf-8"
+        )
+
+        # 9. Try building Windows Setup Executable (.exe) first
+        installer_exe = self._build_windows_installer(bundle_dir, session)
+        if installer_exe and installer_exe.exists():
+            return installer_exe
+
+        # 10. Fallback: Ultra-Fast Smart Hybrid ZIP (Instant image archiving + deflated code/data)
         zip_file_path = self.output_dir / f"rag_package_{session.session_id}.zip"
         pre_compressed_exts = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".zip", ".tar", ".gz"}
         

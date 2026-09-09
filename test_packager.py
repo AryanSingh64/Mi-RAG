@@ -32,12 +32,12 @@ def test_packager():
     session.indexed_files.append("client_policy.txt")
     print(f"[+] Ingested {chunks} chunks into session private ChromaDB.")
 
-    # 3. Export Standalone Package (ZIP)
-    zip_path = packager.create_package(session)
-    print(f"\n[+] Standalone ZIP Created: {zip_path}")
-    print(f"[+] ZIP Size: {zip_path.stat().st_size / 1024:.1f} KB")
+    # 3. Export Standalone Package (.exe or .zip)
+    pkg_path = packager.create_package(session)
+    print(f"\n[+] Standalone Package Created: {pkg_path}")
+    print(f"[+] Package Size: {pkg_path.stat().st_size / 1024:.1f} KB")
 
-    assert zip_path.exists(), "ZIP package should exist"
+    assert pkg_path.exists(), "Package should exist"
     print("\n==================================================")
     print("[SUCCESS] Session manager & Standalone Packager test passed!")
     print("==================================================")
