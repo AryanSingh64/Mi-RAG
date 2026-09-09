@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
 using System.Collections.Generic;
+using System.Net;
 
 namespace MiRAGLauncher
 {
@@ -22,6 +23,22 @@ namespace MiRAGLauncher
             if (!File.Exists(serverScript)) {
                 MessageBox.Show("Application server script not found in:\n" + baseDir, "Mi:RAG Assistant", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
+            }
+
+            // 1.5. If server is already running on this port, open the default browser tab immediately!
+            string portFile = Path.Combine(baseDir, ".port");
+            if (File.Exists(portFile)) {
+                try {
+                    string savedPort = File.ReadAllText(portFile).Trim();
+                    int p;
+                    if (int.TryParse(savedPort, out p)) {
+                        string testUrl = "http://127.0.0.1:" + p;
+                        if (IsServerAlive(testUrl)) {
+                            Process.Start(new ProcessStartInfo(testUrl) { UseShellExecute = true });
+                            return;
+                        }
+                    }
+                } catch {}
             }
 
             // 2. Discover candidate Python interpreters
@@ -68,7 +85,7 @@ namespace MiRAGLauncher
             }
 
             // 4. If a working Python environment is found, launch server.py silently
-            // server.py immediately boots the FastAPI server and opens the dedicated desktop window!
+            // server.py initializes the FastAPI server, tests health, and opens the default browser tab
             if (workingPython != null) {
                 string pyDir = Path.GetDirectoryName(workingPython) ?? "";
                 string pyw = Path.Combine(pyDir, "pythonw.exe");
@@ -113,6 +130,19 @@ namespace MiRAGLauncher
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information
             );
+        }
+
+        static bool IsServerAlive(string url)
+        {
+            try {
+                HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url + "/api/health");
+                req.Timeout = 800;
+                using (HttpWebResponse res = (HttpWebResponse)req.GetResponse()) {
+                    return res.StatusCode == HttpStatusCode.OK;
+                }
+            } catch {
+                return false;
+            }
         }
 
         static bool CanImportRequirements(string pythonExe, string workingDir)
