@@ -35,8 +35,8 @@ def find_available_port(preferred=8000, max_tries=100):
 def main():
     port = find_available_port(8000)
     print("==================================================")
-    print(" [⚡] Starting Mi:RAG Desktop Application...")
     print(f" [*] Local Server: http://127.0.0.1:{port}")
+    print(f" [*] Opening browser tab to Training RAG Studio (http://127.0.0.1:{port})...")
     print("==================================================")
 
     # 1. Start FastAPI server in background thread
@@ -61,7 +61,6 @@ def main():
 
     # 3. Open browser tab for Training RAG Studio
     import webbrowser
-    print(f" [*] Opening browser tab to Training RAG Studio (http://127.0.0.1:{port})...")
     webbrowser.open(f"http://127.0.0.1:{port}")
 
     # Keep server running until terminal is closed or Ctrl+C is pressed
@@ -69,7 +68,7 @@ def main():
         while True:
             time.sleep(1.0)
     except KeyboardInterrupt:
-        print("\n [!] Stopping Mi:RAG Server...")
+        print("\n [*] Stopping Local Server...")
 
 if __name__ == "__main__":
     main()
