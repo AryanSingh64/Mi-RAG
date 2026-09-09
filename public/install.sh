@@ -328,46 +328,7 @@ if [ "$HAS_DEPS" != "OK" ] || { [ "$INSTALL_CUDA" = true ] && [ "$HAS_TORCH_CUDA
     fi
 fi
 
-# 9. Register Global CLI Shortcut ('mirag')
-register_mirag_command() {
-    local target_repo="$1"
-    local bin_dir="$HOME/.local/bin"
-    mkdir -p "$bin_dir"
-
-    local launcher="$bin_dir/mirag"
-    cat <<EOF > "$launcher"
-#!/usr/bin/env bash
-TARGET_DIR="$target_repo"
-if [ ! -f "\$TARGET_DIR/.venv/bin/python3" ]; then
-    echo "[!] Mi:RAG virtual environment not found in \$TARGET_DIR. Please re-run the installer."
-    exit 1
-fi
-exec "\$TARGET_DIR/.venv/bin/python3" "\$TARGET_DIR/run_factory.py" "\$@"
-EOF
-    chmod +x "$launcher"
-
-    # Add ~/.local/bin to PATH in shell profile if not present
-    local updated_profiles=()
-    for profile in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
-        if [ -f "$profile" ] && ! grep -q '\.local/bin' "$profile" 2>/dev/null; then
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$profile"
-            updated_profiles+=("$profile")
-        fi
-    done
-
-    export PATH="$HOME/.local/bin:$PATH"
-
-    # Optionally symlink to /usr/local/bin if writable without password
-    if [ -w "/usr/local/bin" ]; then
-        ln -sf "$launcher" "/usr/local/bin/mirag" 2>/dev/null || true
-    fi
-
-    echo -e " ${GREEN}[*] Global CLI Command: Registered 'mirag' in terminal PATH ($launcher)${NC}"
-}
-
-register_mirag_command "$TARGET_DIR"
-
-# 10. Automatic Port Freeing
+# 9. Automatic Port Freeing
 if command -v fuser >/dev/null 2>&1; then
     fuser -k 8000/tcp 2>/dev/null || true
 elif command -v lsof >/dev/null 2>&1; then
@@ -386,7 +347,6 @@ echo ""
 echo -e "${RED} +---------------------------------------------------------+${NC}"
 echo -e "${YELLOW} |  Mi:RAG Studio is launching on http://localhost:8000    |${NC}"
 echo -e " |  Local-First  |  Zero API Costs  |  Hardware Accelerated|"
-echo -e "${CYAN} |  CLI Command  : Type 'mirag' in any terminal to launch  |${NC}"
 echo -e "${RED} +---------------------------------------------------------+${NC}"
 echo ""
 

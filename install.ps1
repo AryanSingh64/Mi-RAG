@@ -33,103 +33,7 @@ function Safe-Exit {
     return
 }
 
-# Helper to register global 'mirag' terminal command
-function Register-MiragCommand($repoDir) {
-    try {
-        $binDir = "$HOME\.mirag\bin"
-        if (-not (Test-Path $binDir)) {
-            New-Item -ItemType Directory -Path $binDir -Force | Out-Null
-        }
 
-        # 1. mirag.cmd & mirag.bat for standard Windows Command Prompt
-        $cmdScript = @"
-@echo off
-set "MIRAG_DIR=$repoDir"
-if exist "%CD%\run_factory.py" (
-    if exist "%CD%\.venv\Scripts\python.exe" (
-        set "MIRAG_DIR=%CD%"
-    )
-)
-if not exist "%MIRAG_DIR%\.venv\Scripts\python.exe" (
-    echo [!] Mi:RAG virtual environment not found in %MIRAG_DIR%. Please re-run the installer.
-    pause
-    exit /b 1
-)
-"%MIRAG_DIR%\.venv\Scripts\python.exe" "%MIRAG_DIR%\run_factory.py" %*
-"@
-
-        # 2. mirag.ps1 for PowerShell
-        $escapedRepoDir = $repoDir -replace "'", "''"
-        $psScript = @"
-`$repoDir = '$escapedRepoDir'
-if (Test-Path ".\run_factory.py") {
-    if (Test-Path ".\.venv\Scripts\python.exe") {
-        `$testUvi = & ".\.venv\Scripts\python.exe" -c "import importlib.util as u; print('ok' if u.find_spec('uvicorn') else 'missing')" 2>`$null
-        if (`$testUvi -and `$testUvi.Trim() -eq "ok") {
-            `$repoDir = (Get-Location).Path
-        }
-    }
-}
-`$pythonExe = "`$repoDir\.venv\Scripts\python.exe"
-if (-not (Test-Path `$pythonExe)) {
-    if (Test-Path "$HOME\Mi-RAG\.venv\Scripts\python.exe") {
-        `$repoDir = "$HOME\Mi-RAG"
-        `$pythonExe = "`$repoDir\.venv\Scripts\python.exe"
-    }
-}
-`$runScript = "`$repoDir\run_factory.py"
-if (-not (Test-Path `$pythonExe)) {
-    Write-Host "[!] Mi:RAG virtual environment not found in `$repoDir. Please re-run the installer." -ForegroundColor Red
-    Read-Host -Prompt "Press [Enter] to exit"
-    exit 1
-}
-& `$pythonExe `$runScript `$args
-"@
-
-        # 3. Unix script for Git Bash / MSYS2 / WSL
-        $posixDir = $repoDir -replace '\\', '/'
-        $shScript = @"
-#!/usr/bin/env bash
-REPO_DIR="$posixDir"
-if [ -f "./run_factory.py" ] && [ -f "./.venv/Scripts/python.exe" ]; then
-    REPO_DIR="\$(pwd)"
-fi
-if [ ! -f "`$REPO_DIR/.venv/Scripts/python.exe" ]; then
-    echo "[!] Mi:RAG virtual environment not found in `$REPO_DIR. Please re-run the installer."
-    exit 1
-fi
-exec "`$REPO_DIR/.venv/Scripts/python.exe" "`$REPO_DIR/run_factory.py" "`$@"
-"@
-
-        $targetDirs = @("$HOME\.mirag\bin", "$HOME\.local\bin")
-        foreach ($bDir in $targetDirs) {
-            if (-not (Test-Path $bDir)) {
-                New-Item -ItemType Directory -Path $bDir -Force | Out-Null
-            }
-            Set-Content -Path "$bDir\mirag.cmd" -Value $cmdScript -Encoding ASCII -Force
-            Set-Content -Path "$bDir\mirag.bat" -Value $cmdScript -Encoding ASCII -Force
-            Set-Content -Path "$bDir\mirag.ps1" -Value $psScript -Encoding UTF8 -Force
-            Set-Content -Path "$bDir\mirag" -Value $shScript -Encoding ASCII -Force
-        }
-
-        # Add $binDir to User Environment PATH if not already present
-        $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-        $pathParts = if ($userPath) { $userPath -split ';' } else { @() }
-        if ($pathParts -notcontains $binDir) {
-            $newPath = if ($userPath) { "$binDir;$userPath" } else { $binDir }
-            [Environment]::SetEnvironmentVariable("Path", $newPath, "User")
-        }
-
-        # Update current session PATH so 'mirag' works immediately
-        if (($env:Path -split ';') -notcontains $binDir) {
-            $env:Path = "$binDir;$env:Path"
-        }
-
-        Write-Host " [*] Global CLI Command: Registered 'mirag' in terminal PATH" -ForegroundColor Green
-    } catch {
-        # Non-critical failure: don't abort setup if shortcut registration encounters an error
-    }
-}
 
 # Helper to validate a python executable path
 function Test-PythonExecutable($exePath) {
@@ -562,14 +466,10 @@ if ($canLaunch -ne "OK") {
     return
 }
 
-# 9. Register Global CLI Shortcut ('mirag')
-Register-MiragCommand $targetDir
-
 Write-Host ""
 Write-Host " +---------------------------------------------------------+" -ForegroundColor Red
 Write-Host " |  Mi:RAG Studio is launching on http://localhost:8000    |" -ForegroundColor Yellow
 Write-Host " |  Local-First  |  Zero API Costs  |  Hardware Accelerated|" -ForegroundColor White
-Write-Host " |  CLI Command  : Type 'mirag' in any terminal to launch  |" -ForegroundColor Cyan
 Write-Host " +---------------------------------------------------------+" -ForegroundColor Red
 Write-Host ""
 
