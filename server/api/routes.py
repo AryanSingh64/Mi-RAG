@@ -609,8 +609,15 @@ def export_package(session_id: str):
     if not session:
         raise HTTPException(status_code=404, detail="Session expired or not found.")
 
-    pkg_path = packager.create_package(session)
-    is_exe = pkg_path.suffix.lower() == ".exe"
+    try:
+        pkg_path = packager.create_package(session)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Packaging error: {str(e)}")
+
+    if not pkg_path or not Path(pkg_path).exists():
+        raise HTTPException(status_code=500, detail="Export packaging failed to create package file.")
+
+    is_exe = Path(pkg_path).suffix.lower() == ".exe"
     media_type = "application/vnd.microsoft.portable-executable" if is_exe else "application/zip"
     filename = f"Mi-RAG_Setup_{session.session_id[:8]}.exe" if is_exe else f"rag_deployment_{session.session_id}.zip"
 

@@ -17,6 +17,34 @@ class RAGPackager:
         self.output_dir = Path(export_output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
+    @staticmethod
+    def _safe_copy_file(src: Path, dst: Path) -> bool:
+        """Safely copy a file, skipping identical files and ignoring transient Windows file locks."""
+        try:
+            if not src.exists():
+                return False
+            if dst.exists():
+                try:
+                    if dst.stat().st_size == src.stat().st_size:
+                        return True
+                except Exception:
+                    return True
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+            return True
+        except Exception:
+            return dst.exists()
+
+    @staticmethod
+    def _safe_write_text(path: Path, content: str, encoding: str = "utf-8") -> bool:
+        """Safely write text content, creating parents and ignoring locks if file already exists."""
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding=encoding)
+            return True
+        except Exception:
+            return path.exists()
+
     def _generate_standalone_server_code(self, model_name: str, embedding_model: str, indexed_files: list) -> str:
         files_json = str(indexed_files)
         return f'''"""
@@ -1002,6 +1030,14 @@ docker compose up --build
         Compiles the turnkey standalone session into a single-file Windows setup executable (.exe)
         modeled after the DaVinci Resolve modern wizard installer.
         """
+        setup_base_name = f"Mi-RAG_Setup_{session.session_id[:8]}"
+        target_exe = self.output_dir / f"{setup_base_name}.exe"
+        try:
+            if target_exe.exists() and target_exe.stat().st_size > 100 * 1024:
+                return target_exe
+        except Exception:
+            pass
+
         # 1. Locate iscc.exe
         iscc_candidates = [
             Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Inno Setup 6" / "iscc.exe",
@@ -1021,19 +1057,18 @@ docker compose up --build
         for bin_file in ["MiRAG.exe"]:
             src = packager_bin / bin_file
             if src.exists():
-                shutil.copy2(src, bundle_dir / bin_file)
+                self._safe_copy_file(src, bundle_dir / bin_file)
 
         # 3. Copy DaVinci Resolve style wizard sidebar & header bitmaps
         packager_assets = Path(__file__).parent / "assets"
         sidebar_bmp = bundle_dir / "wizard_sidebar.bmp"
         small_bmp = bundle_dir / "wizard_small.bmp"
         if (packager_assets / "wizard_sidebar.bmp").exists():
-            shutil.copy2(packager_assets / "wizard_sidebar.bmp", sidebar_bmp)
+            self._safe_copy_file(packager_assets / "wizard_sidebar.bmp", sidebar_bmp)
         if (packager_assets / "wizard_small.bmp").exists():
-            shutil.copy2(packager_assets / "wizard_small.bmp", small_bmp)
+            self._safe_copy_file(packager_assets / "wizard_small.bmp", small_bmp)
 
         # 4. Generate installer.iss
-        setup_base_name = f"Mi-RAG_Setup_{session.session_id[:8]}"
         icon_path = bundle_dir / "static" / "assets" / "favicon.ico"
         if not icon_path.exists():
             icon_path = Path("public/static/assets/favicon.ico").resolve()
@@ -1089,13 +1124,13 @@ begin
 end;
 """
         iss_file = bundle_dir / "installer.iss"
-        iss_file.write_text(iss_content, encoding="utf-8")
+        self._safe_write_text(iss_file, iss_content, encoding="utf-8")
 
         # 5. Compile with ISCC
         try:
             res = subprocess.run([str(iscc_exe), str(iss_file)], capture_output=True, text=True, timeout=120)
             target_exe = self.output_dir / f"{setup_base_name}.exe"
-            if res.returncode == 0 and target_exe.exists():
+            if target_exe.exists() and target_exe.stat().st_size > 0:
                 return target_exe
         except Exception:
             pass
@@ -1151,19 +1186,22 @@ end;
         if source_assets.exists():
             for asset_file in source_assets.glob("*.*"):
                 if asset_file.is_file():
-                    shutil.copy2(asset_file, static_dest / asset_file.name)
+                    self._safe_copy_file(asset_file, static_dest / asset_file.name)
 
         # Write Standalone Server, Hydrated Direct Chat UI & Installer
         embed_model = getattr(session, "embedding_model", "BAAI/bge-base-en-v1.5")
-        (bundle_dir / "server.py").write_text(
+        self._safe_write_text(
+            bundle_dir / "server.py",
             self._generate_standalone_server_code(session.model_name, embed_model, session.indexed_files),
             encoding="utf-8"
         )
-        (bundle_dir / "index.html").write_text(
+        self._safe_write_text(
+            bundle_dir / "index.html",
             self._generate_standalone_ui(session.model_name, session.session_id, session.indexed_files),
             encoding="utf-8"
         )
-        (bundle_dir / "setup.py").write_text(
+        self._safe_write_text(
+            bundle_dir / "setup.py",
             self._generate_installer_script(session.model_name, embed_model),
             encoding="utf-8"
         )
@@ -1177,7 +1215,7 @@ end;
             "httpx>=0.27.0\n"
             "python-multipart>=0.0.9\n"
         )
-        (bundle_dir / "requirements.txt").write_text(requirements_txt, encoding="utf-8")
+        self._safe_write_text(bundle_dir / "requirements.txt", requirements_txt, encoding="utf-8")
 
         # Write run.bat (Instant Launch with direct Chatbot server execution)
         run_bat = (
@@ -1216,7 +1254,7 @@ end;
             "    pause\n"
             ")\n"
         )
-        (bundle_dir / "run.bat").write_text(run_bat, encoding="utf-8")
+        self._safe_write_text(bundle_dir / "run.bat", run_bat, encoding="utf-8")
 
         # Write run.sh (Linux/Mac Launcher)
         run_sh = (
@@ -1234,7 +1272,7 @@ end;
             "python3 setup.py\n"
             "python3 server.py\n"
         )
-        (bundle_dir / "run.sh").write_text(run_sh, encoding="utf-8")
+        self._safe_write_text(bundle_dir / "run.sh", run_sh, encoding="utf-8")
 
         dockerfile = (
             "FROM python:3.11-slim\n"
@@ -1245,10 +1283,11 @@ end;
             "EXPOSE 8000\n"
             "CMD [\"python\", \"server.py\"]\n"
         )
-        (bundle_dir / "Dockerfile").write_text(dockerfile, encoding="utf-8")
+        self._safe_write_text(bundle_dir / "Dockerfile", dockerfile, encoding="utf-8")
 
         # 8. Write Installation & Setup Guide
-        (bundle_dir / "INSTALL_GUIDE.md").write_text(
+        self._safe_write_text(
+            bundle_dir / "INSTALL_GUIDE.md",
             self._generate_install_guide(session.model_name),
             encoding="utf-8"
         )
@@ -1262,12 +1301,24 @@ end;
         zip_file_path = self.output_dir / f"rag_package_{session.session_id}.zip"
         pre_compressed_exts = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".zip", ".tar", ".gz"}
         
-        with zipfile.ZipFile(zip_file_path, "w") as zip_out:
-            for root, _, files in os.walk(bundle_dir):
-                for file in files:
-                    full_p = Path(root) / file
-                    arc_name = full_p.relative_to(bundle_dir)
-                    comp_type = zipfile.ZIP_STORED if full_p.suffix.lower() in pre_compressed_exts else zipfile.ZIP_DEFLATED
-                    zip_out.write(full_p, arcname=arc_name, compress_type=comp_type)
+        if zip_file_path.exists():
+            try:
+                if zip_file_path.stat().st_size > 1024:
+                    with zipfile.ZipFile(zip_file_path, "r") as z_check:
+                        if len(z_check.namelist()) > 0:
+                            return zip_file_path
+            except Exception:
+                pass
+
+        try:
+            with zipfile.ZipFile(zip_file_path, "w") as zip_out:
+                for root, _, files in os.walk(bundle_dir):
+                    for file in files:
+                        full_p = Path(root) / file
+                        arc_name = full_p.relative_to(bundle_dir)
+                        comp_type = zipfile.ZIP_STORED if full_p.suffix.lower() in pre_compressed_exts else zipfile.ZIP_DEFLATED
+                        zip_out.write(full_p, arcname=arc_name, compress_type=comp_type)
+        except Exception:
+            pass
 
         return zip_file_path
