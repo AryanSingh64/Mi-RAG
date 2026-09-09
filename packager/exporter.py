@@ -738,134 +738,42 @@ if __name__ == "__main__":
 '''
 
     def _generate_standalone_ui(self, model_name: str, session_id: str, indexed_files: list) -> str:
-        portal_template = Path("web/templates/portal.html")
-        if not portal_template.exists():
-            portal_template = Path(__file__).parent.parent / "web" / "templates" / "portal.html"
-            
-        if portal_template.exists():
-            content = portal_template.read_text(encoding="utf-8")
-            
-            # 1. Direct standalone endpoints & safe IDs
-            content = content.replace("const pathParts = window.location.pathname.split('/');\n    const sessionId = pathParts[pathParts.length - 1];", "const sessionId = 'standalone';")
-            content = content.replace("const pathParts = window.location.pathname.split('/');", "const sessionId = 'standalone';")
-            content = content.replace("const sessionId = pathParts[pathParts.length - 1];", "")
-            content = content.replace("`/api/sessions/${sessionId}/chat`", "'/api/chat'")
-            content = content.replace("`/api/sessions/${sessionId}/clear_memory`", "'/api/clear_memory'")
-            content = content.replace("`/api/sessions/${sessionId}`", "'/api/info'")
-            
-            # 2. Standalone Branding & Badges & Quit Button
-            content = content.replace(
-                '<div class="session-badge" id="session-badge">Session: loading...</div>',
-                f'<div class="session-badge" id="session-badge">Production Engine: {model_name}</div>'
-            )
-            
-            quit_btn_html = (
-                '<div class="timer-badge" style="background:#fef08a;">'
-                '<div class="pulse-dot"></div>'
-                '<span style="color:#000; font-weight:800;">Offline Private Mode</span>'
-                '</div>'
-                '<button type="button" onclick="quitServer()" class="btn-quit-server" data-cursor="Stop Server" style="margin-left:0.75rem; background:#ef4444; color:#fff; border:2px solid #000; border-radius:6px; padding:0.4rem 0.85rem; font-family:\'Space Grotesk\',sans-serif; font-weight:900; font-size:0.8rem; cursor:pointer; box-shadow:2px 2px 0px #000; text-transform:uppercase; transition:all 0.12s ease;">'
-                '🛑 Quit Server'
-                '</button>'
-            )
-            content = content.replace(
-                '<div class="timer-badge">\n      <div class="pulse-dot"></div>\n      <span id="countdown-timer">Expires in: --:--:--</span>\n    </div>',
-                quit_btn_html
-            )
-            
-            # 3. Pre-render indexed documents
-            files_pills = "".join([f'<div class="file-pill">📄 {Path(f).name}</div>' for f in indexed_files]) or '<div class="file-pill">📄 Knowledge Base Documents</div>'
-            content = content.replace('Loading documents...', files_pills)
-            content = content.replace('No documents in this session', files_pills)
-            
-            # 4. Remove all training buttons, studio links, and download button in the desktop installed app
-            content = re.sub(r'<a href="/studio" id="sidebar-new-kb-btn"[\s\S]*?</a>', '', content)
-            content = re.sub(r'<a href="/studio" id="sidebar-studio-link"[\s\S]*?</a>', '', content)
-            content = re.sub(r'<div class="sidebar-footer" id="sidebar-footer-download"[\s\S]*?</div>\s*</aside>', '</aside>', content)
-            content = re.sub(r'<button type="button" class="btn-header-settings"[\s\S]*?</button>', '', content)
-            content = re.sub(r'<div id="portal-settings-modal"[\s\S]*?</div>\s*</div>\s*</div>', '', content)
-            content = re.sub(r'<a href="/" class="sidebar-brand">([\s\S]*?)</a>', r'<div class="sidebar-brand" style="cursor:default;">\1</div>', content)
+        desktop_template = Path("web/templates/desktop.html")
+        if not desktop_template.exists():
+            desktop_template = Path(__file__).parent.parent / "web" / "templates" / "desktop.html"
+        if not desktop_template.exists():
+            desktop_template = Path("web/templates/portal.html")
+        if not desktop_template.exists():
+            desktop_template = Path(__file__).parent.parent / "web" / "templates" / "portal.html"
 
-            # 5. Lock model pill strictly to the selected model
+        if desktop_template.exists():
+            content = desktop_template.read_text(encoding="utf-8")
             clean_m = model_name.replace("ollama:", "").replace("local:", "")
-            content = re.sub(
-                r'<select id="chat-model-select"[\s\S]*?</select>',
-                f'<select id="chat-model-select" class="chat-model-select" disabled style="opacity:0.95;cursor:default;"><option value="ollama:{clean_m}" selected>{clean_m} (Local)</option></select>',
-                content
-            )
+            content = content.replace("Production Engine: Local Assistant", f"Production Engine: {clean_m}")
+            content = content.replace("Production Engine: {{MODEL_NAME}}", f"Production Engine: {clean_m}")
+            content = content.replace("{{SESSION_BADGE}}", f"Production Engine: {clean_m}")
 
-            # 6. Standalone SVG Favicon fallback for immediate tab icon rendering
-            svg_fav = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%23ff2d87\' stroke=\'%23000000\' stroke-width=\'1.5\'%3E%3Cpath d=\'M13 2L3 14h9l-1 8 10-12h-9l1-8z\'/%3E%3C/svg%3E'
-            content = content.replace('<link rel="icon" type="image/png" sizes="32x32" href="/static/assets/favicon.png">', f'<link rel="icon" type="image/svg+xml" href="{svg_fav}">\n  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/favicon.png">')
-            content = content.replace("<script>", "<script>\n    window.IS_STANDALONE = true;")
-            
-            # 6. Inject Standalone LocalStorage Auto-Save & Quit Script
-            standalone_js = f'''
-    const STORAGE_KEY = 'mirag_standalone_history';
+            # Pre-render indexed documents with clean SVG icons (zero emojis)
+            files_pills = "".join([
+                f'<div class="doc-pill-item" title="{Path(f).name}">'
+                f'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+                f'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>'
+                f'<polyline points="14 2 14 8 20 8"></polyline></svg>'
+                f'<span>{Path(f).name}</span></div>'
+                for f in indexed_files
+            ]) or '<div class="doc-pill-item">Knowledge Base Documents</div>'
 
-    function saveChatToStorage() {{
-      try {{
-        const payload = {{
-          html: document.getElementById('chat-box').innerHTML,
-          turns: conversationTurns
-        }};
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-      }} catch (e) {{
-        console.warn("Storage save note:", e);
-      }}
-    }}
-
-    function restoreChatFromStorage() {{
-      try {{
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {{
-          const parsed = JSON.parse(saved);
-          if (parsed.html && parsed.html.trim().length > 10) {{
-            document.getElementById('chat-box').innerHTML = parsed.html;
-            conversationTurns = parsed.turns || [];
-            document.getElementById('chat-box').scrollTop = document.getElementById('chat-box').scrollHeight;
-            return true;
-          }}
-        }}
-      }} catch (e) {{
-        console.warn("Storage restore note:", e);
-      }}
-      return false;
-    }}
-
-    async function quitServer() {{
-      if (!confirm("Are you sure you want to stop and quit the local RAG server?")) return;
-      try {{
-        await fetch('/api/shutdown', {{ method: 'POST' }});
-      }} catch (e) {{}}
-      document.body.innerHTML = `
-        <div style="height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#090c15; color:#fff; font-family:'Space Grotesk',sans-serif; text-align:center; padding:2rem;">
-          <div style="background:#ff2d87; color:#fff; font-size:1.5rem; font-weight:900; padding:0.6rem 1.5rem; border:2.5px solid #000; box-shadow:4px 4px 0px #000; border-radius:8px; margin-bottom:1.5rem;">SERVER SHUT DOWN</div>
-          <p style="font-size:1.1rem; color:#94a3b8; max-width:500px; line-height:1.6;">The offline RAG engine has stopped safely.<br>All chat history has been saved to your local storage.<br>You can now safely close this browser window or tab.</p>
-        </div>
-      `;
-      setTimeout(() => window.close(), 1200);
-    }}
-            '''
-            
             content = content.replace(
-                "let conversationTurns = [];",
-                f"let conversationTurns = [];\n{standalone_js}"
+                '<div style="font-size: 0.78rem; color: #64748b; padding: 0.4rem;">Knowledge Base Documents</div>',
+                files_pills
             )
-            
-            # Hook saveChatToStorage into clearMemory
             content = content.replace(
-                "conversationTurns = [];\n      document.getElementById('chat-box').innerHTML = defaultGreetingHtml;",
-                "localStorage.removeItem(STORAGE_KEY);\n      conversationTurns = [];\n      document.getElementById('chat-box').innerHTML = defaultGreetingHtml;"
+                '<div style="font-size: 0.78rem; color: #64748b; padding: 0.4rem;">No documents in this session</div>',
+                files_pills
             )
-            
-            # Hook restoreChatFromStorage into loadSession
-            content = content.replace(
-                "document.getElementById('chat-box').innerHTML = defaultGreetingHtml;",
-                "const restored = restoreChatFromStorage(); if (!restored) { document.getElementById('chat-box').innerHTML = defaultGreetingHtml; }"
-            )
-            
+            content = content.replace('{{INDEXED_DOCUMENTS_PLACEHOLDER}}', files_pills)
             return content
+
         return f"<h1>Production RAG Assistant ({model_name})</h1>"
 
     def _generate_installer_script(self, model_name: str, embedding_model: str) -> str:
@@ -1060,144 +968,6 @@ This package contains your turnkey, fully-indexed RAG assistant with:
 docker compose up --build
 ```
 '''
-
-    def create_package(self, session: RAGSession) -> Path:
-        bundle_dir = session.session_dir / "standalone_bundle"
-        if bundle_dir.exists():
-            shutil.rmtree(bundle_dir)
-        bundle_dir.mkdir(parents=True, exist_ok=True)
-
-        dest_db = bundle_dir / "vector_db"
-        shutil.copytree(session.db_dir, dest_db)
-
-        images_dest = bundle_dir / "images"
-        images_dest.mkdir(parents=True, exist_ok=True)
-        search_dirs = [
-            getattr(session, "images_dir", None),
-            getattr(session, "uploads_dir", None),
-            session.session_dir / "images",
-            session.session_dir / "extracted_images",
-            session.session_dir / "uploads",
-            session.session_dir
-        ]
-        for sdir in search_dirs:
-            if sdir and Path(sdir).exists():
-                for img_file in Path(sdir).glob("*.*"):
-                    if img_file.is_file() and img_file.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp", ".bmp"]:
-                        target = images_dest / img_file.name
-                        if not target.exists():
-                            shutil.copy2(img_file, target)
-
-        # Copy static assets (logo, favicon, background) into bundle
-        static_dest = bundle_dir / "static" / "assets"
-        static_dest.mkdir(parents=True, exist_ok=True)
-        source_assets = Path("public/static/assets")
-        if not source_assets.exists():
-            source_assets = Path(__file__).parent.parent / "public" / "static" / "assets"
-        if source_assets.exists():
-            for asset_file in source_assets.glob("*.*"):
-                if asset_file.is_file():
-                    shutil.copy2(asset_file, static_dest / asset_file.name)
-
-        # Write Standalone Server, Hydrated Direct Chat UI & Installer
-        (bundle_dir / "server.py").write_text(
-            self._generate_standalone_server_code(session.model_name, "all-MiniLM-L6-v2", session.indexed_files),
-            encoding="utf-8"
-        )
-        (bundle_dir / "index.html").write_text(
-            self._generate_standalone_ui(session.model_name, session.session_id, session.indexed_files),
-            encoding="utf-8"
-        )
-        (bundle_dir / "setup.py").write_text(
-            self._generate_installer_script(session.model_name, "all-MiniLM-L6-v2"),
-            encoding="utf-8"
-        )
-
-        requirements_txt = (
-            "fastapi>=0.110.0\n"
-            "uvicorn>=0.28.0\n"
-            "pydantic>=2.6.0\n"
-            "chromadb>=0.4.24\n"
-            "sentence-transformers>=2.6.0\n"
-            "httpx>=0.27.0\n"
-            "python-multipart>=0.0.9\n"
-            "pywebview>=5.0.0\n"
-        )
-        (bundle_dir / "requirements.txt").write_text(requirements_txt, encoding="utf-8")
-
-        # Write run.bat (Instant Launch with direct Chatbot server execution)
-        run_bat = (
-            "@echo off\n"
-            "setlocal enabledelayedexpansion\n"
-            "title Standalone Enterprise RAG Assistant\n"
-            "\n"
-            ":: 1. Fast check if active python environment already has required modules\n"
-            "python -c \"import fastapi, chromadb, sentence_transformers, httpx\" 2>nul\n"
-            "if %errorlevel% equ 0 (\n"
-            "    echo [*] System environment verified. Launching Chatbot Assistant...\n"
-            "    python server.py\n"
-            "    if !errorlevel! neq 0 (\n"
-            "        echo.\n"
-            "        echo =========================================================\n"
-            "        echo  [!] Server exited with an error code.\n"
-            "        echo =========================================================\n"
-            "        pause\n"
-            "    )\n"
-            "    exit /b\n"
-            ")\n"
-            "\n"
-            ":: 2. Otherwise create venv inheriting system site packages if available\n"
-            "if not exist .venv (\n"
-            "    echo [1/2] Setting up local environment...\n"
-            "    python -m venv --system-site-packages .venv\n"
-            ")\n"
-            "call .venv\\Scripts\\activate.bat\n"
-            "python setup.py\n"
-            "python server.py\n"
-            "if %errorlevel% neq 0 (\n"
-            "    echo.\n"
-            "    echo =========================================================\n"
-            "    echo  [!] Server exited with an error code.\n"
-            "    echo =========================================================\n"
-            "    pause\n"
-            ")\n"
-        )
-        (bundle_dir / "run.bat").write_text(run_bat, encoding="utf-8")
-
-        # Write run.sh (Linux/Mac Launcher)
-        run_sh = (
-            "#!/bin/bash\n"
-            "python3 -c \"import fastapi, chromadb, sentence_transformers, httpx\" 2>/dev/null\n"
-            "if [ $? -eq 0 ]; then\n"
-            "    echo '[OK] System environment has all packages cached. Launching Chatbot Assistant...'\n"
-            "    python3 server.py\n"
-            "    exit 0\n"
-            "fi\n"
-            "if [ ! -d '.venv' ]; then\n"
-            "    python3 -m venv --system-site-packages .venv\n"
-            "fi\n"
-            "source .venv/bin/activate\n"
-            "python3 setup.py\n"
-            "python3 server.py\n"
-        )
-        (bundle_dir / "run.sh").write_text(run_sh, encoding="utf-8")
-
-        dockerfile = (
-            "FROM python:3.11-slim\n"
-            "WORKDIR /app\n"
-            "COPY requirements.txt .\n"
-            "RUN pip install --no-cache-dir -r requirements.txt\n"
-            "COPY . .\n"
-            "EXPOSE 8000\n"
-            "CMD [\"python\", \"server.py\"]\n"
-        )
-        (bundle_dir / "Dockerfile").write_text(dockerfile, encoding="utf-8")
-
-        # 8. Write Installation & Setup Guide
-        (bundle_dir / "INSTALL_GUIDE.md").write_text(
-            self._generate_install_guide(session.model_name),
-            encoding="utf-8"
-        )
 
     def _build_windows_installer(self, bundle_dir: Path, session: RAGSession) -> Optional[Path]:
         """

@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mi:RAG Desktop Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/static/assets/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/favicon.png">
+  <link rel="icon" type="image/x-icon" href="/static/assets/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800;900&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- KaTeX LaTeX Math & Scientific Symbol Engine -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  
+  <style>
+    :root {
+      --bg: #090c15;
+      --sidebar-bg: #0d1220;
+      --sidebar-hover: #172033;
+      --panel-border: 1.5px solid #222d45;
+      --pink: #ff2d87;
+      --yellow: #ffe814;
+      --green: #2be26c;
+      --border: 2px solid #000;
+      --shadow: 3px 3px 0px #000;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Hardware Pink Figma Cursor */
+    html, body {
+      cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='%23ff2d87' stroke='%23000000' stroke-width='1.5' stroke-linejoin='round'%3E%3Cpath d='M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.54.35-.85L6.35 2.85a.5.5 0 0 0-.85.36z'/%3E%3C/svg%3E") 5 3, auto !important;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
+    }
+
+    button, a, input, select, textarea, [role="button"], .btn-action-icon, .visual-card {
+      cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='%23ffe814' stroke='%23000000' stroke-width='1.5' stroke-linejoin='round'%3E%3Cpath d='M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.54.35-.85L6.35 2.85a.5.5 0 0 0-.85.36z'/%3E%3C/svg%3E") 5 3, pointer !important;
+    }
+
+
+    /* Mobile Sidebar Overlay */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 90;
+    }
+    .sidebar-overlay.active {
+      display: block;
+    }
+
+    /* --- LEFT SIDEBAR --- */
+    .portal-sidebar {
+      width: 260px;
+      background: var(--sidebar-bg);
+      border-right: 2px solid #000;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      height: 100vh;
+      z-index: 100;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), width 0.2s ease;
+    }
+    .sidebar-header {
+      padding: 1.1rem 1.1rem 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1.5px solid #1a233a;
+    }
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      text-decoration: none;
+    }
+    .sidebar-logo-img {
+      height: 32px;
+      object-fit: contain;
+    }
+    .btn-close-sidebar {
+      display: none;
+      background: transparent;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      border-radius: 4px;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .btn-close-sidebar:hover {
+      background: var(--pink);
+      color: #fff;
+      border-color: #000;
+    }
+
+    .sidebar-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .sidebar-section-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 0 0.4rem;
+      margin-bottom: 0.4rem;
+    }
+    .sidebar-menu-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .sidebar-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.5rem 0.65rem;
+      border-radius: 6px;
+      color: #cbd5e1;
+      text-decoration: none;
+      font-size: 0.84rem;
+      font-weight: 700;
+      border: 1px solid transparent;
+      transition: all 0.1s ease;
+      cursor: pointer;
+    }
+    .sidebar-nav-item:hover {
+      background: var(--sidebar-hover);
+      color: #fff;
+      border-color: #222d45;
+    }
+
+    /* Standalone Export Button at the Bottom */
+    .sidebar-export-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.55rem;
+      padding: 0.7rem 1rem;
+      border-radius: 6px;
+      background: var(--yellow);
+      color: #000;
+      text-decoration: none;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 900;
+      border: 1.5px solid #000;
+      box-shadow: 2.5px 2.5px 0px #000;
+      transition: all 0.1s ease;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .sidebar-export-btn:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 3.5px 3.5px 0px #000;
+      background: #fde047;
+    }
+    .sidebar-export-btn svg {
+      stroke: #000;
+    }
+
+    .doc-pill-item {
+      padding: 0.4rem 0.65rem;
+      background: #131929;
+      border: 1px solid #1f293d;
+      border-radius: 5px;
+      font-size: 0.76rem;
+      color: #94a3b8;
+      font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .doc-pill-item svg {
+      flex-shrink: 0;
+      color: var(--yellow);
+    }
+
+    /* Sidebar Footer: Export Standalone Container */
+    .sidebar-footer {
+      padding: 0.85rem 0.9rem;
+      border-top: 1.5px solid #1a233a;
+      background: #0a0e1a;
+      display: flex;
+      align-items: center;
+    }
+
+    /* --- MAIN CHAT WORKSPACE (Full Screen Width) --- */
+    .portal-main {
+      flex: 1;
+      width: 100%;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: relative;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .top-header {
+      height: 56px;
+      padding: 0 1.5rem;
+      border-bottom: 2px solid #000;
+      background: rgba(13, 18, 32, 0.95);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .top-header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    /* Electricity Lightning Hamburger Button */
+    .btn-electricity-menu {
+      background: #151c2e;
+      border: 1.5px solid #000;
+      box-shadow: 2px 2px 0px #000;
+      border-radius: 6px;
+      padding: 0.35rem 0.55rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.12s ease;
+    }
+    .btn-electricity-menu:hover {
+      background: #1e2842;
+      transform: translate(-1px, -1px);
+      box-shadow: 3px 3px 0px #000;
+    }
+    .btn-electricity-menu svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+
+    .session-badge {
+      background: #000;
+      color: var(--yellow);
+      padding: 0.25rem 0.65rem;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      border: 1px solid #222d45;
+    }
+
+    .top-header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .session-model-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: rgba(18, 24, 38, 0.78);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 9999px;
+      padding: 0.16rem 0.28rem 0.16rem 0.45rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+      width: fit-content;
+      max-width: fit-content;
+      flex-shrink: 0;
+    }
+    .session-model-pill:hover {
+      border-color: rgba(255, 255, 255, 0.25);
+      background: rgba(24, 32, 52, 0.9);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    }
+    .provider-badge-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.12rem 0.45rem;
+      border-radius: 9999px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      line-height: 1.2;
+      user-select: none;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+    .provider-badge-icon.badge-local {
+      background: rgba(16, 185, 129, 0.16);
+      color: #34d399;
+      border: 1px solid rgba(52, 211, 153, 0.35);
+    }
+    .provider-badge-icon.badge-cloud {
+      background: rgba(56, 189, 248, 0.16);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+    .chat-model-select {
+      background: transparent;
+      color: #f1f5f9;
+      border: none;
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-weight: 600;
+      font-size: 0.8rem;
+      cursor: pointer;
+      outline: none;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 0 1rem 0 0.1rem;
+      margin: 0;
+      width: auto;
+      max-width: 200px;
+      transition: color 0.15s ease;
+    }
+    .chat-model-select:hover {
+      color: #ffffff;
+    }
+    .chat-model-select option,
+    .chat-model-select optgroup {
+      background: #0f172a;
+      color: #f1f5f9;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 500;
+      font-size: 0.82rem;
+    }
+    .chat-model-select optgroup {
+      font-weight: 700;
+      color: #94a3b8;
+    }
+    .btn-header-settings {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      padding: 0;
+      flex-shrink: 0;
+      transition: color 0.15s ease, background 0.15s ease, transform 0.25s ease;
+    }
+    .btn-header-settings:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #f8fafc;
+      transform: rotate(35deg);
+    }
+    .btn-header-settings svg {
+      width: 14px;
+      height: 14px;
+      stroke-width: 2;
+    }
+    .timer-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: #ffe814;
+      border: 1.5px solid #000;
+      color: #000;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      font-family: 'Space Grotesk', sans-serif;
+      box-shadow: 2px 2px 0px #000;
+    }
+    .pulse-dot { width: 7px; height: 7px; background: var(--pink); border-radius: 50%; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* Chat Messages Full Width Scroll Container */
+    .chat-scroll-area {
+      flex: 1;
+      width: 100%;
+      overflow-y: auto;
+      padding: 1.5rem 2rem 9.5rem;
+      scroll-behavior: smooth;
+      display: flex;
+      flex-direction: column;
+    }
+    .chat-container {
+      width: 100%;
+      max-width: 100% !important;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* --- MESSAGE ROWS --- */
+    .msg-row {
+      display: flex;
+      width: 100%;
+      flex-direction: column;
+      animation: fadeInMsg 0.2s ease;
+    }
+    @keyframes fadeInMsg {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* User Message: Original Contrasting Pink Bubble with Crisp Shadow */
+    .msg-row.user-row {
+      align-items: flex-end;
+    }
+    .user-bubble {
+      background: var(--pink);
+      color: #ffffff;
+      border: 2px solid #000000;
+      border-radius: 18px 18px 4px 18px;
+      padding: 0.7rem 1.25rem;
+      font-size: 0.95rem;
+      line-height: 1.55;
+      font-weight: 700;
+      box-shadow: 3px 3px 0px #000000;
+      max-width: 85%;
+      word-break: break-word;
+    }
+
+    /* Quoted Message Header inside user message bubble */
+    .user-quoted-preview {
+      background: rgba(0, 0, 0, 0.25);
+      border-left: 3px solid var(--yellow);
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #ffe4e6;
+    }
+
+    /* Assistant Message */
+    .msg-row.bot-row {
+      align-items: flex-start;
+      width: 100%;
+    }
+    .bot-body {
+      width: 100%;
+      color: #f8fafc;
+      font-size: 0.96rem;
+      line-height: 1.7;
+    }
+
+    /* Compact Fact-Checked / Grounded Match Badge */
+    .grounded-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.68rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      color: #000;
+      background: var(--green);
+      border: 1px solid #000;
+      padding: 0.12rem 0.5rem;
+      border-radius: 3px;
+      box-shadow: 1.5px 1.5px 0px #000;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .msg-content {
+      font-size: 0.96rem;
+      line-height: 1.68;
+      color: #f1f5f9;
+      width: 100%;
+    }
+    .msg-content p {
+      margin: 0 0 0.65rem 0;
+      line-height: 1.68;
+    }
+    .msg-content p:last-child {
+      margin-bottom: 0;
+    }
+    .msg-content strong {
+      color: #ffffff;
+      font-weight: 800;
+    }
+    .msg-content em {
+      color: #cbd5e1;
+      font-style: italic;
+    }
+    .msg-content .msg-h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 1.1rem 0 0.45rem 0;
+      font-family: 'Space Grotesk', sans-serif;
+      letter-spacing: -0.2px;
+    }
+    .msg-content .msg-h2 {
+      font-size: 1.12rem;
+      font-weight: 800;
+      color: #f8fafc;
+      margin: 1rem 0 0.4rem 0;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .msg-content .msg-h3 {
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin: 0.85rem 0 0.35rem 0;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .msg-content .msg-h4 {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin: 0.7rem 0 0.3rem 0;
+    }
+    .msg-content ul, .msg-content ol {
+      margin: 0.35rem 0 0.65rem 1.25rem;
+      padding-left: 0.25rem;
+    }
+    .msg-content li {
+      margin-bottom: 0.25rem;
+      line-height: 1.55;
+      color: #e2e8f0;
+    }
+    .msg-content li:last-child {
+      margin-bottom: 0;
+    }
+    .msg-content code {
+      font-family: 'JetBrains Mono', monospace;
+      background: #182035;
+      color: #38bdf8;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      border: 1px solid #232d4b;
+    }
+    .code-block {
+      background: #0f1422;
+      color: #e2e8f0;
+      padding: 0.85rem 1.1rem;
+      border-radius: 8px;
+      border: 1.5px solid #222d45;
+      box-shadow: 2.5px 2.5px 0px #000;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      margin: 0.75rem 0;
+      overflow-x: auto;
+      width: 100%;
+    }
+
+    /* Modern Dark-Mode Tables (Matching ChatGPT/Claude aesthetics) */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      margin: 0.85rem 0;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #090d16;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+    }
+    .markdown-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+    .markdown-table thead {
+      background: #111827;
+      border-bottom: 1.5px solid rgba(255, 255, 255, 0.14);
+    }
+    .markdown-table th {
+      padding: 0.65rem 0.95rem;
+      font-weight: 700;
+      color: #f8fafc;
+      font-family: 'Space Grotesk', sans-serif;
+      letter-spacing: 0.2px;
+    }
+    .markdown-table td {
+      padding: 0.55rem 0.95rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      color: #cbd5e1;
+    }
+    .markdown-table tr:last-child td {
+      border-bottom: none;
+    }
+    .markdown-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Contextual Inline Diagram Card - Sleek Floating Right-Side Card */
+    .inline-diag-card {
+      float: right;
+      clear: right;
+      margin: 0.35rem 0 1rem 1.35rem;
+      width: 350px;
+      max-width: 46%;
+      background: #0d121f;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      cursor: pointer;
+    }
+    .inline-diag-card:hover {
+      border-color: rgba(56, 189, 248, 0.4);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      transform: translateY(-2px);
+    }
+    .inline-diag-body {
+      position: relative;
+      background: #ffffff;
+      padding: 0.35rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 120px;
+    }
+    .inline-diag-body img {
+      width: 100%;
+      height: auto;
+      max-height: 220px;
+      object-fit: contain;
+      display: block;
+      border-radius: 4px;
+    }
+    .inline-diag-zoom-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+      color: #cbd5e1;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      transition: all 0.12s ease;
+    }
+    .inline-diag-card:hover .inline-diag-zoom-btn {
+      background: #38bdf8;
+      color: #000;
+      border-color: #38bdf8;
+    }
+    .inline-diag-caption {
+      padding: 0.45rem 0.65rem 0.5rem;
+      background: #0b0f19;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .inline-diag-caption .diag-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      font-family: 'Space Grotesk', sans-serif;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+    .inline-diag-caption .diag-meta {
+      font-size: 0.68rem;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 0.2rem;
+    }
+    .inline-diag-caption .inline-diag-rel {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #34d399;
+      background: rgba(52, 211, 153, 0.12);
+      border: 1px solid rgba(52, 211, 153, 0.25);
+      padding: 0.05rem 0.35rem;
+      border-radius: 3px;
+    }
+
+    .msg-content::after {
+      content: "";
+      display: table;
+      clear: both;
+    }
+    .msg-content .msg-h1,
+    .msg-content .msg-h2,
+    .msg-content .msg-h3,
+    .msg-content .msg-h4 {
+      clear: both;
+    }
+
+    @media (max-width: 768px) {
+      .inline-diag-card {
+        float: none;
+        margin: 0.75rem 0;
+        width: 100%;
+        max-width: 100%;
+      }
+    }
+
+    /* KaTeX Typography */
+    .katex {
+      font-size: 1.05em !important;
+      color: inherit;
+    }
+    .katex-display {
+      margin: 0.6em 0 !important;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 0.25em 0;
+    }
+
+    /* --- MINIMAL ACTION ICON BAR (Thumbs Up, Down, Reply, Copy) --- */
+    .msg-action-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-top: 0.65rem;
+      background: rgba(15, 20, 34, 0.75);
+      border: 1px solid #1f2a42;
+      border-radius: 6px;
+      padding: 0.2rem 0.35rem;
+    }
+    .btn-action-icon {
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 0.3rem 0.45rem;
+      color: #94a3b8;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.12s ease;
+      cursor: pointer;
+      user-select: none;
+    }
+    .btn-action-icon:hover {
+      background: #1e2842;
+      color: #fff;
+      border-color: #334155;
+    }
+    .btn-action-icon.active-up {
+      background: var(--green) !important;
+      color: #000 !important;
+      border-color: #000 !important;
+    }
+    .btn-action-icon.active-down {
+      background: #f87171 !important;
+      color: #000 !important;
+      border-color: #000 !important;
+    }
+
+    /* Visual Gallery & Evidence */
+    .visual-gallery {
+      margin-top: 0.85rem;
+      padding: 0.85rem;
+      background: #0f1526;
+      border: 1.5px solid #222d45;
+      border-radius: 8px;
+      width: 100%;
+    }
+    .visual-gallery-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.78rem;
+      color: var(--yellow);
+      margin-bottom: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .visual-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .visual-card {
+      background: #090c15;
+      border: 1.5px solid #000;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 2px 2px 0px #000;
+      transition: all 0.15s ease;
+      cursor: pointer;
+      max-width: 220px;
+    }
+    .visual-card:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 3.5px 3.5px 0px #000;
+      border-color: var(--yellow);
+    }
+    .visual-card img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      display: block;
+      background: #fff;
+    }
+    .visual-card-info {
+      padding: 0.35rem 0.55rem;
+      font-size: 0.72rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      color: #cbd5e1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #111827;
+    }
+
+    .citations {
+      margin-top: 0.65rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+    }
+    .citation-tag {
+      background: #111728;
+      border: 1px solid #1f293d;
+      color: #94a3b8;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* --- BOTTOM INPUT CONTAINER (Full Width Floating Capsule) --- */
+    .portal-bottom-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      padding: 1rem 2rem 1.5rem;
+      background: linear-gradient(to top, #090c15 75%, transparent 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      z-index: 15;
+    }
+    .input-capsule-wrapper {
+      width: 100%;
+      position: relative;
+    }
+
+    /* WhatsApp/Discord Style Quoted Reply Banner */
+    .reply-preview-dock {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      background: #12192c;
+      border-left: 4px solid var(--pink);
+      border-top: 1.5px solid #222d45;
+      border-right: 1.5px solid #222d45;
+      border-radius: 12px 12px 0 0;
+      padding: 0.55rem 1rem;
+      margin-bottom: -4px;
+      box-shadow: 2px 2px 0px #000;
+      animation: slideUp 0.15s ease;
+    }
+    .reply-preview-text-box {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      overflow: hidden;
+    }
+    .reply-preview-label {
+      font-size: 0.74rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      color: var(--pink);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .reply-preview-content {
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .btn-cancel-reply {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.1rem;
+      font-weight: 900;
+      cursor: pointer;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+    }
+    .btn-cancel-reply:hover {
+      color: #fff;
+      background: #1f2a42;
+    }
+
+    /* Minimal Attachment Preview Bar */
+    .image-preview-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: #182035;
+      border: var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 0.85rem;
+      margin-bottom: 0.6rem;
+      box-shadow: 2px 2px 0px #000;
+      animation: slideUp 0.15s ease;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .preview-thumbnail-wrapper {
+      position: relative;
+      width: 42px;
+      height: 42px;
+      border-radius: 4px;
+      border: 1px solid #000;
+      overflow: hidden;
+      background: #000;
+      flex-shrink: 0;
+    }
+    .preview-thumbnail-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .btn-remove-preview {
+      position: absolute;
+      top: 1px;
+      right: 1px;
+      background: var(--pink);
+      color: #fff;
+      border: 1px solid #000;
+      border-radius: 50%;
+      width: 15px;
+      height: 15px;
+      font-size: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-weight: 900;
+    }
+    .preview-filename {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    /* Input Capsule Form */
+    .input-form-capsule {
+      display: flex;
+      align-items: center;
+      background: #141b2d;
+      border: 2px solid #000;
+      border-radius: 28px;
+      padding: 0.45rem 0.7rem 0.45rem 1.1rem;
+      box-shadow: 3px 3px 0px #000;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      width: 100%;
+    }
+    .input-form-capsule.has-dock {
+      border-radius: 0 0 28px 28px;
+    }
+    .input-form-capsule:focus-within {
+      border-color: var(--yellow);
+      box-shadow: 4px 4px 0px #000;
+      background: #172036;
+    }
+    .btn-attach-capsule {
+      background: #1f2942;
+      border: 1.5px solid #000;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-right: 0.65rem;
+      cursor: pointer;
+      box-shadow: 1.5px 1.5px 0px #000;
+      transition: all 0.1s ease;
+    }
+    .btn-attach-capsule:hover {
+      background: var(--yellow);
+      color: #000;
+      transform: translate(-1px, -1px);
+    }
+    .input-capsule-field {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.95rem;
+      outline: none;
+      padding: 0.4rem 0;
+    }
+    .input-capsule-field::placeholder {
+      color: #64748b;
+    }
+    .btn-send-capsule {
+      background: var(--pink);
+      color: #fff;
+      border: 1.5px solid #000;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      cursor: pointer;
+      box-shadow: 2px 2px 0px #000;
+      transition: all 0.1s ease;
+    }
+    .btn-send-capsule:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 3px 3px 0px #000;
+      background: #e11d48;
+    }
+    .btn-send-capsule:disabled {
+      background: #334155;
+      color: #94a3b8;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    /* Right-Click Context Menu */
+    .chat-context-menu {
+      display: none;
+      position: fixed;
+      z-index: 100000;
+      background: #ffffff;
+      border: 2px solid #000000;
+      box-shadow: 3px 3px 0px #000000;
+      border-radius: 6px;
+      padding: 0.3rem;
+      min-width: 140px;
+    }
+    .context-menu-item {
+      padding: 0.4rem 0.65rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.8rem;
+      color: #0f172a;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.1s ease;
+    }
+    .context-menu-item:hover {
+      background: var(--yellow);
+      color: #000000;
+    }
+
+    /* Modals */
+    .custom-modal {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100000;
+    }
+    .custom-modal.active { display: flex; }
+    .modal-card {
+      background: #ffffff;
+      color: #000000;
+      border: 2px solid #000;
+      box-shadow: 6px 6px 0px #000;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 480px;
+      padding: 1.5rem;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .modal-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 1.15rem;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .modal-dropzone {
+      border: 2px dashed #000000;
+      border-radius: 8px;
+      padding: 2rem 1.25rem;
+      text-align: center;
+      background: #f8fafc;
+      cursor: pointer;
+    }
+    .modal-dropzone:hover {
+      background: #fef08a;
+    }
+
+    /* Fullscreen Image Zoom Modal */
+    #image-modal {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200000;
+    }
+    #image-modal.active { display: flex; }
+    .modal-content-box {
+      max-width: 90vw;
+      max-height: 90vh;
+      text-align: center;
+    }
+    .modal-content-box img {
+      max-width: 100%;
+      max-height: 80vh;
+      object-fit: contain;
+      border: 2.5px solid #000;
+      border-radius: 8px;
+      box-shadow: 6px 6px 0px #000;
+      background: #fff;
+    }
+    .modal-close-btn {
+      position: absolute;
+      top: 1.5rem;
+      right: 2rem;
+      background: var(--pink);
+      color: #fff;
+      border: 2px solid #000;
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 2px 2px 0px #000;
+    }
+
+    /* Responsive Drawer Styles for Smaller Windows */
+    @media (max-width: 860px) {
+      .portal-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        transform: translateX(-100%);
+        box-shadow: 6px 0px 0px #000;
+      }
+      .portal-sidebar.open {
+        transform: translateX(0);
+      }
+      .btn-close-sidebar {
+        display: block;
+      }
+      .top-header {
+        padding: 0 1rem;
+      }
+      .chat-scroll-area {
+        padding: 1rem 1rem 8.5rem;
+      }
+      .portal-bottom-bar {
+        padding: 0.75rem 1rem 1.1rem;
+      }
+    }
+  </style>
+
+  
+
+  <style>
+    .btn-quit-server {
+      margin-left: 0.75rem;
+      background: #ef4444;
+      color: #fff;
+      border: 1.5px solid #000;
+      border-radius: 6px;
+      padding: 0.35rem 0.85rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.78rem;
+      cursor: pointer;
+      box-shadow: 2px 2px 0px #000;
+      text-transform: uppercase;
+      transition: all 0.12s ease;
+    }
+    .btn-quit-server:hover {
+      background: #dc2626;
+      transform: translate(-1px, -1px);
+      box-shadow: 3px 3px 0px #000;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Mobile Backdrop Overlay -->
+  <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar(false)"></div>
+
+  <!-- Fullscreen Image Zoom Modal -->
+  <div id="image-modal" onclick="closeImageModal()">
+    <div class="modal-content-box" onclick="event.stopPropagation()">
+      <button class="modal-close-btn" onclick="closeImageModal()">✕ CLOSE</button>
+      <img id="modal-img" src="" alt="Zoomed Diagram">
+      <div id="modal-caption" style="margin-top: 0.75rem; color: #fff; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.85rem;"></div>
+    </div>
+  </div>
+
+  <!-- Image Search & Upload Modal -->
+  <div id="attach-modal" class="custom-modal" onclick="closeAttachModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">Attach Image to Compare</div>
+        <button type="button" class="modal-close" onclick="closeAttachModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-dropzone" id="modal-dropzone" onclick="document.getElementById('query-file-input').click()">
+          <div style="margin-bottom: 0.5rem;">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          </div>
+          <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.95rem;"><strong>Click to Upload</strong>, <strong>Drag & Drop</strong>, or <strong>Paste (Ctrl+V)</strong></div>
+          <div style="font-size: 0.78rem; color: #64748b; margin-top: 0.35rem;">Supports PNG, JPG, JPEG, WEBP • Math Sheets • Diagrams • Charts</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Menu (Right Click) -->
+  <div id="chat-context-menu" class="chat-context-menu">
+    <div class="context-menu-item" id="context-reply-item" onclick="replyToSelectedMessage()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>
+      <span>Reply / Quote</span>
+    </div>
+    <div class="context-menu-item" onclick="copySelectedMessage()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      <span>Copy Text</span>
+    </div>
+  </div>
+
+  <!-- --- LEFT SIDEBAR --- -->
+  <aside class="portal-sidebar" id="portal-sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand" style="cursor:default;">
+        <img src="/static/assets/logo.png" class="sidebar-logo-img" alt="Mi:RAG">
+      </div>
+      <button type="button" class="btn-close-sidebar" onclick="toggleSidebar(false)">✕</button>
+    </div>
+
+    <div class="sidebar-scroll">
+      <div>
+        <div class="sidebar-section-title">Session Actions</div>
+        <div class="sidebar-menu-list">
+          <div class="sidebar-nav-item" onclick="clearMemory()" title="Reset session dialogue memory">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+            <span>Reset Memory</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar-section-title">Indexed Documents</div>
+        <div id="indexed-files-container">
+          <!-- Populated from server -->
+          <div style="font-size: 0.78rem; color: #64748b; padding: 0.4rem;">Knowledge Base Documents</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- --- MAIN CHAT WORKSPACE --- -->
+  <main class="portal-main">
+    <header class="top-header">
+      <div class="top-header-left">
+        <!-- Electricity Lightning Hamburger Button -->
+        <button type="button" class="btn-electricity-menu" id="btn-electricity-menu" onclick="toggleSidebar()" title="Toggle Knowledge Base & Sidebar" data-cursor="Toggle Menu">
+          <svg viewBox="0 0 24 24" fill="#ff2d87" stroke="#000000" stroke-width="1.5" stroke-linejoin="round">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+          </svg>
+        </button>
+        <div class="session-badge" id="session-badge">Production Engine: Local Assistant</div>
+      </div>
+      <div class="top-header-right">
+        <div class="timer-badge" style="background:#fef08a;">
+          <div class="pulse-dot"></div>
+          <span style="color:#000; font-weight:800;">Offline Private Mode</span>
+        </div>
+        <button type="button" onclick="quitServer()" class="btn-quit-server" title="Exit and stop offline server">Quit Server</button>
+      </div>
+    </header>
+
+    <!-- Chat Messages Scroll Feed (Full Width) -->
+    <div class="chat-scroll-area" id="chat-scroll-area">
+      <div class="chat-container" id="chat-box">
+        <div class="msg-row bot-row">
+          <div class="bot-body">
+            <div class="grounded-badge">Fact-Checked & Grounded</div>
+            <div class="msg-content">
+              Hello! This is your private offline AI assistant. Ask questions about your indexed documents or attach an image to analyze.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Fixed Input Bar -->
+    <div class="portal-bottom-bar">
+      <div class="input-capsule-wrapper">
+        <!-- Quoted Reply Dock -->
+        <div id="reply-preview-dock" class="reply-preview-dock">
+          <div class="reply-preview-text-box">
+            <span class="reply-preview-label" id="reply-preview-label">Replying to Assistant</span>
+            <span class="reply-preview-content" id="reply-preview-content">Snippet...</span>
+          </div>
+          <button type="button" class="btn-cancel-reply" onclick="cancelQuotedReply()" title="Cancel reply">✕</button>
+        </div>
+
+        <!-- Attachment Preview -->
+        <div id="image-preview-bar" class="image-preview-bar" style="display: none;">
+          <div class="preview-thumbnail-wrapper">
+            <img id="preview-thumb" src="" alt="Query Image">
+            <button type="button" class="btn-remove-preview" onclick="clearQueryImage()" title="Remove image">✕</button>
+          </div>
+          <span class="preview-filename" id="preview-name">image.png</span>
+        </div>
+
+        <form class="input-form-capsule" id="chat-form">
+          <button type="button" class="btn-attach-capsule" id="btn-attach-img" title="Attach image / photo" onclick="openAttachModal()" data-cursor="Attach Image">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          <input type="file" id="query-file-input" accept="image/*" style="display: none;" onchange="handleFileSelected(event)">
+
+          <textarea id="user-input" class="chat-textarea" placeholder="Ask a question about your indexed knowledge base..." rows="1" autofocus></textarea>
+
+          <button type="submit" class="btn-send-capsule" id="send-btn" title="Send message" data-cursor="Send">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    window.IS_STANDALONE = true;
+    const STORAGE_KEY = 'mirag_standalone_history';
+    let conversationTurns = [];
+    let currentAttachedFile = null;
+    let currentAttachedBase64 = null;
+    let activeQuotedSnippet = null;
+    const botMessageMap = {};
+
+    // Sidebar Slide Drawer Toggle
+    const sidebar = document.getElementById('portal-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    function toggleSidebar(forceState) {
+      if (!sidebar) return;
+      const isOpen = sidebar.classList.contains('open');
+      const nextState = (typeof forceState === 'boolean') ? forceState : !isOpen;
+      if (nextState) {
+        sidebar.classList.add('open');
+        if (overlay) overlay.classList.add('active');
+      } else {
+        sidebar.classList.remove('open');
+        if (overlay) overlay.classList.remove('active');
+      }
+    }
+
+    const defaultGreetingHtml = `
+      <div class="msg-row bot-row">
+        <div class="bot-body">
+          <div class="grounded-badge">Fact-Checked & Grounded</div>
+          <div class="msg-content">
+            Hello! This is your private offline AI assistant. Ask questions about your indexed documents or attach an image to analyze.
+          </div>
+        </div>
+      </div>
+    `;
+
+    // LocalStorage Persistent History
+    function saveChatToStorage() {
+      try {
+        const payload = {
+          html: document.getElementById('chat-box').innerHTML,
+          turns: conversationTurns
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      } catch (e) {
+        console.warn("Storage save note:", e);
+      }
+    }
+
+    function restoreChatFromStorage() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.html && parsed.html.trim().length > 10) {
+            document.getElementById('chat-box').innerHTML = parsed.html;
+            conversationTurns = parsed.turns || [];
+            document.getElementById('chat-box').scrollTop = document.getElementById('chat-box').scrollHeight;
+            return true;
+          }
+        }
+      } catch (e) {
+        console.warn("Storage restore note:", e);
+      }
+      return false;
+    }
+
+    async function clearMemory() {
+      if (!confirm("Are you sure you want to reset conversation memory?")) return;
+      try {
+        await fetch('/api/clear_memory', { method: 'POST' });
+      } catch (err) {
+        console.warn("Memory clearance note:", err);
+      }
+      localStorage.removeItem(STORAGE_KEY);
+      conversationTurns = [];
+      document.getElementById('chat-box').innerHTML = defaultGreetingHtml;
+      if (window.innerWidth <= 860) toggleSidebar(false);
+    }
+
+    async function quitServer() {
+      if (!confirm("Are you sure you want to stop and quit the offline assistant?")) return;
+      try {
+        await fetch('/api/shutdown', { method: 'POST' });
+      } catch (e) {}
+      document.body.innerHTML = `
+        <div style="height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#090c15; color:#fff; font-family:'Space Grotesk',sans-serif; text-align:center; padding:2rem;">
+          <div style="background:#ff2d87; color:#fff; font-size:1.5rem; font-weight:900; padding:0.6rem 1.5rem; border:2.5px solid #000; box-shadow:4px 4px 0px #000; border-radius:8px; margin-bottom:1.5rem;">ASSISTANT CLOSED</div>
+          <p style="font-size:1.1rem; color:#94a3b8; max-width:500px; line-height:1.6;">The offline engine has stopped safely.<br>All chat history has been preserved.<br>You can now safely close this window.</p>
+        </div>
+      `;
+      setTimeout(() => window.close(), 1200);
+    }
+
+    // Load server info and indexed files
+    async function initDesktopApp() {
+      try {
+        const res = await fetch('/api/info');
+        if (res.ok) {
+          const data = await res.json();
+          const badge = document.getElementById('session-badge');
+          if (badge && data.model) {
+            badge.innerText = `Production Engine: ${data.model}`;
+          }
+          const filesContainer = document.getElementById('indexed-files-container');
+          if (filesContainer && data.indexed_files && data.indexed_files.length > 0) {
+            filesContainer.innerHTML = data.indexed_files.map(f => `
+              <div class="doc-pill-item" title="${f}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                <span>${f}</span>
+              </div>
+            `).join('');
+          }
+        }
+      } catch (e) {
+        console.warn("Server info fetch note:", e);
+      }
+
+      // Restore chat history if exists
+      const restored = restoreChatFromStorage();
+      if (!restored) {
+        document.getElementById('chat-box').innerHTML = defaultGreetingHtml;
+      }
+    }
+
+    // Quoted Reply Dock
+    const replyDock = document.getElementById('reply-preview-dock');
+    const replyContent = document.getElementById('reply-preview-content');
+
+    function setQuotedReply(text) {
+      if (!text) return;
+      activeQuotedSnippet = text.trim().slice(0, 140);
+      replyContent.innerText = activeQuotedSnippet;
+      replyDock.style.display = 'flex';
+      chatForm.classList.add('has-dock');
+      userInput.focus();
+    }
+
+    function cancelQuotedReply() {
+      activeQuotedSnippet = null;
+      replyDock.style.display = 'none';
+      chatForm.classList.remove('has-dock');
+    }
+
+    // Modals
+    function openImageModal(imgSrc, caption) {
+      const modal = document.getElementById('image-modal');
+      const img = document.getElementById('modal-img');
+      const cap = document.getElementById('modal-caption');
+      if (!modal || !img) return;
+      img.src = imgSrc;
+      if (cap) cap.innerText = caption || 'Diagram Preview';
+      modal.classList.add('open');
+    }
+
+    function closeImageModal() {
+      const modal = document.getElementById('image-modal');
+      if (modal) modal.classList.remove('open');
+    }
+
+    function openAttachModal() {
+      const m = document.getElementById('attach-modal');
+      if (m) m.classList.add('open');
+    }
+
+    function closeAttachModal() {
+      const m = document.getElementById('attach-modal');
+      if (m) m.classList.remove('open');
+    }
+
+    function handleFileSelected(event) {
+      const file = event.target.files && event.target.files[0];
+      if (file) handleImageFile(file);
+    }
+
+    function handleImageFile(file) {
+      if (!file.type.startsWith('image/')) {
+        alert("Please upload a valid image file.");
+        return;
+      }
+      currentAttachedFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        currentAttachedBase64 = e.target.result;
+        document.getElementById('preview-thumb').src = currentAttachedBase64;
+        document.getElementById('preview-name').innerText = file.name;
+        document.getElementById('image-preview-bar').style.display = 'flex';
+        closeAttachModal();
+        userInput.focus();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearQueryImage() {
+      currentAttachedFile = null;
+      currentAttachedBase64 = null;
+      document.getElementById('image-preview-bar').style.display = 'none';
+      document.getElementById('query-file-input').value = '';
+    }
+
+    // Drag and Drop & Paste
+    const dropzone = document.getElementById('modal-dropzone');
+    if (dropzone) {
+      dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.style.borderColor = '#ff2d87'; });
+      dropzone.addEventListener('dragleave', (e) => { e.preventDefault(); dropzone.style.borderColor = '#000'; });
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.style.borderColor = '#000';
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleImageFile(e.dataTransfer.files[0]);
+        }
+      });
+    }
+
+    document.addEventListener('paste', (e) => {
+      const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+      for (const item of items) {
+        if (item.type.indexOf('image') !== -1) {
+          const blob = item.getAsFile();
+          handleImageFile(blob);
+          break;
+        }
+      }
+    });
+
+    // Right-Click Context Menu
+    const contextMenu = document.getElementById('chat-context-menu');
+    let contextSelectedText = '';
+
+    document.addEventListener('contextmenu', (e) => {
+      const sel = window.getSelection().toString().trim();
+      const botMsg = e.target.closest('.bot-body');
+      if (sel && botMsg) {
+        e.preventDefault();
+        contextSelectedText = sel;
+        contextMenu.style.left = `${e.pageX}px`;
+        contextMenu.style.top = `${e.pageY}px`;
+        contextMenu.classList.add('open');
+      } else {
+        contextMenu.classList.remove('open');
+      }
+    });
+
+    document.addEventListener('click', () => {
+      if (contextMenu) contextMenu.classList.remove('open');
+    });
+
+    function replyToSelectedMessage() {
+      if (contextSelectedText) setQuotedReply(contextSelectedText);
+    }
+
+    function copySelectedMessage() {
+      if (contextSelectedText) navigator.clipboard.writeText(contextSelectedText);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.innerText = text;
+      return div.innerHTML;
+    }
+
+    function formatMarkdown(text) {
+      if (!text) return '';
+      try {
+        let parsed = marked.parse(text);
+        // Sanitize
+        if (window.DOMPurify) parsed = DOMPurify.sanitize(parsed);
+        return parsed;
+      } catch (e) {
+        return escapeHtml(text);
+      }
+    }
+
+    // Textarea Auto-Resize
+    const userInput = document.getElementById('user-input');
+    const chatForm = document.getElementById('chat-form');
+    const chatBox = document.getElementById('chat-box');
+    const chatScrollArea = document.getElementById('chat-scroll-area');
+    const sendBtn = document.getElementById('send-btn');
+
+    userInput.addEventListener('input', () => {
+      userInput.style.height = 'auto';
+      userInput.style.height = Math.min(userInput.scrollHeight, 180) + 'px';
+    });
+
+    userInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        chatForm.dispatchEvent(new Event('submit'));
+      }
+    });
+
+    // Chat Submission
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const query = userInput.value.trim();
+      const hasImage = Boolean(currentAttachedFile);
+
+      if (!query && !hasImage) return;
+
+      const quotedToPass = activeQuotedSnippet;
+      cancelQuotedReply();
+
+      // Render user message row
+      let userBubbleHtml = '';
+      if (quotedToPass) {
+        userBubbleHtml += `<div class="user-quoted-preview">Replying to: "${escapeHtml(quotedToPass)}"</div>`;
+      }
+      if (currentAttachedBase64) {
+        userBubbleHtml += `<div style="margin-bottom:0.5rem;"><img src="${currentAttachedBase64}" style="max-width:180px; max-height:140px; border-radius:6px; border:1.5px solid #000; display:block;" onclick="openImageModal('${currentAttachedBase64}', 'Attached Image')"></div>`;
+      }
+      if (query) {
+        userBubbleHtml += `<div>${formatMarkdown(query)}</div>`;
+      } else {
+        userBubbleHtml += `<div><em>[Visual Search Query]</em></div>`;
+      }
+
+      const userMsgId = 'user-' + Date.now();
+      chatBox.innerHTML += `
+        <div class="msg-row user-row" id="${userMsgId}">
+          <div class="user-bubble">${userBubbleHtml}</div>
+        </div>
+      `;
+
+      userInput.value = '';
+      userInput.style.height = 'auto';
+
+      const attachedFileToSend = currentAttachedFile;
+      clearQueryImage();
+      chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
+
+      // Temporary bot waiting row
+      const botMsgId = 'bot-' + Date.now();
+      chatBox.innerHTML += `
+        <div class="msg-row bot-row" id="${botMsgId}">
+          <div class="bot-body">
+            <div class="grounded-badge" style="background:var(--yellow); color:#000;">Searching Knowledge Base...</div>
+            <div class="msg-content" style="color:#94a3b8;">Searching and analyzing with verified grounding...</div>
+          </div>
+        </div>
+      `;
+      chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
+      if (sendBtn) sendBtn.disabled = true;
+
+      try {
+        let res;
+        const recentHistory = conversationTurns.slice(-8);
+        const effectiveMessage = quotedToPass ? `[Context: In response to "${quotedToPass}"]
+${query}` : query;
+
+        if (attachedFileToSend) {
+          const fd = new FormData();
+          fd.append('message', effectiveMessage);
+          fd.append('top_k', 6);
+          fd.append('image', attachedFileToSend);
+          fd.append('history', JSON.stringify(recentHistory));
+          res = await fetch('/api/chat', {
+            method: 'POST',
+            body: fd
+          });
+        } else {
+          res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: effectiveMessage,
+              top_k: 6,
+              history: recentHistory
+            })
+          });
+        }
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        // Build grounded sources pills
+        let sourcesHtml = '';
+        if (data.grounded_sources && data.grounded_sources.length > 0) {
+          sourcesHtml = '<div class="sources-container"><div class="sources-title">Verified Sources:</div><div class="sources-list">';
+          data.grounded_sources.forEach(src => {
+            sourcesHtml += `<div class="source-pill" title="${escapeHtml(src.content || '')}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>${escapeHtml(src.file || 'Document')} (Relevance: ${Math.round((src.score || 0.9) * 100)}%)</div>`;
+          });
+          sourcesHtml += '</div></div>';
+        }
+
+        // Build inline diagram card
+        let diagHtml = '';
+        if (data.matched_images && data.matched_images.length > 0) {
+          const firstImg = data.matched_images[0];
+          const imgUrl = firstImg.url.startsWith('http') ? firstImg.url : firstImg.url;
+          diagHtml = `
+            <div class="inline-diag-card" onclick="openImageModal('${imgUrl}', '${escapeHtml(firstImg.caption || 'Referenced Figure')}')">
+              <div class="inline-diag-body">
+                <img src="${imgUrl}" alt="${escapeHtml(firstImg.caption || 'Diagram')}">
+                <div class="inline-diag-zoom-btn">⤢</div>
+              </div>
+              <div class="inline-diag-caption">
+                <div class="diag-title">${escapeHtml(firstImg.caption || 'Referenced Diagram')}</div>
+              </div>
+            </div>
+          `;
+        }
+
+        const botBodyHtml = `
+          <div class="bot-body">
+            <div class="grounded-badge">Fact-Checked & Grounded</div>
+            ${diagHtml}
+            <div class="msg-content">${formatMarkdown(data.response)}</div>
+            ${sourcesHtml}
+          </div>
+        `;
+
+        const botMsgRow = document.getElementById(botMsgId);
+        if (botMsgRow) {
+          botMsgRow.innerHTML = botBodyHtml;
+        }
+
+        // Record turn
+        conversationTurns.push({
+          role: 'user',
+          content: query || '[Visual Search Query]'
+        });
+        conversationTurns.push({
+          role: 'assistant',
+          content: data.response
+        });
+
+        // Render math equations if KaTeX is present
+        if (window.renderMathInElement) {
+          const botRow = document.getElementById(botMsgId);
+          if (botRow) {
+            renderMathInElement(botRow, {
+              delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$', right: '$', display: false}
+              ],
+              throwOnError: false
+            });
+          }
+        }
+
+        saveChatToStorage();
+      } catch (err) {
+        console.error(err);
+        const botMsgRow = document.getElementById(botMsgId);
+        if (botMsgRow) {
+          botMsgRow.innerHTML = `
+            <div class="bot-body" style="border-color:#ef4444;">
+              <div class="grounded-badge" style="background:#ef4444; color:#fff;">Connection Note</div>
+              <div class="msg-content" style="color:#f87171;">
+                Could not connect to the local inference engine. Please ensure Ollama or your local server is active.
+              </div>
+            </div>
+          `;
+        }
+      } finally {
+        if (sendBtn) sendBtn.disabled = false;
+        chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
+      }
+    });
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initDesktopApp);
+    } else {
+      initDesktopApp();
+    }
+  </script>
+</body>
+</html>

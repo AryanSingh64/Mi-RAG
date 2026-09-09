@@ -138,6 +138,15 @@ def portal(session_id: str):
     return f"<h1>Ephemeral Portal for Session: {session_id}</h1>"
 
 
+@app.get("/desktop", response_class=HTMLResponse)
+@app.get("/desktop/{session_id}", response_class=HTMLResponse)
+def desktop_window(session_id: str = "standalone"):
+    html_path = ROOT_DIR / "web" / "templates" / "desktop.html"
+    if html_path.exists():
+        return html_path.read_text(encoding="utf-8")
+    return "<h1>Desktop Assistant Ready</h1>"
+
+
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     fav_path = ROOT_DIR / "web" / "static" / "assets" / "favicon.ico"
