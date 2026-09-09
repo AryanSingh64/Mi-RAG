@@ -1405,17 +1405,6 @@
         <span style="margin-left: 0.35rem;">New Knowledge Base</span>
       </a>
 
-      <div id="sidebar-sessions-section">
-        <div style="display: flex; justify-content: space-between; align-items: center; padding-right: 0.35rem; margin-bottom: 0.35rem;">
-          <div class="sidebar-section-title" style="margin-bottom: 0;">Previous Chats & Workspaces</div>
-          <button type="button" onclick="clearAllPreviousSessions()" style="background: none; border: none; color: #94a3b8; font-size: 0.68rem; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0;" title="Clear all previous chat sessions">Clear</button>
-        </div>
-        <div id="sidebar-sessions-list" class="sidebar-menu-list">
-          <div style="font-size: 0.74rem; color: #64748b; padding: 0.3rem 0.5rem;">Loading chats...</div>
-        </div>
-      </div>
-
-
       <div>
         <div class="sidebar-section-title">Navigation</div>
         <div class="sidebar-menu-list">
@@ -1619,9 +1608,8 @@
         populateChatModelDropdown(data.model_name);
         enforceDesktopLockdown();
 
-        // Safely record session in local storage for session tracking & history
+        // In browser window, focus strictly on the active session
         recordCurrentSession(data);
-        loadSidebarSessions();
 
         const filesContainer = document.getElementById('indexed-files-container');
         if (data.indexed_files && data.indexed_files.length > 0) {
@@ -2864,106 +2852,6 @@
         // Keep top 12 recent sessions
         SafeStorage.setItem("recent_sessions", filtered.slice(0, 12));
       } catch (e) {}
-    }
-
-    async function deleteSessionItem(e, sid) {
-      if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-      try {
-        await fetch('/api/sessions/' + sid, { method: 'DELETE' });
-      } catch (err) {}
-      try {
-        const recent = SafeStorage.getItem("recent_sessions", []) || [];
-        SafeStorage.setItem("recent_sessions", recent.filter(s => s.id !== sid && s.session_id !== sid));
-        localStorage.removeItem("chat_" + sid);
-      } catch (err) {}
-      loadSidebarSessions();
-    }
-
-    async function clearAllPreviousSessions() {
-      try {
-        await fetch('/api/sessions?preserve=' + (sessionId || ''), { method: 'DELETE' });
-      } catch (err) {}
-      try {
-        const recent = SafeStorage.getItem("recent_sessions", []) || [];
-        const preserved = recent.filter(s => s.id === sessionId);
-        SafeStorage.setItem("recent_sessions", preserved);
-      } catch (err) {}
-      loadSidebarSessions();
-    }
-
-    async function loadSidebarSessions() {
-      const listEl = document.getElementById('sidebar-sessions-list');
-      if (!listEl) return;
-      if (isDesktopApp || window.IS_STANDALONE) {
-        listEl.innerHTML = '<div style="font-size: 0.74rem; color: #64748b; padding: 0.3rem 0.5rem;">Offline Dedicated Assistant</div>';
-        return;
-      }
-      try {
-        const res = await fetch('/api/sessions');
-        let sessions = [];
-        if (res.ok) {
-          const data = await res.json();
-          sessions = data.sessions || [];
-        }
-        
-        const localRecent = SafeStorage.getItem("recent_sessions", []) || [];
-        const combinedMap = {};
-        sessions.forEach(s => { combinedMap[s.session_id] = s; });
-        localRecent.forEach(r => {
-          if (!combinedMap[r.id]) {
-            combinedMap[r.id] = {
-              session_id: r.id,
-              session_token: sessionStorage.getItem('mirag_token_' + r.id) || '',
-              model_name: r.model || 'llama3.2:3b',
-              indexed_files: r.indexed_files || [],
-              doc_count: (r.indexed_files || []).length
-            };
-          }
-        });
-        
-        // Deduplicate identical document sets & cap at top 6 recent workspaces
-        const seenDocs = new Set();
-        const deduplicatedList = [];
-        for (const s of Object.values(combinedMap)) {
-          const files = s.indexed_files || [];
-          if (files.length === 0 && s.session_id !== sessionId) continue;
-          const docKey = files.slice().sort().join('::');
-          if (docKey && seenDocs.has(docKey)) continue;
-          if (docKey) seenDocs.add(docKey);
-          deduplicatedList.push(s);
-          if (deduplicatedList.length >= 6) break;
-        }
-
-        if (deduplicatedList.length === 0) {
-          listEl.innerHTML = '<div style="font-size: 0.74rem; color: #64748b; padding: 0.3rem 0.5rem;">No previous chats yet</div>';
-          return;
-        }
-
-        listEl.innerHTML = deduplicatedList.map(s => {
-          const isCur = (s.session_id === sessionId);
-          const name = s.indexed_files && s.indexed_files.length > 0 
-            ? s.indexed_files[0] + (s.indexed_files.length > 1 ? ` (+${s.indexed_files.length - 1})` : '')
-            : `Chat ${s.session_id.slice(0, 6)}`;
-          const countBadge = s.indexed_files && s.indexed_files.length > 0
-            ? `${s.indexed_files.length} docs`
-            : 'General';
-          return `
-            <div style="position: relative; display: flex; align-items: center; width: 100%;">
-              <a href="/portal/${s.session_id}?token=${s.session_token || ''}" class="sidebar-nav-item ${isCur ? 'active' : ''}" style="flex: 1; min-width: 0; padding-right: 1.8rem; ${isCur ? 'background: var(--sidebar-hover); border-color: var(--pink); color: #fff;' : ''}">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78rem;">${name}</span>
-                <span style="font-size: 0.65rem; background: #1e293b; color: #94a3b8; padding: 0.1rem 0.3rem; border-radius: 4px; border: 1px solid #334155;">${countBadge}</span>
-              </a>
-              <button type="button" onclick="deleteSessionItem(event, '${s.session_id}')" title="Delete chat" style="position: absolute; right: 6px; background: none; border: none; color: #64748b; cursor: pointer; font-size: 0.8rem; padding: 2px 4px; line-height: 1; z-index: 2;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#64748b'">✕</button>
-            </div>
-          `;
-        }).join('');
-      } catch (e) {
-        listEl.innerHTML = '<div style="font-size: 0.74rem; color: #64748b; padding: 0.3rem 0.5rem;">No previous chats</div>';
-      }
     }
 
     function saveChatToStorage() {
