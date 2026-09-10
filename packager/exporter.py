@@ -59,6 +59,14 @@ if sys.stdout is None:
 if sys.stderr is None:
     sys.stderr = open(os.devnull, "w", encoding="utf-8")
 
+if sys.platform == "win32":
+    for p in [Path("./assets/vc_runtimes"), Path(__file__).resolve().parent / "assets" / "vc_runtimes", Path(".")]:
+        if p.exists() and hasattr(os, "add_dll_directory"):
+            try:
+                os.add_dll_directory(str(p.resolve()))
+            except Exception:
+                pass
+
 import re
 import uuid
 import shutil
@@ -140,14 +148,18 @@ def init_engine_background():
         ENGINE_STATE["step"] = "Loading Neural Embedding Weights..."
         ENGINE_STATE["details"] = f"Initializing {{EMBEDDING_MODEL}}..."
         ENGINE_STATE["progress"] = 85
-        from sentence_transformers import SentenceTransformer
         try:
-            embedder = SentenceTransformer(EMBEDDING_MODEL, local_files_only=True)
-        except Exception:
+            from sentence_transformers import SentenceTransformer
             try:
-                embedder = SentenceTransformer("BAAI/bge-base-en-v1.5", local_files_only=True)
+                embedder = SentenceTransformer(EMBEDDING_MODEL, local_files_only=True)
             except Exception:
-                embedder = SentenceTransformer(EMBEDDING_MODEL)
+                try:
+                    embedder = SentenceTransformer("BAAI/bge-base-en-v1.5", local_files_only=True)
+                except Exception:
+                    embedder = SentenceTransformer(EMBEDDING_MODEL)
+        except Exception as embed_err:
+            print(f"[!] SentenceTransformer notice: {{embed_err}}")
+            embedder = None
 
         # Step 4: Ready
         ENGINE_STATE["step"] = "Ready"
@@ -950,8 +962,9 @@ def check_environment():
         import chromadb
         import sentence_transformers
         import httpx
+        import torch
         return True
-    except ImportError:
+    except (ImportError, OSError, Exception):
         return False
 
 def is_model_cached(model_str):
@@ -1010,6 +1023,34 @@ if not env_ready:
                 sys.stdout.write(f"\\n  [OK] All dependencies configured in {{int(time.time() - start_time)}}s!\\n")
                 sys.stdout.flush()
         process.wait()
+
+        # Copy VC runtimes to torch/lib if available
+        vc_dir = Path("./assets/vc_runtimes")
+        if vc_dir.exists():
+            try:
+                import importlib.util
+                torch_spec = importlib.util.find_spec("torch")
+                if torch_spec and torch_spec.origin:
+                    t_lib = Path(torch_spec.origin).parent / "lib"
+                    if t_lib.exists():
+                        for f in vc_dir.glob("*.dll"):
+                            target_f = t_lib / f.name
+                            if not target_f.exists():
+                                shutil.copy2(f, target_f)
+            except Exception:
+                pass
+
+        # Verify PyTorch loads without [WinError 1114]
+        try:
+            import torch
+        except OSError as err:
+            if "1114" in str(err) or "c10.dll" in str(err):
+                print("  [*] PyTorch DLL initialization failed (WinError 1114). Switching to universal CPU release...")
+                subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "--force-reinstall", "--no-cache-dir",
+                     "torch", "torchvision", "--index-url", "https://download.pytorch.org/whl/cpu"],
+                    check=False
+                )
 else:
     print("[1/2] [OK] Core dependencies verified!")
 
@@ -1261,6 +1302,17 @@ end;
                 if asset_file.is_file():
                     self._safe_copy_file(asset_file, static_dest / asset_file.name)
 
+        # Copy VC runtimes into bundle
+        vc_source = Path("assets/vc_runtimes")
+        if not vc_source.exists():
+            vc_source = Path(__file__).parent.parent / "assets" / "vc_runtimes"
+        if vc_source.exists():
+            vc_dest = bundle_dir / "assets" / "vc_runtimes"
+            vc_dest.mkdir(parents=True, exist_ok=True)
+            for dll_file in vc_source.glob("*.dll"):
+                self._safe_copy_file(dll_file, vc_dest / dll_file.name)
+                self._safe_copy_file(dll_file, bundle_dir / dll_file.name)
+
         # Write Standalone Server, Hydrated Direct Chat UI & Installer
         embed_model = getattr(session, "embedding_model", "BAAI/bge-base-en-v1.5")
         self._safe_write_text(
@@ -1296,8 +1348,16 @@ end;
             "setlocal enabledelayedexpansion\n"
             "title Standalone Enterprise RAG Assistant\n"
             "\n"
+            ":: 0. Deploy VC++ runtime DLLs to application directory and torch lib\n"
+            "if exist \"assets\\vc_runtimes\\*.dll\" (\n"
+            "    copy /y \"assets\\vc_runtimes\\*.dll\" . >nul 2>&1\n"
+            "    if exist \".venv\\Lib\\site-packages\\torch\\lib\" (\n"
+            "        copy /y \"assets\\vc_runtimes\\*.dll\" \".venv\\Lib\\site-packages\\torch\\lib\" >nul 2>&1\n"
+            "    )\n"
+            ")\n"
+            "\n"
             ":: 1. Fast check if active python environment already has required modules\n"
-            "python -c \"import fastapi, chromadb, sentence_transformers, httpx\" 2>nul\n"
+            "python -c \"import fastapi, chromadb, sentence_transformers, httpx, torch\" 2>nul\n"
             "if %errorlevel% equ 0 (\n"
             "    echo [*] System environment verified. Launching Chatbot Assistant...\n"
             "    python server.py\n"

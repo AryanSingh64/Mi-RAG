@@ -2,19 +2,21 @@ import os
 import sys
 from typing import Any, Dict, List, Optional
 
-try:
-    from sentence_transformers import SentenceTransformer
-    HAS_SENTENCE_TRANSFORMERS = True
-except ImportError:
-    HAS_SENTENCE_TRANSFORMERS = False
-    SentenceTransformer = None
-
-# Windows console encoding fix
+# Windows console encoding & DLL search path configuration
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
     except Exception:
         pass
+    try:
+        vc_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "vc_runtimes")
+        if os.path.exists(vc_dir) and hasattr(os, "add_dll_directory"):
+            os.add_dll_directory(vc_dir)
+    except Exception:
+        pass
+
+SentenceTransformer = None
+HAS_SENTENCE_TRANSFORMERS = None
 
 
 EMBEDDING_CATALOG: Dict[str, Dict[str, Any]] = {
@@ -111,8 +113,16 @@ class LocalEmbedder:
 
     def _load_sentence_transformer(self):
         """Loads sentence-transformers model with offline-first caching to guarantee 100% offline operation."""
-        if not HAS_SENTENCE_TRANSFORMERS or SentenceTransformer is None:
-            return None
+        global SentenceTransformer, HAS_SENTENCE_TRANSFORMERS
+        if SentenceTransformer is None:
+            try:
+                from sentence_transformers import SentenceTransformer as ST
+                SentenceTransformer = ST
+                HAS_SENTENCE_TRANSFORMERS = True
+            except (ImportError, OSError, Exception) as err:
+                print(f"[*] Local neural embedder note: {err}. Activating resilient fallback.")
+                HAS_SENTENCE_TRANSFORMERS = False
+                return None
 
         model_kwargs = {"torch_dtype": "float16"} if self.device == "cuda" else {}
 

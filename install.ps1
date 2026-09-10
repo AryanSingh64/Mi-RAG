@@ -165,6 +165,51 @@ if (-not $activePython) {
     Write-Host " [*] Base Python: Python $($activePython.Version) ($($activePython.Path)) [ OK ]" -ForegroundColor DarkCyan
 }
 
+# 2.5 Prerequisites: Microsoft Visual C++ 2015-2022 Redistributable (x64)
+# Required by PyTorch (c10.dll, torch_cpu.dll) and high-speed C++ runtimes
+Print-Step "Checking Microsoft Visual C++ 2015-2022 Runtime..."
+$hasVcRuntime = $false
+try {
+    $vcKey = "HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\X64"
+    if (Test-Path $vcKey) {
+        $val = (Get-ItemProperty -Path $vcKey -Name "Installed" -ErrorAction SilentlyContinue).Installed
+        if ($val -eq 1) { $hasVcRuntime = $true }
+    }
+    if (-not $hasVcRuntime) {
+        if ((Test-Path "$env:SystemRoot\System32\vcruntime140_1.dll") -and (Test-Path "$env:SystemRoot\System32\msvcp140.dll")) {
+            $hasVcRuntime = $true
+        }
+    }
+} catch {}
+
+if ($hasVcRuntime) {
+    Write-Host " [*] Microsoft Visual C++ 2015-2022 Runtime verified [ OK ]" -ForegroundColor DarkCyan
+} else {
+    Write-Host " [*] Installing Microsoft Visual C++ 2015-2022 Redistributable (x64)..." -ForegroundColor Yellow
+    $vcInstalled = $false
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        try {
+            winget install --id Microsoft.VCRedist.2015+.x64 --silent --accept-package-agreements --accept-source-agreements
+            if ($LASTEXITCODE -eq 0) { $vcInstalled = $true }
+        } catch {}
+    }
+    if (-not $vcInstalled) {
+        try {
+            $vcUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+            $vcTemp = "$HOME\vc_redist.x64.exe"
+            Invoke-WebRequest -Uri $vcUrl -OutFile $vcTemp -UseBasicParsing
+            Start-Process -FilePath $vcTemp -ArgumentList "/install /passive /norestart /quiet" -Wait
+            Remove-Item $vcTemp -Force -ErrorAction SilentlyContinue
+            $vcInstalled = $true
+        } catch {
+            Write-Host "  [!] Notice: If PyTorch encounters DLL errors, install Visual C++ from https://aka.ms/vs/17/release/vc_redist.x64.exe" -ForegroundColor DarkGray
+        }
+    }
+    if ($vcInstalled) {
+        Write-Host " [OK] Visual C++ Runtime installed successfully!" -ForegroundColor Green
+    }
+}
+
 # 3. Prerequisites Verification: Ollama AI Engine
 Print-Step "Checking Ollama AI Engine installation..."
 if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
@@ -425,6 +470,53 @@ if ($hasDeps -ne "OK" -or ($installCuda -and $hasTorchCuda -ne "CUDA")) {
         }
     }
     
+    # Copy bundled VC runtime DLLs directly into torch/lib and venv Scripts
+    $vcSourceDir = "$targetDir\assets\vc_runtimes"
+    if (Test-Path $vcSourceDir) {
+        $torchLibDir = "$venvDir\Lib\site-packages\torch\lib"
+        if (Test-Path $torchLibDir) {
+            Copy-Item -Path "$vcSourceDir\*.dll" -Destination $torchLibDir -Force -ErrorAction SilentlyContinue
+        }
+        Copy-Item -Path "$vcSourceDir\*.dll" -Destination "$venvDir\Scripts" -Force -ErrorAction SilentlyContinue
+    }
+
+    # Verify PyTorch AI Engine health (detect DLL initialization failure / WinError 1114)
+    Print-Step "Verifying PyTorch AI Engine health..."
+    $torchHealth = & $venvPython -c "import torch; print('TORCH_OK:' + str(torch.__version__))" 2>&1 | Out-String
+    if ($torchHealth -match "TORCH_OK") {
+        Write-Host " [*] PyTorch runtime verified operational! [ OK ]" -ForegroundColor Green
+    } else {
+        Write-Host " [!] PyTorch initialization encountered a dynamic link library error." -ForegroundColor Yellow
+        Write-Host " [*] Deploying runtime repair..." -ForegroundColor Cyan
+        
+        # 1. Copy VC runtime DLLs into torch/lib
+        $torchLibDir = "$venvDir\Lib\site-packages\torch\lib"
+        if (Test-Path $vcSourceDir -and (Test-Path $torchLibDir)) {
+            Copy-Item -Path "$vcSourceDir\*.dll" -Destination $torchLibDir -Force -ErrorAction SilentlyContinue
+        }
+        
+        # 2. Re-test
+        $torchHealth2 = & $venvPython -c "import torch; print('TORCH_OK')" 2>&1 | Out-String
+        if ($torchHealth2 -match "TORCH_OK") {
+            Write-Host " [OK] PyTorch runtime repaired successfully!" -ForegroundColor Green
+        } else {
+            # 3. If GPU/CUDA DLL initialization failed (incompatible driver), fallback to universal stable CPU PyTorch
+            Write-Host " [*] GPU/CUDA driver mismatch detected. Switching to universal stable CPU PyTorch..." -ForegroundColor Cyan
+            if ($uvInstalled) {
+                & "$venvDir\Scripts\uv.exe" pip install --force-reinstall --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+            } else {
+                & $venvPython -m pip install --force-reinstall --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+            }
+            if (Test-Path $vcSourceDir -and (Test-Path $torchLibDir)) {
+                Copy-Item -Path "$vcSourceDir\*.dll" -Destination $torchLibDir -Force -ErrorAction SilentlyContinue
+            }
+            $torchHealth3 = & $venvPython -c "import torch; print('TORCH_OK')" 2>&1 | Out-String
+            if ($torchHealth3 -match "TORCH_OK") {
+                Write-Host " [OK] PyTorch universal runtime operational!" -ForegroundColor Green
+            }
+        }
+    }
+
     Write-Host " -----------------------------------------------------------------------" -ForegroundColor DarkGray
     
     # Verify critical dependencies actually installed
