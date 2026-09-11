@@ -408,8 +408,15 @@ if ($detectedGpu) {
 }
 
 # 8. Dependencies Verification & Visual Live Progress Installation
-$hasDeps = & $venvPython -c "import importlib.util as u; pkgs = ['uvicorn', 'fastapi', 'chromadb']; print('OK' if all(u.find_spec(p) for p in pkgs) and (u.find_spec('pymupdf') or u.find_spec('fitz')) else 'MISSING')" 2>$null
-if ($hasDeps -ne "OK" -or ($installCuda -and $hasTorchCuda -ne "CUDA")) {
+$hasDeps = & $venvPython -c "import importlib.util as u; pkgs = ['uvicorn', 'fastapi', 'chromadb', 'torch']; print('OK' if all(u.find_spec(p) for p in pkgs) and (u.find_spec('pymupdf') or u.find_spec('fitz')) else 'MISSING')" 2>$null
+$torchHealthy = "NO"
+if ($hasDeps -eq "OK") {
+    $torchHealthy = & $venvPython -c "import torch; print('OK')" 2>$null
+}
+
+if ($hasDeps -eq "OK" -and $torchHealthy -eq "OK") {
+    Print-Step "Dependencies & PyTorch runtime verified..."
+} else {
     Write-Host ""
     Write-Host " [*] Downloading & installing dependencies with live progress:" -ForegroundColor Yellow
     Write-Host " -----------------------------------------------------------------------" -ForegroundColor DarkGray
@@ -515,6 +522,14 @@ if ($hasDeps -ne "OK" -or ($installCuda -and $hasTorchCuda -ne "CUDA")) {
                 Write-Host " [OK] PyTorch universal runtime operational!" -ForegroundColor Green
             }
         }
+    }
+
+    # Persist verified hardware preference so it never repeatedly loops re-installs
+    $finalTorchCuda = & $venvPython -c "import torch; print('CUDA' if torch.cuda.is_available() else 'CPU')" 2>$null
+    if ($finalTorchCuda -eq "CUDA") {
+        Set-Content -Path $gpuPrefFile -Value "cuda" -Force
+    } else {
+        Set-Content -Path $gpuPrefFile -Value "cpu" -Force
     }
 
     Write-Host " -----------------------------------------------------------------------" -ForegroundColor DarkGray

@@ -1,3 +1,4 @@
+import asyncio
 import io
 import json
 import math
@@ -381,7 +382,8 @@ async def upload_document(
         session_manager.set_progress(session_id, stage=stage_label, current=current, total=total, diagrams=diagrams)
 
     try:
-        chunks_indexed = session.pipeline.ingest_file(
+        chunks_indexed = await asyncio.to_thread(
+            session.pipeline.ingest_file,
             file_path,
             start_page=start_page,
             end_page=end_page,
@@ -464,7 +466,8 @@ async def chat_with_rag(session_id: str, request: Request):
 
     try:
         if query_image_path and query_image_path.exists():
-            answer = session.pipeline.query_with_image(
+            answer = await asyncio.to_thread(
+                session.pipeline.query_with_image,
                 user_question=user_message,
                 query_image_path=query_image_path,
                 top_k=top_k,
@@ -474,7 +477,8 @@ async def chat_with_rag(session_id: str, request: Request):
                 api_key=api_key
             )
         else:
-            answer = session.pipeline.query(
+            answer = await asyncio.to_thread(
+                session.pipeline.query,
                 user_question=user_message,
                 top_k=top_k,
                 history=history,

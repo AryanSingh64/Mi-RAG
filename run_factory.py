@@ -95,34 +95,27 @@ def main():
     print(f" [*] Opening browser tab to Training RAG Studio (http://127.0.0.1:{port})...")
     print("==================================================")
 
-    # 1. Start FastAPI server in background thread
-    server_thread = threading.Thread(
-        target=lambda: uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning"),
-        daemon=True
-    )
-    server_thread.start()
+    # 1. Start background thread to open browser tab when server responds 200 OK
+    def open_browser_when_ready():
+        import urllib.request
+        health_url = f"http://127.0.0.1:{port}/api/system/health"
+        t0 = time.time()
+        while time.time() - t0 < 30.0:
+            try:
+                with urllib.request.urlopen(health_url, timeout=0.8) as response:
+                    if response.status == 200:
+                        break
+            except Exception:
+                pass
+            time.sleep(0.15)
+        import webbrowser
+        webbrowser.open(f"http://127.0.0.1:{port}")
 
-    # 2. Wait until server responds
-    import urllib.request
-    health_url = f"http://127.0.0.1:{port}/api/system/health"
-    t0 = time.time()
-    while time.time() - t0 < 15.0:
-        try:
-            with urllib.request.urlopen(health_url, timeout=0.8) as response:
-                if response.status == 200:
-                    break
-        except Exception:
-            pass
-        time.sleep(0.15)
+    threading.Thread(target=open_browser_when_ready, daemon=True).start()
 
-    # 3. Open browser tab for Training RAG Studio
-    import webbrowser
-    webbrowser.open(f"http://127.0.0.1:{port}")
-
-    # Keep server running until terminal is closed or Ctrl+C is pressed
+    # 2. Run Uvicorn directly on the main thread for maximum network responsiveness and signal handling
     try:
-        while True:
-            time.sleep(1.0)
+        uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
     except KeyboardInterrupt:
         print("\n [*] Stopping Local Server...")
 
