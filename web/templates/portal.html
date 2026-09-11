@@ -1094,6 +1094,42 @@
       box-shadow: none;
       transform: none;
     }
+    .btn-send-capsule.cancel-mode {
+      background: #ef4444 !important;
+      color: #fff !important;
+      border-color: #000 !important;
+      animation: pulseCancelBtn 1.4s infinite ease-in-out;
+    }
+    .btn-send-capsule.cancel-mode:hover {
+      background: #dc2626 !important;
+      transform: scale(1.08);
+      box-shadow: 3px 3px 0px #000;
+    }
+    @keyframes pulseCancelBtn {
+      0%, 100% { box-shadow: 2px 2px 0px #000; }
+      50% { box-shadow: 2px 2px 8px rgba(239, 68, 68, 0.7); }
+    }
+    .btn-cancel-inline {
+      background: #27141f;
+      color: #fb7185;
+      border: 1.5px solid #e11d48;
+      box-shadow: 1.5px 1.5px 0px #000;
+      border-radius: 4px;
+      padding: 0.18rem 0.55rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      transition: all 0.15s ease;
+    }
+    .btn-cancel-inline:hover {
+      background: #e11d48;
+      color: #fff;
+      transform: translateY(-1px);
+    }
 
     /* Right-Click Context Menu */
     .chat-context-menu {
@@ -2460,8 +2496,86 @@
       chatForm.classList.remove('has-dock');
     }
 
+    // Active Query & Cancellation Management
+    let activeAbortController = null;
+    let isThinking = false;
+    let currentBotMsgId = null;
+
+    function setThinkingState(thinking) {
+      isThinking = thinking;
+      if (sendBtn) {
+        if (thinking) {
+          sendBtn.disabled = false;
+          sendBtn.classList.add('cancel-mode');
+          sendBtn.title = "Stop generating (Cancel)";
+          sendBtn.setAttribute('data-cursor', 'Cancel Query');
+          sendBtn.innerHTML = `
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="5" y="5" width="14" height="14" rx="2.5"></rect>
+            </svg>
+          `;
+        } else {
+          resetSendButton();
+        }
+      }
+    }
+
+    function resetSendButton() {
+      isThinking = false;
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.classList.remove('cancel-mode');
+        sendBtn.title = "Send";
+        sendBtn.setAttribute('data-cursor', 'Send Query');
+        sendBtn.innerHTML = `
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        `;
+      }
+    }
+
+    function cancelActiveQuery() {
+      if (!isThinking) return;
+      if (activeAbortController) {
+        try {
+          activeAbortController.abort();
+        } catch (e) {}
+        activeAbortController = null;
+      }
+      
+      if (currentBotMsgId) {
+        const botEl = document.getElementById(currentBotMsgId);
+        if (botEl) {
+          botEl.innerHTML = `
+            <div class="bot-body">
+              <div class="grounded-badge" style="background:#cbd5e1; color:#0f172a;">Stopped</div>
+              <div class="msg-content" style="color:#94a3b8; font-style:italic;">Query cancelled by user.</div>
+            </div>
+          `;
+        }
+      }
+
+      resetSendButton();
+      chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isThinking) {
+        cancelActiveQuery();
+      }
+    });
+
     chatForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      // If already thinking and user triggers form, treat as intentional cancel
+      if (isThinking) {
+        cancelActiveQuery();
+        return;
+      }
+
       const query = userInput.value.trim();
       const hasImage = Boolean(currentAttachedFile);
 
@@ -2507,20 +2621,26 @@
       chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
 
       const botMsgId = 'bot-' + Date.now();
+      currentBotMsgId = botMsgId;
       const providerLabel = PROVIDER_CONFIGS[currentProvider]?.name || 'Local Engine';
       chatBox.innerHTML += `
         <div class="msg-row bot-row" id="${botMsgId}">
           <div class="bot-body">
-            <div class="grounded-badge" style="background:var(--yellow); color:#000;">Searching Knowledge Base...</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+              <div class="grounded-badge" style="background:var(--yellow); color:#000;">Searching Knowledge Base...</div>
+              <button type="button" class="btn-cancel-inline" onclick="cancelActiveQuery()" title="Cancel query midway">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
+                Cancel
+              </button>
+            </div>
             <div class="msg-content" style="color:#94a3b8;">Searching and analyzing with verified grounding...</div>
           </div>
         </div>
       `;
       chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
 
-      if (sendBtn) {
-        sendBtn.disabled = true;
-      }
+      activeAbortController = new AbortController();
+      setThinkingState(true);
 
       try {
         let res;
@@ -2541,7 +2661,8 @@
           res = await fetch(`/api/sessions/${sessionId}/chat`, {
             method: 'POST',
             headers: headers,
-            body: fd
+            body: fd,
+            signal: activeAbortController.signal
           });
         } else {
           const headers = { 'Content-Type': 'application/json' };
@@ -2556,7 +2677,8 @@
               provider: currentProvider,
               model: currentModel,
               api_key: activeKey
-            })
+            }),
+            signal: activeAbortController.signal
           });
         }
 
@@ -2663,16 +2785,24 @@
         saveChatToStorage();
 
       } catch (err) {
+        if (err.name === 'AbortError') {
+          return;
+        }
+
+        let displayError = err.message || "An unexpected error occurred.";
+        if (displayError.toLowerCase().includes("networkerror")) {
+          displayError = "Connection to local AI engine was interrupted. Please ensure the local server is running and try again.";
+        }
+
         document.getElementById(botMsgId).innerHTML = `
           <div class="bot-body">
             <div class="grounded-badge" style="background:#fca5a5; color:#000;">Notice</div>
-            <div class="msg-content">${err.message}</div>
+            <div class="msg-content">${escapeHtml(displayError)}</div>
           </div>
         `;
       } finally {
-        if (sendBtn) {
-          sendBtn.disabled = false;
-        }
+        resetSendButton();
+        currentBotMsgId = null;
       }
       chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
     });

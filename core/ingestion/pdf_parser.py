@@ -32,126 +32,115 @@ class DiagramDetector:
     @classmethod
     def detect_diagram_regions(cls, page: Any) -> List[Tuple[Any, str, str]]:
         """
-        Analyzes page to return all genuine diagrams and figures: (cropped_bbox, caption_text, diagram_type).
-        Extracts both embedded raster images AND vector diagrams (charts, plots, flowcharts).
+        Analyzes page to return complete publication-grade figures, diagrams, and tables:
+        (cropped_bbox, caption_text, diagram_type).
+        Reconstructs compound figures (vector drawings + embedded sub-images + callouts)
+        into their full, unfragmented bounding boxes.
         """
         page_rect = page.rect
         page_area = page_rect.width * page_rect.height
         native_page_text = (page.get_text() or "").strip()
-        is_sparse_text_page = len(native_page_text) < 120
 
-        # 1. Find Figure/Diagram captions in text blocks
+        # 1. Find all Figure/Diagram/Table captions in text blocks
         blocks = page.get_text("blocks")
         caption_blocks = []
         for b in blocks:
             text = b[4].strip()
             lines = [l.strip() for l in text.split("\n") if l.strip()]
-            if lines and cls.CAPTION_REGEX.search(lines[0]) and len(text) < 450:
-                b_rect = fitz.Rect(b[:4])
-                caption_blocks.append((b_rect, lines[0]))
+            if lines and cls.CAPTION_REGEX.search(lines[0]) and len(text) < 500:
+                caption_blocks.append((fitz.Rect(b[:4]), lines[0], text))
+
+        drawings = page.get_drawings()
+        img_info = page.get_image_info(xrefs=True)
 
         diagrams = []
         covered_rects = []
 
-        # 2. Collect genuine standalone raster image bounding boxes
-        img_info_list = page.get_image_info(xrefs=True)
-        img_rects = []
-        for img_info in img_info_list:
-            bbox = fitz.Rect(img_info.get("bbox", (0, 0, 0, 0)))
-            if bbox.is_valid and not bbox.is_empty:
-                w, h = bbox.width, bbox.height
-                area = w * h
-                aspect = w / max(1.0, h)
-                # Filter out tiny icon decorations / bullets (<22x22 or <450 area)
-                if w < 22 or h < 22 or (area < 450):
-                    continue
-                # Filter out extreme thin divider rules
-                if aspect > 25.0 or aspect < 0.04:
-                    continue
-                # Filter out background slide templates (>88% area on text-dense pages)
-                if (area / page_area) > 0.88 and not is_sparse_text_page:
-                    continue
-                # Deduplicate identical boxes
-                if any(abs(bbox.x0 - cr.x0) < 6 and abs(bbox.y0 - cr.y0) < 6 for cr in img_rects):
-                    continue
-                img_rects.append(bbox)
+        # 2. First Pass: Reconstruct Complete Figures & Diagrams around detected Captions
+        for c_rect, first_line, full_caption in caption_blocks:
+            # Check elements ABOVE caption (Standard Figure / Chart / Diagram / Scheme / Flowchart)
+            above_drawings = [d['rect'] for d in drawings if d['rect'].y1 <= c_rect.y0 + 12 and d['rect'].y0 >= c_rect.y0 - 580]
+            above_images = [fitz.Rect(img['bbox']) for img in img_info if fitz.Rect(img['bbox']).y1 <= c_rect.y0 + 12 and fitz.Rect(img['bbox']).y0 >= c_rect.y0 - 580]
 
-        # Also inspect page.get_images() for xrefs that have on-page rects not in image_info
-        raw_images = page.get_images(full=True)
-        for img_tuple in raw_images:
-            xref = img_tuple[0]
-            try:
-                for r in page.get_image_rects(xref):
-                    if r.is_valid and not r.is_empty:
-                        if r.width >= 22 and r.height >= 22 and (r.width * r.height >= 450):
-                            if not any(abs(r.x0 - cr.x0) < 6 and abs(r.y0 - cr.y0) < 6 for cr in img_rects):
-                                img_rects.append(r)
-            except Exception:
-                pass
+            all_above = [r for r in (above_drawings + above_images) if r.width > 5 and r.height > 5]
+            if all_above:
+                combined = fitz.Rect(all_above[0])
+                for r in all_above[1:]:
+                    combined |= r
 
-        # 3. Associate raster images with nearest captions
-        for idx, img_bbox in enumerate(img_rects, start=1):
-            matched_caption = ""
-            best_dist = 180.0
-            for c_rect, c_text in caption_blocks:
-                dist = min(abs(c_rect.y0 - img_bbox.y1), abs(img_bbox.y0 - c_rect.y1))
-                if dist < best_dist:
-                    best_dist = dist
-                    matched_caption = c_text
+                if combined.width >= 50 and combined.height >= 35:
+                    full_fig_bbox = fitz.Rect(
+                        max(0, min(combined.x0, c_rect.x0) - 6),
+                        max(0, combined.y0 - 6),
+                        min(page_rect.width, max(combined.x1, c_rect.x1) + 6),
+                        min(page_rect.height, c_rect.y1 + 6)
+                    )
+                    cap_clean = first_line.split("\n")[0][:80]
+                    diagrams.append((full_fig_bbox, cap_clean, "figure"))
+                    covered_rects.append(full_fig_bbox)
+                    continue
+
+            # Check elements BELOW caption (Standard Table / Algorithm / Top Title)
+            below_drawings = [d['rect'] for d in drawings if d['rect'].y0 >= c_rect.y1 - 12 and d['rect'].y1 <= c_rect.y1 + 580]
+            below_images = [fitz.Rect(img['bbox']) for img in img_info if fitz.Rect(img['bbox']).y0 >= c_rect.y1 - 12 and fitz.Rect(img['bbox']).y1 <= c_rect.y1 + 580]
+
+            all_below = [r for r in (below_drawings + below_images) if r.width > 5 and r.height > 5]
+            if all_below:
+                combined = fitz.Rect(all_below[0])
+                for r in all_below[1:]:
+                    combined |= r
+
+                if combined.width >= 50 and combined.height >= 35:
+                    full_fig_bbox = fitz.Rect(
+                        max(0, min(combined.x0, c_rect.x0) - 6),
+                        max(0, c_rect.y0 - 6),
+                        min(page_rect.width, max(combined.x1, c_rect.x1) + 6),
+                        min(page_rect.height, combined.y1 + 6)
+                    )
+                    cap_clean = first_line.split("\n")[0][:80]
+                    diagrams.append((full_fig_bbox, cap_clean, "table"))
+                    covered_rects.append(full_fig_bbox)
+                    continue
+
+        # 3. Second Pass: Genuine standalone raster images (Photos, standalone graphics)
+        # Skip sub-images that are ALREADY inside a covered figure region
+        for idx, img in enumerate(img_info, start=1):
+            bbox = fitz.Rect(img.get('bbox', (0, 0, 0, 0)))
+            if not bbox.is_valid or bbox.is_empty:
+                continue
+
+            w, h = bbox.width, bbox.height
+            area = w * h
+            if w < 50 or h < 50 or area < 4000:
+                continue
+
+            # Check if this raster image is inside an already detected figure
+            is_inside_figure = False
+            for cr in covered_rects:
+                intersection = bbox & cr
+                if intersection.is_valid and not intersection.is_empty:
+                    if (intersection.width * intersection.height) / area > 0.35:
+                        is_inside_figure = True
+                        break
+
+            if is_inside_figure:
+                continue
+
+            # Standalone genuine image
+            aspect = w / max(1.0, h)
+            if aspect > 20.0 or aspect < 0.05:
+                continue
+            if (area / page_area) > 0.90:
+                continue
 
             padded_rect = fitz.Rect(
-                max(0, img_bbox.x0 - 6),
-                max(0, img_bbox.y0 - 6),
-                min(page_rect.width, img_bbox.x1 + 6),
-                min(page_rect.height, img_bbox.y1 + 6)
+                max(0, bbox.x0 - 4),
+                max(0, bbox.y0 - 4),
+                min(page_rect.width, bbox.x1 + 4),
+                min(page_rect.height, bbox.y1 + 4)
             )
-            diag_name = matched_caption.split("\n")[0][:70] if matched_caption else f"Figure {idx}"
-            diagrams.append((padded_rect, diag_name, "raster_figure"))
-            covered_rects.append(img_bbox)
-
-        # 4. Extract Vector Diagrams, Charts & Plots (drawings) for remaining unassigned captions
-        drawings = page.get_drawings()
-        if drawings and caption_blocks:
-            for c_rect, c_text in caption_blocks:
-                # Check if this caption was already matched to a raster image
-                already_covered = any(abs(c_rect.y0 - cr.y1) < 40 or abs(cr.y0 - c_rect.y1) < 40 for cr in covered_rects)
-                if already_covered:
-                    continue
-
-                # Check vector drawings located above caption (standard for figures)
-                d_above = [d for d in drawings if d['rect'].y1 <= c_rect.y0 + 6 and d['rect'].y0 >= c_rect.y0 - 450]
-                if d_above:
-                    vbox = fitz.Rect(d_above[0]['rect'])
-                    for d in d_above[1:]:
-                        vbox |= d['rect']
-                    if vbox.width >= 50 and vbox.height >= 35:
-                        padded_vbox = fitz.Rect(
-                            max(0, vbox.x0 - 6),
-                            max(0, vbox.y0 - 6),
-                            min(page_rect.width, vbox.x1 + 6),
-                            min(page_rect.height, vbox.y1 + 6)
-                        )
-                        cap_name = c_text.split("\n")[0][:70]
-                        diagrams.append((padded_vbox, cap_name, "vector_figure"))
-                        covered_rects.append(padded_vbox)
-                        continue
-
-                # Check vector drawings located below caption (standard for tables/top titles)
-                d_below = [d for d in drawings if d['rect'].y0 >= c_rect.y1 - 6 and d['rect'].y1 <= c_rect.y1 + 450]
-                if d_below:
-                    vbox = fitz.Rect(d_below[0]['rect'])
-                    for d in d_below[1:]:
-                        vbox |= d['rect']
-                    if vbox.width >= 50 and vbox.height >= 35:
-                        padded_vbox = fitz.Rect(
-                            max(0, vbox.x0 - 6),
-                            max(0, vbox.y0 - 6),
-                            min(page_rect.width, vbox.x1 + 6),
-                            min(page_rect.height, vbox.y1 + 6)
-                        )
-                        cap_name = c_text.split("\n")[0][:70]
-                        diagrams.append((padded_vbox, cap_name, "vector_figure"))
-                        covered_rects.append(padded_vbox)
+            diagrams.append((padded_rect, f"Figure (Page Image {idx})", "raster_photo"))
+            covered_rects.append(padded_rect)
 
         return diagrams
 
@@ -237,25 +226,26 @@ class PdfDocumentParser(BaseDocumentParser):
                     except Exception:
                         pass
 
-            # 3. Direct Image XObject Extraction for any embedded image not cropped via on-page bboxes
-            try:
-                for img_tuple in page.get_images(full=True):
-                    xref = img_tuple[0]
-                    img_dict = thread_doc.extract_image(xref)
-                    if img_dict:
-                        w, h = img_dict.get("width", 0), img_dict.get("height", 0)
-                        if w >= 50 and h >= 50 and (w * h >= 4000):
-                            ext = img_dict.get("ext", "jpg")
-                            raw_filename = f"{clean_stem}_p{p_idx}_raw_xref{xref}.{ext}"
-                            raw_url = f"/api/sessions/{self.session_id}/images/{raw_filename}" if self.session_id else f"/images/{raw_filename}"
-                            if raw_url not in page_image_urls and self.output_images_dir:
-                                raw_target = self.output_images_dir / raw_filename
-                                if not raw_target.exists():
-                                    raw_target.write_bytes(img_dict["image"])
-                                page_image_urls.append(raw_url)
-                                page_sections.append(f"[IMAGE / FIGURE: Embedded Graphic {xref} (Page {p_idx})]\n[Image URL: {raw_url}]")
-            except Exception:
-                pass
+            # 3. Direct Image XObject Extraction for uncaptured standalone graphics
+            if not page_image_urls:
+                try:
+                    for img_tuple in page.get_images(full=True):
+                        xref = img_tuple[0]
+                        img_dict = thread_doc.extract_image(xref)
+                        if img_dict:
+                            w, h = img_dict.get("width", 0), img_dict.get("height", 0)
+                            if w >= 80 and h >= 80 and (w * h >= 8000):
+                                ext = img_dict.get("ext", "jpg")
+                                raw_filename = f"{clean_stem}_p{p_idx}_raw_xref{xref}.{ext}"
+                                raw_url = f"/api/sessions/{self.session_id}/images/{raw_filename}" if self.session_id else f"/images/{raw_filename}"
+                                if raw_url not in page_image_urls and self.output_images_dir:
+                                    raw_target = self.output_images_dir / raw_filename
+                                    if not raw_target.exists():
+                                        raw_target.write_bytes(img_dict["image"])
+                                    page_image_urls.append(raw_url)
+                                    page_sections.append(f"[IMAGE / FIGURE: Embedded Graphic {xref} (Page {p_idx})]\n[Image URL: {raw_url}]")
+                except Exception:
+                    pass
 
             # 4. Fallback for scanned slides, catalogs, posters, and image-heavy pages
             if not page_image_urls and len(native_text) < 60:
