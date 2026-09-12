@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Mi:RAG Docs — Multimodal RAG Engine Architecture & Guide</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="description" content="Technical documentation and engineering guide for Mi:RAG, an autonomous, local-first multimodal RAG engine with zero mandatory API costs and optional cloud fallbacks.">
+  <meta name="description" content="Documentation and guide for Mi:RAG, a local document search and question answering tool with diagram extraction and visual search.">
   <meta name="keywords" content="mirag, mirag multimodal rag, mirag multimodel rag, mi rag, multimodal rag docs, local multimodal rag, offline rag, ollama rag, chromadb, pdf diagram extraction, turnkey rag">
   <meta name="author" content="Aryan Singh">
   <meta name="robots" content="index, follow, max-image-preview:large">
@@ -632,7 +632,7 @@
         <span class="card-badge">QUICKSTART</span>
         <h1 class="docs-title">1-Line Setup & CLI Installation</h1>
         <p class="docs-p">
-          Mi:RAG is an autonomous, multimodal local-first RAG generator. It indexes PDFs, Word documents, and images on your machine with zero mandatory API costs. By default, it runs locally with Ollama and on-device embeddings, while offering optional cloud API fallbacks (OpenAI, Gemini, Groq, Claude) whenever you want higher reasoning capabilities.
+          Mi:RAG is a local document search and question answering tool. It indexes PDFs, Word documents, and images directly on your machine, extracts diagrams and figures, and answers questions using local Ollama models and ChromaDB vector search. Optional cloud API connections (OpenAI, Gemini, Claude, Groq) are also supported.
         </p>
 
         <h2 class="docs-h2">
@@ -721,16 +721,74 @@ python run_factory.py</pre>
       <!-- Architecture -->
       <article class="docs-card" id="architecture">
         <span class="card-badge yellow">SYSTEM ARCHITECTURE</span>
-        <h1 class="docs-title">4-Stage Pipeline Lifecycle</h1>
+        <h1 class="docs-title">6-Level Pipeline Lifecycle</h1>
         <p class="docs-p">
-          Mi:RAG uses a multi-tier pipeline engineered to prevent hallucinations while extracting textual information, mathematical formulas, and visual diagrams:
+          Mi:RAG uses a 6-level pipeline engineered to extract textual passages, mathematical formulas, and visual diagrams without external cloud dependencies:
         </p>
 
         <div class="code-container">
-          <pre class="code-block">1. INGESTION  : PDF / Word / Images -> PyMuPDF Vector Clustering + RapidOCR -> Semantic Chunks
-2. EMBEDDING  : Local SentenceTransformer -> Embedded ChromaDB Vector Store
-3. RETRIEVAL  : Multi-Turn Query Attention + HyDE Expansion -> Top-K Semantic Chunks
-4. SYNTHESIS  : Local Ollama LLM + Grounding Verification -> Answer + Visual Evidence Diagrams</pre>
+          <pre class="code-block">1. INGESTION  : PDF / Word / Images -> PyMuPDF Vector & Raster Extraction (>80px) + RapidOCR
+2. CHUNKING   : Recursive Chunker (~400 chars) + Proximity Window Regex Caption Binding
+3. INDEXING   : SentenceTransformers (768-dim) in ChromaDB + Perceptual Hashes (pHash/dHash)
+4. RETRIEVAL  : ChromaDB Dense Vector Search + BM25 Lexical Scoring + Reverse Image Matching
+5. GUARDRAILS : Content Word Lexical Check + Anisotropy-Aware Cosine Similarity Refusal Gate
+6. SYNTHESIS  : Local Ollama LLM (Llama 3.2 / Qwen 2.5) + Grounded Inline Citations & Diagrams</pre>
+        </div>
+
+        <h2 class="docs-h2" style="margin-top: 1.5rem;">Production Optimization Blueprint</h2>
+        <p class="docs-p">
+          Comparison between current prototype heuristics and target production standards for enterprise deployments:
+        </p>
+
+        <div class="api-table-wrapper" style="margin-top: 1rem;">
+          <table class="api-table">
+            <thead>
+              <tr>
+                <th>Level</th>
+                <th>Current Implementation</th>
+                <th>Production Blueprint</th>
+                <th>Primary Failure Mode Addressed</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>1. Ingestion</strong></td>
+                <td>PyMuPDF coordinates + regex window</td>
+                <td>Docling (RT-DETR + TableFormer) / MinerU</td>
+                <td>Reading order inversions & fragmented vector plots</td>
+              </tr>
+              <tr>
+                <td><strong>2. Chunking</strong></td>
+                <td>Fixed 400-char recursive splitting</td>
+                <td>Parent-Child (128/1024) / Late Chunking (Jina 8k)</td>
+                <td>Mid-argument fragmentation & pronoun context loss</td>
+              </tr>
+              <tr>
+                <td><strong>3. Visual Index</strong></td>
+                <td>Perceptual hash (pHash/dHash)</td>
+                <td>Unified Latent Space (SigLIP / ColPali ViT)</td>
+                <td>Inability to perform text-to-image semantic queries</td>
+              </tr>
+              <tr>
+                <td><strong>4. Retrieval</strong></td>
+                <td>Ad-hoc linear scoring combination</td>
+                <td>Reciprocal Rank Fusion (RRF) + Cross-Encoder</td>
+                <td>Metric scale distortion & lack of full cross-attention</td>
+              </tr>
+              <tr>
+                <td><strong>5. Guardrails</strong></td>
+                <td>Literal word match + static cosine cutoff</td>
+                <td>Calibrated Z-Score + NLI Entailment (HHEM-2.1)</td>
+                <td>Anisotropy noise leaks & false paraphrase rejections</td>
+              </tr>
+              <tr>
+                <td><strong>6. Synthesis</strong></td>
+                <td>Local 3B models + heuristic self-eval</td>
+                <td>Qwen-2.5-14B/VL + Atomic Claim Attribution</td>
+                <td>Chart misreads & self-reinforcing evaluation bias</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </article>
 
@@ -866,9 +924,9 @@ python run_factory.py</pre>
       <!-- Standalone Export -->
       <article class="docs-card" id="standalone">
         <span class="card-badge">DEPLOYMENT</span>
-        <h1 class="docs-title">Turnkey Standalone Export</h1>
+        <h1 class="docs-title">Standalone Package Export</h1>
         <p class="docs-p">
-          Once your knowledge base is indexed in the factory studio, you can export a self-contained ZIP bundle that operates standalone on local hardware with zero external dependencies:
+          Once your documents are indexed, you can export a self-contained ZIP bundle that can run on other local machines:
         </p>
 
         <h2 class="docs-h2">What's Inside the Exported Bundle:</h2>
@@ -942,7 +1000,7 @@ chmod +x run.sh
               <tr>
                 <td><span class="badge-method badge-get">GET</span></td>
                 <td><code>/api/sessions/{id}/export</code></td>
-                <td>Exports the turnkey standalone ZIP package.</td>
+                <td>Exports the standalone ZIP package.</td>
               </tr>
               <tr>
                 <td><span class="badge-method badge-post">POST</span></td>
@@ -960,7 +1018,7 @@ chmod +x run.sh
 
   <!-- Footer -->
   <footer>
-    <div>Mi:RAG Autonomous Multimodal RAG Engine</div>
+    <div>Mi:RAG — Local Multimodal Document Search & QA</div>
     <div style="margin-top: 0.4rem; color: #94a3b8; font-size: 0.8rem;">Open Source MIT License • Built by Aryan Singh</div>
   </footer>
 

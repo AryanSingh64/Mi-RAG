@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Mi:RAG Studio Build Knowledge Base</title>
+  <title>Mi:RAG — Knowledge Base Studio</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/svg+xml" href="/static/assets/favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/favicon.png">
@@ -744,7 +744,7 @@
               <input type="checkbox" id="check-enable-local" onchange="handleModelToggle('local')" style="width: 17px; height: 17px; accent-color: #000; cursor: pointer;" checked>
               <span>Local Model (Ollama)</span>
             </label>
-            <span id="local-engine-pill" style="font-size: 0.72rem; font-weight: 800; background: var(--green); color: #000; padding: 0.15rem 0.5rem; border: 1.5px solid #000; border-radius: 4px;">Offline Ready</span>
+            <span id="local-engine-pill" style="font-size: 0.72rem; font-weight: 800; background: var(--green); color: #000; padding: 0.15rem 0.5rem; border: 1.5px solid #000; border-radius: 4px;">Local Mode</span>
           </div>
           <div id="local-model-body">
             <div style="margin-bottom: 0.6rem;">
@@ -841,7 +841,7 @@
         </svg>
         <span>Settings</span>
       </button>
-      <div class="status-pill-head" id="engine-status-pill">OFFLINE READY</div>
+      <div class="status-pill-head" id="engine-status-pill">LOCAL MODE</div>
     </div>
   </header>
 
@@ -858,7 +858,7 @@
       <div class="hw-item">
         <span>CPU:</span> <span id="hw-cpu">-- Threads</span>
       </div>
-      <div class="hw-badge" id="hw-tier">RTX ACCELERATED</div>
+      <div class="hw-badge" id="hw-tier">Auto-detected</div>
     </div>
 
     <div class="studio-card">
@@ -890,8 +890,8 @@
 
           <div class="input-group" style="grid-column: span 2;">
             <div class="label-row" style="display: flex; justify-content: space-between; align-items: center;">
-              <label class="label" for="embedding-select">Dense Embedding Engine (GPU / CPU Modular Vectors)</label>
-              <span style="font-size: 0.72rem; font-weight: 800; background: var(--green); color: #000; padding: 0.15rem 0.5rem; border: 1.5px solid #000; border-radius: 4px; box-shadow: 1.5px 1.5px 0px #000;">GPU AUTO-ACCELERATED</span>
+              <label class="label" for="embedding-select">Embedding Model</label>
+              <span style="font-size: 0.72rem; font-weight: 800; background: var(--green); color: #000; padding: 0.15rem 0.5rem; border: 1.5px solid #000; border-radius: 4px; box-shadow: 1.5px 1.5px 0px #000;">Auto-detected</span>
             </div>
             <select id="embedding-select" onchange="handleEmbeddingChange()" style="font-family: 'Space Grotesk', sans-serif; font-weight: 700;">
               <option value="BAAI/bge-base-en-v1.5" selected>Best Overall (General Use) — BAAI/bge-base-en-v1.5</option>
@@ -916,7 +916,7 @@
 
           <div class="input-group" style="grid-column: span 2;">
             <div class="label-row" style="display: flex; justify-content: space-between; align-items: center;">
-              <label class="label" style="margin-bottom: 0;">Vision OCR Models</label>
+              <label class="label" style="margin-bottom: 0;">Vision Models (Optional)</label>
               <button type="button" onclick="openModelHubModal()" style="background: none; border: none; font-family: 'Space Grotesk', sans-serif; font-size: 0.75rem; font-weight: 700; color: #475569; text-decoration: underline; cursor: pointer; padding: 0;">
                 Model Hub ↗
               </button>
@@ -931,7 +931,7 @@
           <!-- Response Configuration Panel -->
           <div class="input-group" style="grid-column: span 2; background: #ffffff; border: 1.5px solid #e2e8f0; padding: 1rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
             <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.85rem; color: #0f172a; margin-bottom: 0.65rem; display: flex; align-items: center; justify-content: space-between;">
-              <span style="letter-spacing: 0.3px;">BEHAVIOR</span>
+              <span style="letter-spacing: 0.3px;">ANSWER SETTINGS</span>
               <span style="font-size: 0.68rem; font-weight: 700; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; padding: 0.15rem 0.55rem; border-radius: 9999px;">Grounded</span>
             </div>
             
@@ -946,7 +946,7 @@
               </div>
 
               <div>
-                <label class="label" for="missing-behavior-select" style="font-size: 0.76rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Fallback</label>
+                <label class="label" for="missing-behavior-select" style="font-size: 0.76rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">When Not Found</label>
                 <select id="missing-behavior-select" style="font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem; font-weight: 700; padding: 0.5rem 0.65rem; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; color: #0f172a;">
                   <option value="refusal" selected>Decline</option>
                   <option value="general_knowledge">General</option>
@@ -954,7 +954,7 @@
               </div>
 
               <div>
-                <label class="label" for="style-select" style="font-size: 0.76rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Format</label>
+                <label class="label" for="style-select" style="font-size: 0.76rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Length</label>
                 <select id="style-select" style="font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem; font-weight: 700; padding: 0.5rem 0.65rem; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; color: #0f172a;">
                   <option value="detailed" selected>Detailed</option>
                   <option value="concise">Concise</option>
@@ -1014,7 +1014,7 @@
         </div>
 
         <button type="submit" class="btn-build" id="build-btn" style="margin-top: 1.25rem;">
-          GENERATE PRODUCTION RAG PACKAGE
+          Index Documents
         </button>
 
         <div class="progress-box" id="progress-container" style="display: none; margin-top: 1.5rem; background: #fff; border: 2.5px solid #000; box-shadow: 4px 4px 0px #000; padding: 1.25rem; border-radius: 8px;">
@@ -1029,9 +1029,9 @@
       </form>
 
       <div class="result-box" id="result-box">
-        <h3 style="font-family: 'Space Grotesk', sans-serif; font-weight: 900; font-size: 1.25rem; margin-bottom: 0.5rem;">Knowledge Base Built Successfully</h3>
-        <p style="font-weight: 600; font-size: 0.9rem; color: #166534;">Your private ChromaDB vector collection and grounded pipeline are live.</p>
-        <a href="#" id="portal-link" class="result-link-btn" target="_blank">Open Ephemeral Portal & Playground →</a>
+        <h3 style="font-family: 'Space Grotesk', sans-serif; font-weight: 900; font-size: 1.25rem; margin-bottom: 0.5rem;">Indexing Complete</h3>
+        <p style="font-weight: 600; font-size: 0.9rem; color: #166534;">Your documents and diagrams have been indexed in ChromaDB and are ready to search.</p>
+        <a href="#" id="portal-link" class="result-link-btn" target="_blank">Open Chat Assistant →</a>
       </div>
     </div>
   </main>
@@ -1117,9 +1117,9 @@
           document.getElementById('hw-cpu').innerText = `${specs.cores} Threads`;
         }
         if (specs && specs.vram_gb >= 3.5) {
-          document.getElementById('hw-tier').innerText = `RTX ${specs.vram_gb}GB ACCELERATED`;
+          document.getElementById('hw-tier').innerText = `GPU (${specs.vram_gb}GB VRAM)`;
         } else {
-          document.getElementById('hw-tier').innerText = `CPU PARALLEL ENGINE`;
+          document.getElementById('hw-tier').innerText = `CPU Mode`;
           const embedSelect = document.getElementById('embedding-select');
           if (embedSelect && embedSelect.value === 'BAAI/bge-base-en-v1.5') {
             embedSelect.value = 'all-MiniLM-L6-v2';

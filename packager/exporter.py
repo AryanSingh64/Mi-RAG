@@ -95,6 +95,7 @@ app.add_middleware(
 MODEL_NAME = "{model_name}"
 EMBEDDING_MODEL = "{embedding_model}"
 DB_PATH = Path("./vector_db")
+CHAT_DB_PATH = Path("./chat_history.db")
 IMAGES_DIR = Path("./images")
 INDEXED_FILES = {files_json}
 
@@ -176,6 +177,149 @@ def init_engine_background():
 @app.get("/api/status")
 def get_engine_status():
     return ENGINE_STATE
+
+import sqlite3
+import contextlib
+
+class StandaloneChatStore:
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+        self._lock = threading.RLock()
+        self._init_db()
+
+    @contextlib.contextmanager
+    def _connection(self):
+        conn = sqlite3.connect(str(self.db_path), timeout=10.0, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
+        conn.execute("PRAGMA foreign_keys=ON;")
+        try:
+            yield conn
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def _init_db(self):
+        with self._lock, self._connection() as conn:
+            conn.executescript("""
+                CREATE TABLE IF NOT EXISTS conversations (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    created_at REAL NOT NULL,
+                    updated_at REAL NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS messages (
+                    id TEXT PRIMARY KEY,
+                    conversation_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    image_url TEXT,
+                    grounding_metadata TEXT,
+                    created_at REAL NOT NULL,
+                    FOREIGN KEY(conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_conv_updated ON conversations(updated_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_msg_conv ON messages(conversation_id);
+            """)
+            conn.commit()
+
+    def generate_smart_title(self, first_message: str) -> str:
+        clean = re.sub(r'\\[Context:[^\\]]*\\]', '', first_message or '').strip()
+        clean = re.sub(r'\\s+', ' ', clean)
+        if not clean:
+            return "New Chat"
+        if len(clean) > 40:
+            return clean[:37].rstrip() + "..."
+        return clean
+
+    def create_conversation(self, title: str = "New Chat") -> dict:
+        conv_id = f"conv_{{uuid.uuid4().hex[:12]}}"
+        now = time.time()
+        with self._lock, self._connection() as conn:
+            conn.execute(
+                "INSERT INTO conversations (id, session_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                (conv_id, "standalone", title.strip() or "New Chat", now, now)
+            )
+            conn.commit()
+        return {{"id": conv_id, "title": title.strip() or "New Chat", "created_at": now, "updated_at": now, "message_count": 0}}
+
+    def list_conversations(self) -> list:
+        with self._lock, self._connection() as conn:
+            rows = conn.execute("""
+                SELECT c.id, c.title, c.created_at, c.updated_at, COUNT(m.id) AS message_count
+                FROM conversations c
+                LEFT JOIN messages m ON m.conversation_id = c.id
+                GROUP BY c.id
+                ORDER BY c.updated_at DESC
+            """).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_conversation(self, conv_id: str) -> Optional[dict]:
+        with self._lock, self._connection() as conn:
+            row = conn.execute("SELECT id, title, created_at, updated_at FROM conversations WHERE id = ?", (conv_id,)).fetchone()
+            if not row:
+                return None
+            msgs = conn.execute("SELECT id, role, content, image_url, grounding_metadata, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC", (conv_id,)).fetchall()
+            parsed_msgs = []
+            for m in msgs:
+                d = dict(m)
+                if d.get("grounding_metadata"):
+                    try:
+                        import json
+                        d["grounding_metadata"] = json.loads(d["grounding_metadata"])
+                    except Exception:
+                        pass
+                parsed_msgs.append(d)
+            res = dict(row)
+            res["messages"] = parsed_msgs
+            return res
+
+    def delete_conversation(self, conv_id: str) -> bool:
+        with self._lock, self._connection() as conn:
+            conn.execute("DELETE FROM messages WHERE conversation_id = ?", (conv_id,))
+            cur = conn.execute("DELETE FROM conversations WHERE id = ?", (conv_id,))
+            conn.commit()
+            return cur.rowcount > 0
+
+    def add_message(self, conv_id: str, role: str, content: str, image_url: Optional[str] = None, grounding_metadata: Any = None) -> dict:
+        msg_id = f"msg_{{uuid.uuid4().hex[:12]}}"
+        now = time.time()
+        import json
+        meta_str = json.dumps(grounding_metadata) if grounding_metadata is not None else None
+        with self._lock, self._connection() as conn:
+            conn.execute(
+                "INSERT INTO messages (id, conversation_id, role, content, image_url, grounding_metadata, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (msg_id, conv_id, role, content, image_url, meta_str, now)
+            )
+            conn.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (now, conv_id))
+            conn.commit()
+        return {{"id": msg_id, "conversation_id": conv_id, "role": role, "content": content, "created_at": now}}
+
+chat_store = StandaloneChatStore(CHAT_DB_PATH)
+
+@app.get("/api/conversations")
+def list_conversations():
+    return {{"conversations": chat_store.list_conversations()}}
+
+@app.post("/api/conversations")
+def create_conversation(req: Optional[dict] = None):
+    title = (req or {{}}).get("title", "New Chat") if isinstance(req, dict) else "New Chat"
+    return chat_store.create_conversation(title=title)
+
+@app.get("/api/conversations/{{conv_id}}")
+def get_conversation(conv_id: str):
+    conv = chat_store.get_conversation(conv_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return conv
+
+@app.delete("/api/conversations/{{conv_id}}")
+def delete_conversation(conv_id: str):
+    return {{"success": chat_store.delete_conversation(conv_id)}}
 
 # Server-side conversation memory buffer
 SERVER_MEMORY = []
@@ -344,6 +488,7 @@ class ChatRequest(BaseModel):
     provider: Optional[str] = "ollama"
     model: Optional[str] = None
     api_key: Optional[str] = None
+    conversation_id: Optional[str] = None
 
 class Citation(BaseModel):
     source_file: str
@@ -363,6 +508,7 @@ class ChatResponse(BaseModel):
     citations: List[Citation]
     images: List[ImageMatch]
     query_image_url: Optional[str] = None
+    conversation_id: Optional[str] = None
 
 def apply_attention_reranking(query: str, raw_chunks: list, history: list) -> list:
     """Attention-weighted context reranking using query overlap and conversation focus."""
@@ -531,6 +677,7 @@ async def chat_rag(request: Request):
     provider = "ollama"
     model = None
     api_key = None
+    conversation_id = None
 
     if "application/json" in content_type:
         try:
@@ -541,6 +688,7 @@ async def chat_rag(request: Request):
             provider = str(data.get("provider", "ollama")).strip()
             model = data.get("model", None)
             api_key = data.get("api_key", None)
+            conversation_id = data.get("conversation_id", None)
         except Exception:
             pass
     else:
@@ -549,6 +697,7 @@ async def chat_rag(request: Request):
         provider = str(form.get("provider", "ollama")).strip()
         model = form.get("model", None)
         api_key = form.get("api_key", None)
+        conversation_id = form.get("conversation_id", None)
         try:
             top_k = int(form.get("top_k", 6))
         except Exception:
@@ -570,10 +719,23 @@ async def chat_rag(request: Request):
                 shutil.copyfileobj(uploaded_image.file, buffer)
             query_image_url = f"/images/{{fname}}"
 
+    if not conversation_id:
+        title = chat_store.generate_smart_title(user_message or "New Chat")
+        conv = chat_store.create_conversation(title=title)
+        conversation_id = conv["id"]
+
+    if user_message or query_image_url:
+        chat_store.add_message(
+            conv_id=conversation_id,
+            role="user",
+            content=user_message or "[Visual Search]",
+            image_url=query_image_url
+        )
+
     effective_history = client_history if client_history is not None else SERVER_MEMORY
 
     if not user_message and not query_image_path:
-        return ChatResponse(answer="Please enter a question or attach an image.", confidence_score=1.0, is_grounded=True, citations=[], images=[])
+        return ChatResponse(answer="Please enter a question or attach an image.", confidence_score=1.0, is_grounded=True, citations=[], images=[], conversation_id=conversation_id)
 
     global embedder, collection, ENGINE_STATE, init_event
     if not ENGINE_STATE.get("ready"):
@@ -586,7 +748,8 @@ async def chat_rag(request: Request):
             is_grounded=False,
             citations=[],
             images=[],
-            query_image_url=query_image_url
+            query_image_url=query_image_url,
+            conversation_id=conversation_id
         )
 
     query_vec = embedder.encode(user_message or "multimodal image analysis", convert_to_numpy=True).tolist()
@@ -696,13 +859,21 @@ async def chat_rag(request: Request):
 
     avg_conf = sum(c["score"] for c in reranked_chunks) / len(reranked_chunks)
 
+    chat_store.add_message(
+        conv_id=conversation_id,
+        role="assistant",
+        content=ans_text,
+        grounding_metadata=[dict(v) for v in unique_citations.values()]
+    )
+
     return ChatResponse(
         answer=ans_text,
         confidence_score=round(avg_conf, 4),
         is_grounded=True,
         citations=[Citation(**v) for v in unique_citations.values()],
         images=matched_images,
-        query_image_url=query_image_url
+        query_image_url=query_image_url,
+        conversation_id=conversation_id
     )
 
 @app.post("/api/keys/test")
@@ -1270,6 +1441,14 @@ end;
                 except Exception:
                     pass
 
+        # Copy SQLite chat history database so past conversations travel with download
+        chat_db = session.session_dir / "chat_history.db"
+        if chat_db.exists():
+            try:
+                shutil.copy2(chat_db, bundle_dir / "chat_history.db")
+            except Exception:
+                pass
+
         images_dest = bundle_dir / "images"
         images_dest.mkdir(parents=True, exist_ok=True)
         search_dirs = [
@@ -1342,70 +1521,166 @@ end;
         )
         self._safe_write_text(bundle_dir / "requirements.txt", requirements_txt, encoding="utf-8")
 
-        # Write run.bat (Instant Launch with direct Chatbot server execution)
-        run_bat = (
-            "@echo off\n"
-            "setlocal enabledelayedexpansion\n"
-            "title Standalone Enterprise RAG Assistant\n"
-            "\n"
-            ":: 0. Deploy VC++ runtime DLLs to application directory and torch lib\n"
-            "if exist \"assets\\vc_runtimes\\*.dll\" (\n"
-            "    copy /y \"assets\\vc_runtimes\\*.dll\" . >nul 2>&1\n"
-            "    if exist \".venv\\Lib\\site-packages\\torch\\lib\" (\n"
-            "        copy /y \"assets\\vc_runtimes\\*.dll\" \".venv\\Lib\\site-packages\\torch\\lib\" >nul 2>&1\n"
-            "    )\n"
-            ")\n"
-            "\n"
-            ":: 1. Fast check if active python environment already has required modules\n"
-            "python -c \"import fastapi, chromadb, sentence_transformers, httpx, torch\" 2>nul\n"
-            "if %errorlevel% equ 0 (\n"
-            "    echo [*] System environment verified. Launching Chatbot Assistant...\n"
-            "    python server.py\n"
-            "    if !errorlevel! neq 0 (\n"
-            "        echo.\n"
-            "        echo =========================================================\n"
-            "        echo  [!] Server exited with an error code.\n"
-            "        echo =========================================================\n"
-            "        pause\n"
-            "    )\n"
-            "    exit /b\n"
-            ")\n"
-            "\n"
-            ":: 2. Otherwise create venv inheriting system site packages if available\n"
-            "if not exist .venv (\n"
-            "    echo [1/2] Setting up local environment...\n"
-            "    python -m venv --system-site-packages .venv\n"
-            ")\n"
-            "call .venv\\Scripts\\activate.bat\n"
-            "python setup.py\n"
-            "python server.py\n"
-            "if %errorlevel% neq 0 (\n"
-            "    echo.\n"
-            "    echo =========================================================\n"
-            "    echo  [!] Server exited with an error code.\n"
-            "    echo =========================================================\n"
-            "    pause\n"
-            ")\n"
+        # Write start.bat and run.bat (Windows Frictionless Local Launchers)
+        launcher_bat = (
+            "@echo off\r\n"
+            "setlocal enabledelayedexpansion\r\n"
+            "cd /d \"%~dp0\"\r\n"
+            "title Standalone Enterprise RAG Assistant\r\n"
+            "\r\n"
+            "echo =========================================================\r\n"
+            "echo   Standalone Enterprise RAG Assistant\r\n"
+            "echo =========================================================\r\n"
+            "\r\n"
+            ":: 0. Ensure relative local directories exist\r\n"
+            "if not exist logs mkdir logs\r\n"
+            "if not exist images mkdir images\r\n"
+            "if not exist vector_db mkdir vector_db\r\n"
+            "\r\n"
+            ":: 1. Deploy local VC++ runtime DLLs if bundled\r\n"
+            "if exist \"assets\\vc_runtimes\\*.dll\" (\r\n"
+            "    copy /y \"assets\\vc_runtimes\\*.dll\" . >nul 2>&1\r\n"
+            "    if exist \".venv\\Lib\\site-packages\\torch\\lib\" (\r\n"
+            "        copy /y \"assets\\vc_runtimes\\*.dll\" \".venv\\Lib\\site-packages\\torch\\lib\" >nul 2>&1\r\n"
+            "    )\r\n"
+            ")\r\n"
+            "\r\n"
+            ":: 2. If dedicated local environment exists, use it immediately\r\n"
+            "if exist \".venv\\Scripts\\python.exe\" (\r\n"
+            "    echo [*] Launching using local environment (.venv)...\r\n"
+            "    .venv\\Scripts\\python.exe server.py\r\n"
+            "    if !errorlevel! neq 0 (\r\n"
+            "        echo.\r\n"
+            "        echo =========================================================\r\n"
+            "        echo  [!] Server exited with an error code (!errorlevel!).\r\n"
+            "        echo  [i] Check logs\\server.log for details.\r\n"
+            "        echo =========================================================\r\n"
+            "    ) else (\r\n"
+            "        echo.\r\n"
+            "        echo =========================================================\r\n"
+            "        echo  [i] Standalone Assistant session finished.\r\n"
+            "        echo =========================================================\r\n"
+            "    )\r\n"
+            "    pause\r\n"
+            "    exit /b\r\n"
+            ")\r\n"
+            "\r\n"
+            ":: 3. Find available Python on machine\r\n"
+            "set \"PY_CMD=\"\r\n"
+            "where python >nul 2>&1\r\n"
+            "if !errorlevel! equ 0 (\r\n"
+            "    set \"PY_CMD=python\"\r\n"
+            ") else (\r\n"
+            "    where py >nul 2>&1\r\n"
+            "    if !errorlevel! equ 0 (\r\n"
+            "        set \"PY_CMD=py\"\r\n"
+            "    )\r\n"
+            ")\r\n"
+            "\r\n"
+            "if \"!PY_CMD!\"==\"\" (\r\n"
+            "    echo.\r\n"
+            "    echo =========================================================\r\n"
+            "    echo  [!] Python 3.10+ was not found on your system PATH.\r\n"
+            "    echo =========================================================\r\n"
+            "    echo  Please install Python from https://www.python.org/downloads/\r\n"
+            "    echo  Ensure 'Add Python to PATH' is checked during setup.\r\n"
+            "    echo.\r\n"
+            "    pause\r\n"
+            "    exit /b 1\r\n"
+            ")\r\n"
+            "\r\n"
+            ":: 4. Fast check if existing python environment has all needed libraries\r\n"
+            "\"!PY_CMD!\" -c \"import fastapi, chromadb, sentence_transformers, httpx, uvicorn\" 2>nul\r\n"
+            "if !errorlevel! equ 0 (\r\n"
+            "    echo [*] Launching Standalone Assistant...\r\n"
+            "    \"!PY_CMD!\" server.py\r\n"
+            "    if !errorlevel! neq 0 (\r\n"
+            "        echo.\r\n"
+            "        echo =========================================================\r\n"
+            "        echo  [!] Server exited with an error code (!errorlevel!).\r\n"
+            "        echo  [i] Check logs\\server.log for details.\r\n"
+            "        echo =========================================================\r\n"
+            "    ) else (\r\n"
+            "        echo.\r\n"
+            "        echo =========================================================\r\n"
+            "        echo  [i] Standalone Assistant session finished.\r\n"
+            "        echo =========================================================\r\n"
+            "    )\r\n"
+            "    pause\r\n"
+            "    exit /b\r\n"
+            ")\r\n"
+            "\r\n"
+            ":: 5. Otherwise setup self-contained local virtual environment\r\n"
+            "echo [*] Initializing local environment (.venv)...\r\n"
+            "\"!PY_CMD!\" -m venv --system-site-packages .venv\r\n"
+            "if not exist \".venv\\Scripts\\python.exe\" (\r\n"
+            "    echo [!] Failed to create local virtual environment.\r\n"
+            "    pause\r\n"
+            "    exit /b 1\r\n"
+            ")\r\n"
+            "\r\n"
+            "echo [*] Installing required packages into local environment...\r\n"
+            ".venv\\Scripts\\python.exe -m pip install -r requirements.txt --no-warn-script-location\r\n"
+            "if !errorlevel! neq 0 (\r\n"
+            "    echo [!] Note: Some packages finished with warnings. Launching Assistant...\r\n"
+            ")\r\n"
+            "\r\n"
+            "echo [*] Launching Standalone Assistant...\r\n"
+            ".venv\\Scripts\\python.exe server.py\r\n"
+            "if !errorlevel! neq 0 (\r\n"
+            "    echo.\r\n"
+            "    echo =========================================================\r\n"
+            "    echo  [!] Server exited with an error code (!errorlevel!).\r\n"
+            "    echo  [i] Check logs\\server.log for details.\r\n"
+            "    echo =========================================================\r\n"
+            ") else (\r\n"
+            "    echo.\r\n"
+            "    echo =========================================================\r\n"
+            "    echo  [i] Standalone Assistant session finished.\r\n"
+            "    echo =========================================================\r\n"
+            ")\r\n"
+            "pause\r\n"
         )
-        self._safe_write_text(bundle_dir / "run.bat", run_bat, encoding="utf-8")
+        self._safe_write_text(bundle_dir / "start.bat", launcher_bat, encoding="utf-8")
+        self._safe_write_text(bundle_dir / "run.bat", launcher_bat, encoding="utf-8")
 
-        # Write run.sh (Linux/Mac Launcher)
-        run_sh = (
-            "#!/bin/bash\n"
-            "python3 -c \"import fastapi, chromadb, sentence_transformers, httpx\" 2>/dev/null\n"
-            "if [ $? -eq 0 ]; then\n"
-            "    echo '[OK] System environment has all packages cached. Launching Chatbot Assistant...'\n"
-            "    python3 server.py\n"
-            "    exit 0\n"
+        # Write start.sh and run.sh (Linux/Mac Launchers)
+        launcher_sh = (
+            "#!/usr/bin/env bash\n"
+            "set -e\n"
+            "SCRIPT_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)\"\n"
+            "cd \"$SCRIPT_DIR\"\n"
+            "mkdir -p logs images vector_db\n"
+            "echo \"=========================================================\"\n"
+            "echo \"  Standalone Enterprise RAG Assistant\"\n"
+            "echo \"=========================================================\"\n"
+            "if [ -f \".venv/bin/python\" ]; then\n"
+            "    echo \"[*] Launching using local environment (.venv)...\"\n"
+            "    exec .venv/bin/python server.py\n"
             "fi\n"
-            "if [ ! -d '.venv' ]; then\n"
-            "    python3 -m venv --system-site-packages .venv\n"
+            "PY_CMD=\"\"\n"
+            "if command -v python3 >/dev/null 2>&1; then\n"
+            "    PY_CMD=\"python3\"\n"
+            "elif command -v python >/dev/null 2>&1; then\n"
+            "    PY_CMD=\"python\"\n"
             "fi\n"
-            "source .venv/bin/activate\n"
-            "python3 setup.py\n"
-            "python3 server.py\n"
+            "if [ -z \"$PY_CMD\" ]; then\n"
+            "    echo \"[!] Python 3 not found. Please install Python 3.10+.\"\n"
+            "    exit 1\n"
+            "fi\n"
+            "if \"$PY_CMD\" -c \"import fastapi, chromadb, sentence_transformers, httpx, uvicorn\" 2>/dev/null; then\n"
+            "    echo \"[*] Dependencies verified. Launching Assistant...\"\n"
+            "    exec \"$PY_CMD\" server.py\n"
+            "fi\n"
+            "echo \"[*] Initializing local environment (.venv)...\"\n"
+            "\"$PY_CMD\" -m venv --system-site-packages .venv\n"
+            "echo \"[*] Installing required packages into local environment...\"\n"
+            ".venv/bin/pip install -r requirements.txt\n"
+            "echo \"[*] Launching Standalone Assistant...\"\n"
+            "exec .venv/bin/python server.py\n"
         )
-        self._safe_write_text(bundle_dir / "run.sh", run_sh, encoding="utf-8")
+        self._safe_write_text(bundle_dir / "start.sh", launcher_sh, encoding="utf-8")
+        self._safe_write_text(bundle_dir / "run.sh", launcher_sh, encoding="utf-8")
 
         dockerfile = (
             "FROM python:3.11-slim\n"
@@ -1425,33 +1700,53 @@ end;
             encoding="utf-8"
         )
 
-        # 9. Try building Windows Setup Executable (.exe) first
-        installer_exe = self._build_windows_installer(bundle_dir, session)
-        if installer_exe and installer_exe.exists():
-            return installer_exe
-
-        # 10. Fallback: Ultra-Fast Smart Hybrid ZIP (Instant image archiving + deflated code/data)
+        # 9. Smart Hybrid ZIP Generation (Instant image archiving + deflated code/data)
         zip_file_path = self.output_dir / f"rag_package_{session.session_id}.zip"
         pre_compressed_exts = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".zip", ".tar", ".gz"}
         
+        server_py = bundle_dir / "server.py"
+        server_mtime = server_py.stat().st_mtime if server_py.exists() else 0
+
+        # Check if existing archive is fresh, valid, and clean of backslash paths
         if zip_file_path.exists():
             try:
-                if zip_file_path.stat().st_size > 1024:
+                if zip_file_path.stat().st_size > 1024 and zip_file_path.stat().st_mtime >= server_mtime:
                     with zipfile.ZipFile(zip_file_path, "r") as z_check:
-                        if len(z_check.namelist()) > 0:
+                        names = set(z_check.namelist())
+                        if "start.bat" in names and "server.py" in names and not any("\\" in n for n in names):
                             return zip_file_path
             except Exception:
                 pass
 
+        tmp_zip_path = zip_file_path.with_suffix(".zip.tmp")
         try:
-            with zipfile.ZipFile(zip_file_path, "w") as zip_out:
+            with zipfile.ZipFile(tmp_zip_path, "w") as zip_out:
                 for root, _, files in os.walk(bundle_dir):
                     for file in files:
                         full_p = Path(root) / file
-                        arc_name = full_p.relative_to(bundle_dir)
+                        # Skip volatile runtime lock/port/tmp files
+                        if full_p.name.endswith(".tmp") or full_p.name.endswith(".lock") or full_p.name == ".port":
+                            continue
+                        rel_path = full_p.relative_to(bundle_dir)
+                        # CRITICAL: Windows ZIP standard requires forward slashes for entry names
+                        arc_name = str(rel_path).replace("\\", "/")
                         comp_type = zipfile.ZIP_STORED if full_p.suffix.lower() in pre_compressed_exts else zipfile.ZIP_DEFLATED
                         zip_out.write(full_p, arcname=arc_name, compress_type=comp_type)
-        except Exception:
-            pass
+            
+            # Atomic file replacement so incomplete writes never reach the browser/client
+            if tmp_zip_path.exists():
+                if zip_file_path.exists():
+                    try:
+                        zip_file_path.unlink()
+                    except Exception:
+                        pass
+                tmp_zip_path.replace(zip_file_path)
+        except Exception as ze:
+            print(f"[!] Zip creation warning: {ze}")
+            if tmp_zip_path.exists():
+                try:
+                    tmp_zip_path.unlink()
+                except Exception:
+                    pass
 
         return zip_file_path

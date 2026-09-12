@@ -1,4 +1,3 @@
-import os
 import sys
 from pathlib import Path
 
@@ -12,11 +11,11 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
 import logging
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse
 import uvicorn
 
 # Suppress repetitive polling endpoint logs from cluttering terminal
@@ -31,8 +30,8 @@ from fastapi.staticfiles import StaticFiles
 from server.api.routes import router as api_router, session_manager
 
 app = FastAPI(
-    title="Mi:RAG Autonomous Factory",
-    description="Zero-budget, local-first Multimodal RAG generator and deployment exporter",
+    title="Mi:RAG",
+    description="Local document search and question answering with multimodal diagram extraction and visual search",
     version="1.0.0"
 )
 

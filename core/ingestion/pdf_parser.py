@@ -47,7 +47,7 @@ class DiagramDetector:
         for b in blocks:
             text = b[4].strip()
             lines = [l.strip() for l in text.split("\n") if l.strip()]
-            if lines and cls.CAPTION_REGEX.search(lines[0]) and len(text) < 500:
+            if lines and cls.CAPTION_REGEX.search(lines[0]) and len(text) < 2500:
                 caption_blocks.append((fitz.Rect(b[:4]), lines[0], text))
 
         drawings = page.get_drawings()
@@ -59,8 +59,8 @@ class DiagramDetector:
         # 2. First Pass: Reconstruct Complete Figures & Diagrams around detected Captions
         for c_rect, first_line, full_caption in caption_blocks:
             # Check elements ABOVE caption (Standard Figure / Chart / Diagram / Scheme / Flowchart)
-            above_drawings = [d['rect'] for d in drawings if d['rect'].y1 <= c_rect.y0 + 12 and d['rect'].y0 >= c_rect.y0 - 580]
-            above_images = [fitz.Rect(img['bbox']) for img in img_info if fitz.Rect(img['bbox']).y1 <= c_rect.y0 + 12 and fitz.Rect(img['bbox']).y0 >= c_rect.y0 - 580]
+            above_drawings = [d['rect'] for d in drawings if d['rect'].y1 <= c_rect.y0 + 16 and d['rect'].y0 >= c_rect.y0 - 680]
+            above_images = [fitz.Rect(img['bbox']) for img in img_info if fitz.Rect(img['bbox']).y1 <= c_rect.y0 + 16 and fitz.Rect(img['bbox']).y0 >= c_rect.y0 - 680]
 
             all_above = [r for r in (above_drawings + above_images) if r.width > 5 and r.height > 5]
             if all_above:
@@ -75,14 +75,14 @@ class DiagramDetector:
                         min(page_rect.width, max(combined.x1, c_rect.x1) + 6),
                         min(page_rect.height, c_rect.y1 + 6)
                     )
-                    cap_clean = first_line.split("\n")[0][:80]
+                    cap_clean = " ".join(full_caption.split())[:500]
                     diagrams.append((full_fig_bbox, cap_clean, "figure"))
                     covered_rects.append(full_fig_bbox)
                     continue
 
             # Check elements BELOW caption (Standard Table / Algorithm / Top Title)
-            below_drawings = [d['rect'] for d in drawings if d['rect'].y0 >= c_rect.y1 - 12 and d['rect'].y1 <= c_rect.y1 + 580]
-            below_images = [fitz.Rect(img['bbox']) for img in img_info if fitz.Rect(img['bbox']).y0 >= c_rect.y1 - 12 and fitz.Rect(img['bbox']).y1 <= c_rect.y1 + 580]
+            below_drawings = [d['rect'] for d in drawings if d['rect'].y0 >= c_rect.y1 - 16 and d['rect'].y1 <= c_rect.y1 + 680]
+            below_images = [fitz.Rect(img['bbox']) for img in img_info if fitz.Rect(img['bbox']).y0 >= c_rect.y1 - 16 and fitz.Rect(img['bbox']).y1 <= c_rect.y1 + 680]
 
             all_below = [r for r in (below_drawings + below_images) if r.width > 5 and r.height > 5]
             if all_below:
@@ -97,7 +97,7 @@ class DiagramDetector:
                         min(page_rect.width, max(combined.x1, c_rect.x1) + 6),
                         min(page_rect.height, combined.y1 + 6)
                     )
-                    cap_clean = first_line.split("\n")[0][:80]
+                    cap_clean = " ".join(full_caption.split())[:500]
                     diagrams.append((full_fig_bbox, cap_clean, "table"))
                     covered_rects.append(full_fig_bbox)
                     continue

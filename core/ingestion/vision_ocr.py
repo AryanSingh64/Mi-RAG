@@ -118,11 +118,10 @@ class VisionImageParser(BaseDocumentParser):
         print(f"[*] Processing with Vision Model: {resolved_model} (timeout={timeout}s)...")
 
         prompt = (
-            "Analyze this visual document/image thoroughly and objectively:\n"
-            "1. SUBJECT & SCENE: State who or what is depicted (e.g., person/model portrait, landscape, diagram, artwork, object). Describe their pose, appearance, clothing or drapery, and expression.\n"
-            "2. COMPOSITION & COLORS: Detail the visual composition, framing, background (e.g., textures, seamless paper, curtains, props), lighting style, and dominant color palette (e.g., pastel pink, light green, warm tones).\n"
-            "3. NOTABLE DETAILS & STYLE: What makes this image visually unique, special, or aesthetic (mood, artistic style, materials)?\n"
-            "4. VISIBLE TEXT & NUMBERS: Transcribe any visible titles, names, calendar dates, numbers, and brand logos verbatim."
+            "Describe this image concisely and factually:\n"
+            "- What specific content or subject is shown (e.g. microscopic histology, chart, plot, diagram, table, text, medical sample)?\n"
+            "- Transcribe all readable labels, titles, numbers, legends, or text elements.\n"
+            "- Provide a brief summary of key visual findings without generating repetitive headings or boilerplate."
         )
 
         payload = {
@@ -144,7 +143,27 @@ class VisionImageParser(BaseDocumentParser):
                 with httpx.Client(timeout=timeout) as client:
                     res = client.post(f"{self.ollama_url}/api/generate", json=payload)
                     if res.status_code == 200:
-                        description = res.json().get("response", "").strip()
+                        raw_desc = res.json().get("response", "").strip()
+                        # Deduplicate repeated lines from small vision models
+                        lines = [l.strip() for l in raw_desc.splitlines() if l.strip()]
+                        deduped = []
+                        for l in lines:
+                            if deduped and l.lower() == deduped[-1].lower():
+                                continue
+                            if deduped[-4:].count(l) >= 2:
+                                continue
+                            deduped.append(l)
+                        description = "\n".join(deduped).strip()
+
+                        # Filter out refusal boilerplate
+                        lower_desc = description.lower()
+                        refusals = [
+                            "unable to analyze", "cannot analyze", "i'm unable to", "i am unable to",
+                            "sorry, but i'm unable", "sorry, but i cannot", "as an ai, i cannot"
+                        ]
+                        if any(ref in lower_desc for ref in refusals) and len(description) < 180:
+                            return None
+
                         if len(description) > 5:
                             print(f"[*] {resolved_model} extracted description ({len(description)} chars)")
                             return description

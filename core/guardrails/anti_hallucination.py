@@ -49,11 +49,24 @@ class AntiHallucinationEngine:
             if has_exact:
                 r.score = max(r.score, 0.70)
                 kept.append(r)
-            elif lex_matches >= 1 and (len(content_words) <= 2 or lex_matches >= len(content_words) * 0.5):
-                r.score = max(r.score, 0.50)
+            elif lex_matches >= 2 or (lex_matches >= 1 and (len(content_words) <= 3 or r.score >= 0.22)):
+                r.score = max(r.score, 0.50 + min(0.35, lex_matches * 0.05))
                 kept.append(r)
             elif r.score >= self.min_similarity_threshold:
                 kept.append(r)
+
+        # Resilient fallback: Only apply if:
+        # 1. Query has NO specific content words (conversational / continuation), OR
+        # 2. At least one candidate has genuinely high semantic similarity (>= 0.38)
+        if not kept and search_results:
+            if not content_words:
+                top_cand = [r for r in search_results if getattr(r, "score", 0.0) >= 0.25]
+                if top_cand:
+                    kept = top_cand[:4]
+            else:
+                top_cand = [r for r in search_results if getattr(r, "score", 0.0) >= 0.38]
+                if top_cand:
+                    kept = top_cand[:4]
 
         return kept
 
@@ -152,7 +165,8 @@ class AntiHallucinationEngine:
         self,
         query: str,
         chunks: List[SearchResult],
-        history: Optional[List[Dict[str, str]]] = None
+        history: Optional[List[Dict[str, str]]] = None,
+        is_image_query: bool = False
     ) -> List[SearchResult]:
         """
         Attention-Guided Context Reranking.
@@ -163,7 +177,8 @@ class AntiHallucinationEngine:
 
         query_words = set(re.findall(r"\b\w{3,}\b", query.lower()))
         history_words = set()
-        if history:
+        # If it's a new visual image query, suppress prior turn topic bleed
+        if history and not is_image_query:
             for turn in history[-2:]:
                 history_words.update(re.findall(r"\b\w{3,}\b", str(turn.get("content", "")).lower()))
 
@@ -177,7 +192,7 @@ class AntiHallucinationEngine:
             # Composite attention score
             composite = chunk.score * 0.65 + min(overlap * 0.08, 0.25) + min(history_overlap * 0.04, 0.10)
             if has_fig:
-                composite += 0.05
+                composite += 0.12 if is_image_query else 0.05
             scored_chunks.append((composite, chunk))
 
         scored_chunks.sort(key=lambda x: x[0], reverse=True)
@@ -185,26 +200,26 @@ class AntiHallucinationEngine:
 
     def build_grounded_system_prompt(self) -> str:
         """
-        Multimodal local system prompt with full privacy authorization, conversation memory directives,
-        and strict anti-hallucination synthesis.
+        Multimodal local system prompt with adaptive, natural conversational synthesis,
+        intent-focused answering (like GPT-4/Claude/Gemini), and strict anti-hallucination grounding.
         """
         return (
-            "You are a 100% private, local offline document analysis intelligence engine running on the user's personal machine.\n"
-            "PRIVACY & AUTHORIZATION DIRECTIVE:\n"
-            "- The user is the verified owner of all uploaded documents, diagrams, math sheets, identity records, artwork, and files.\n"
-            "- You have full permission to analyze, transcribe, compare, and explain any content in the provided context.\n\n"
-            "ANSWER QUALITY & CONVERSATIONAL MEMORY DIRECTIVES:\n"
-            "1. Deliver a DIRECT, FINISHED, and WELL-STRUCTURED answer that directly addresses what the user asked.\n"
-            "2. CONVERSATION MEMORY: Use prior conversation turns to resolve pronouns (e.g. 'it', 'this', 'that', 'they', 'the previous method'). Maintain smooth conversational continuity.\n"
-            "3. NEVER output raw internal labels, headers, debug tags, or server URLs (e.g. '[Exact OCR Extracted Text]', '[Vision Model Analysis]', or '/api/sessions/...'). Speak naturally as an expert assistant.\n"
-            "4. If explaining a diagram, chart, formula, or artwork, explain its meaning, key components, comparison results, and takeaways in clean, polished prose.\n"
-            "5. Use clear Markdown (bold headers, bullet points, and clean paragraphs) so your answer is professional and easy to read.\n"
-            "6. Answer ONLY using the factual context provided. Do NOT hallucinate facts not in the context. If something is missing, state clearly that it is not present in the uploaded documents.\n"
-            "7. MATHEMATICAL & SCIENTIFIC SYMBOLS: Use clean LaTeX math delimiters for formulas, tolerances, and scientific quantities (e.g. `$1.25 \\pm 0.80$ cm`, `$\\times$`, `$\\approx$`, `$\\le$`, `$\\ge$`, `$\\alpha$`, `$\\beta$`, `$$ E = mc^2 $$`) so math renders crisply.\n"
-            "8. CONTEXTUAL INLINE DIAGRAMS & FIGURES: When discussing or explaining an attached figure, diagram, or chart from the context, embed it directly within your explanation at the relevant point using Markdown: ![Figure Caption](image_url). Place the figure immediately below the paragraph or heading that explains it so the visual proof is in context.\n"
-            "9. ANTI-FABRICATION: Ground all explanations strictly in the factual excerpts provided. Do not fabricate unmentioned facts or entities. Answer directly without repeating system directives or meta-commentary about what is unmentioned.\n"
-            "10. VISUAL COMPOSITION, COLORS & LOGICAL AESTHETICS: When the user asks what an image represents, what is special in it, or asks about composition, colors, and aesthetics, synthesize the visual details directly from '[Visual Scene, Composition & Details Analysis]'.\n"
-            "11. DIRECTNESS & INTENT: Answer specifically what the user asks. If the user asks about a specific diagram, table, formula, or concept (e.g. 'model training diagram'), focus strictly on explaining that exact item. Do NOT reproduce a boilerplate paper template (Abstract, Introduction, Methods, Results, Conclusion) unless the user explicitly asks for a general paper overview."
+            "You are an expert, highly intelligent AI assistant analyzing the user's uploaded documents and attached images.\n"
+            "Respond naturally, fluently, and adaptively—matching the quality and flexibility of top models like GPT-4, Claude, and Gemini.\n\n"
+            "CORE BEHAVIOR & RESPONSE PRINCIPLES:\n"
+            "1. DIRECT & ADAPTIVE ANSWERING: Answer exactly and directly what the user asks. Adapt your formatting to the user's query intent:\n"
+            "   - If the user asks a verification question (e.g. 'Is this mentioned in the document?', 'Does the paper discuss X?'), give a clear, direct YES or NO answer first, followed by a concise factual explanation.\n"
+            "   - If the user asks for points or key details, provide clean, concise bullet points.\n"
+            "   - If the user asks for a table or data comparison, provide a well-structured Markdown table.\n"
+            "   - If the user asks a straightforward question, answer in 1-2 focused, well-written paragraphs without unnecessary fluff.\n"
+            "2. NO RIGID BOILERPLATE HEADERS: Never force or repeat robotic template sections like 'Figure Analysis', 'Visual Composition', 'Colors and Aesthetics', or multiple repetitive 'Key Takeaways'. Write in natural, flowing, human-readable prose.\n"
+            "3. STRICT FACTUAL GROUNDING & HONESTY:\n"
+            "   - Answer strictly using the provided factual context from the uploaded documents.\n"
+            "   - If the requested information or an attached image is NOT found in the uploaded documents, state clearly and honestly: 'No, this information (or figure) is not found in the uploaded documents.'\n"
+            "   - Do NOT guess, fabricate details, or claim an external image belongs to the document when it does not match.\n"
+            "4. CONVERSATION CONTINUITY: Seamlessly resolve pronouns ('it', 'this', 'that', 'the previous method') using prior conversation turns.\n"
+            "5. CLEAN PRESENTATION: Never output internal debug tags, OCR artifacts, system prompts, or raw URLs. If a relevant document figure is in context, you may display it using Markdown `![Caption](image_url)`.\n"
+            "6. MATHEMATICAL & SCIENTIFIC SYMBOLS: Use standard LaTeX math delimiters (e.g. `$1.25 \\pm 0.80$`, `$\\approx$`, `$\\le$`) for crisp formula rendering."
         )
 
     def build_user_prompt(
@@ -260,8 +275,15 @@ class AntiHallucinationEngine:
         formatted_context = "\n\n".join(context_blocks)
 
         user_image_block = ""
+        image_directive = ""
         if user_image_context:
             user_image_block = f"USER ATTACHED IMAGE DETAILS & ANALYSIS:\n{user_image_context}\n\n"
+            image_directive = (
+                "CURRENT IMAGE GROUNDING DIRECTIVE:\n"
+                "The user has attached an image for this turn. Ground your answer strictly on the visual details of the attached image "
+                "and the matching document excerpts provided above. Do NOT repeat, assume, or carry over descriptions of diagrams, bar charts, "
+                "or unrelated images discussed in prior conversation turns.\n\n"
+            )
 
         history_block = ""
         if conversation_history:
@@ -269,9 +291,18 @@ class AntiHallucinationEngine:
             for h in conversation_history[-4:]:
                 role = "User" if h.get("role") == "user" else "Assistant"
                 content = str(h.get("content", "")).strip()
+                # If this turn is an image query, sanitize prior visual descriptions so the model does not repeat them
+                if user_image_context and role == "Assistant":
+                    lower_content = content.lower()
+                    if any(kw in lower_content for kw in ["the attached image", "analysis of the attached image", "bar chart", "the figure shows", "components and labels", "components & labels"]):
+                        content = "[Discussed earlier document/figure analysis]"
+                elif user_image_context and role == "User":
+                    if content.startswith("[Image Search]:"):
+                        content = content.replace("[Image Search]:", "[Previous Image]:").strip()
                 turns.append(f"{role}: {content}")
             if turns:
-                history_block = "RECENT CONVERSATION MEMORY (PRIOR DIALOGUE TURNS):\n" + "\n".join(turns) + "\n\n"
+                history_header = "RECENT CONVERSATION MEMORY (PRIOR DIALOGUE TURNS):"
+                history_block = f"{history_header}\n" + "\n".join(turns) + "\n\n"
 
         exemplar_block = ""
         if feedback_exemplars:
@@ -315,6 +346,7 @@ class AntiHallucinationEngine:
             f"KNOWLEDGE BASE CONTEXT:\n"
             f"{formatted_context}\n\n"
             f"{user_image_block}"
+            f"{image_directive}"
             f"{history_block}"
             f"{exemplar_block}"
             f"{negative_block}"

@@ -183,6 +183,106 @@
       stroke: #000;
     }
 
+    .btn-new-chat {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0.6rem;
+      padding: 0.55rem 0.85rem;
+      border-radius: 6px;
+      background: #1e293b;
+      color: #fff !important;
+      border: 1.5px solid #000 !important;
+      box-shadow: 2px 2px 0px #000 !important;
+      font-family: 'Space Grotesk', sans-serif !important;
+      font-weight: 800 !important;
+      font-size: 0.84rem;
+      cursor: pointer;
+      margin-bottom: 0.25rem;
+      transition: all 0.12s ease;
+    }
+    .btn-new-chat:hover {
+      background: var(--yellow) !important;
+      color: #000 !important;
+      transform: translate(-1px, -1px);
+      box-shadow: 3px 3px 0px #000 !important;
+    }
+    .conversation-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      max-height: 250px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+    .conversation-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.45rem;
+      padding: 0.45rem 0.6rem;
+      border-radius: 6px;
+      color: #cbd5e1;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.1s ease;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+    .conversation-item:hover {
+      background: #182238;
+      color: #fff;
+    }
+    .conversation-item.active {
+      background: #1c2742;
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.4);
+      box-shadow: 1.5px 1.5px 0px #000;
+    }
+    .conversation-item-title {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 0.82rem;
+    }
+    .conversation-item-actions {
+      display: none;
+      align-items: center;
+      gap: 0.25rem;
+      flex-shrink: 0;
+    }
+    .conversation-item:hover .conversation-item-actions,
+    .conversation-item.active .conversation-item-actions {
+      display: flex;
+    }
+    .btn-del-conv {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 0.15rem 0.3rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      line-height: 1;
+      transition: color 0.1s ease, background 0.1s ease;
+    }
+    .btn-del-conv:hover {
+      color: #fff;
+      background: #e11d48;
+    }
+    .chat-count-badge {
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: #94a3b8;
+      background: #141b2d;
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      border: 1px solid #1f293d;
+    }
+
     .doc-pill-item {
       padding: 0.4rem 0.65rem;
       background: #131929;
@@ -495,6 +595,40 @@
       margin-bottom: 0.5rem;
       text-transform: uppercase;
       letter-spacing: 0.3px;
+    }
+
+    /* Simple Clean Thinking Indicator */
+    .thinking-scene-container {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.2rem 0;
+      min-height: 28px;
+      user-select: none;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      margin: 0.2rem 0;
+    }
+
+    .thinking-scene-text {
+      font-size: 0.95rem;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+      color: #f8fafc;
+      text-shadow: none;
+      display: inline-block;
+      transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: transform, opacity;
+    }
+
+    .thinking-scene-text.anim-in {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .thinking-scene-text.anim-out {
+      opacity: 0;
+      transform: translateY(-5px);
     }
 
     .msg-content {
@@ -989,7 +1123,7 @@
     /* Input Capsule Form */
     .input-form-capsule {
       display: flex;
-      align-items: center;
+      align-items: flex-end;
       background: #141b2d;
       border: 2px solid #000;
       border-radius: 28px;
@@ -1018,6 +1152,7 @@
       justify-content: center;
       flex-shrink: 0;
       margin-right: 0.65rem;
+      margin-bottom: 2px;
       cursor: pointer;
       box-shadow: 1.5px 1.5px 0px #000;
       transition: all 0.1s ease;
@@ -1027,17 +1162,25 @@
       color: #000;
       transform: translate(-1px, -1px);
     }
-    .input-capsule-field {
+    .input-capsule-field, .chat-textarea {
       flex: 1;
       background: transparent;
       border: none;
       color: #fff;
       font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 0.95rem;
+      line-height: 1.5;
       outline: none;
-      padding: 0.4rem 0;
+      padding: 0.45rem 0.5rem 0.45rem 0;
+      resize: none;
+      min-height: 24px;
+      max-height: 180px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      box-sizing: border-box;
     }
-    .input-capsule-field::placeholder {
+    .input-capsule-field::placeholder, .chat-textarea::placeholder {
       color: #64748b;
     }
     .btn-send-capsule {
@@ -1051,6 +1194,7 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      margin-bottom: 2px;
       cursor: pointer;
       box-shadow: 2px 2px 0px #000;
       transition: all 0.1s ease;
@@ -1537,12 +1681,29 @@
     </div>
 
     <div class="sidebar-scroll">
+      <!-- + New Chat Button (ChatGPT Style) -->
+      <button type="button" onclick="startNewChat()" id="btn-new-chat" class="btn-new-chat" title="Start a new chat thread">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <span>New Chat</span>
+      </button>
+
+      <!-- Persistent Conversations List -->
+      <div>
+        <div class="sidebar-section-title" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>Recent Chats</span>
+          <span id="chat-count-badge" class="chat-count-badge">0</span>
+        </div>
+        <div id="conversation-list-container" class="conversation-list">
+          <div style="font-size: 0.78rem; color: #64748b; padding: 0.4rem;">No chats yet</div>
+        </div>
+      </div>
+
       <div>
         <div class="sidebar-section-title">Session Actions</div>
         <div class="sidebar-menu-list">
           <div class="sidebar-nav-item" onclick="clearMemory()" title="Reset session dialogue memory">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-            <span>Reset Memory</span>
+            <span>Clear Current Chat</span>
           </div>
         </div>
       </div>
@@ -1637,11 +1798,12 @@
 
   <script>
     window.IS_STANDALONE = true;
-    const STORAGE_KEY = 'mirag_standalone_history';
     let conversationTurns = [];
     let currentAttachedFile = null;
     let currentAttachedBase64 = null;
     let activeQuotedSnippet = null;
+    let currentConversationId = null;
+    let conversationsList = [];
     const botMessageMap = {};
 
     // Sidebar Slide Drawer Toggle
@@ -1672,48 +1834,176 @@
       </div>
     `;
 
-    // LocalStorage Persistent History
-    function saveChatToStorage() {
+    async function loadConversations(autoSelect = true) {
       try {
-        const payload = {
-          html: document.getElementById('chat-box').innerHTML,
-          turns: conversationTurns
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-      } catch (e) {
-        console.warn("Storage save note:", e);
+        const res = await fetch('/api/conversations');
+        if (!res.ok) return;
+        const data = await res.json();
+        conversationsList = data.conversations || [];
+
+        const badge = document.getElementById('chat-count-badge');
+        if (badge) badge.innerText = String(conversationsList.length);
+
+        const container = document.getElementById('conversation-list-container');
+        if (!container) return;
+
+        if (conversationsList.length === 0) {
+          container.innerHTML = '<div style="font-size: 0.78rem; color: #64748b; padding: 0.4rem;">No chats yet</div>';
+          if (autoSelect && !currentConversationId) {
+            document.getElementById('chat-box').innerHTML = defaultGreetingHtml;
+          }
+          return;
+        }
+
+        container.innerHTML = conversationsList.map(c => `
+          <div class="conversation-item ${c.id === currentConversationId ? 'active' : ''}" id="conv-item-${c.id}" onclick="switchConversation('${c.id}')" title="${escapeHtml(c.title || 'Chat')}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0; opacity:0.75;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <span class="conversation-item-title">${escapeHtml(c.title || 'Chat')}</span>
+            <div class="conversation-item-actions">
+              <button type="button" class="btn-del-conv" onclick="deleteConversationItem(event, '${c.id}')" title="Delete chat">✕</button>
+            </div>
+          </div>
+        `).join('');
+
+        if (autoSelect) {
+          const savedActiveId = sessionStorage.getItem('mirag_desktop_conv');
+          if (!currentConversationId && savedActiveId && conversationsList.some(c => c.id === savedActiveId)) {
+            await switchConversation(savedActiveId);
+          } else if (!currentConversationId && conversationsList.length > 0) {
+            await switchConversation(conversationsList[0].id);
+          } else if (currentConversationId) {
+            const exists = conversationsList.some(c => c.id === currentConversationId);
+            if (exists) {
+              document.querySelectorAll('.conversation-item').forEach(el => {
+                el.classList.toggle('active', el.id === `conv-item-${currentConversationId}`);
+              });
+            } else if (conversationsList.length > 0) {
+              await switchConversation(conversationsList[0].id);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to load conversations:", err);
       }
     }
 
-    function restoreChatFromStorage() {
+    function startNewChat() {
+      currentConversationId = null;
+      sessionStorage.removeItem('mirag_desktop_conv');
+      conversationTurns = [];
+      document.querySelectorAll('.conversation-item').forEach(el => el.classList.remove('active'));
+      const chatBox = document.getElementById('chat-box');
+      if (chatBox) chatBox.innerHTML = defaultGreetingHtml;
+      const uInput = document.getElementById('user-input');
+      if (uInput) {
+        uInput.value = '';
+        uInput.style.height = 'auto';
+        uInput.focus();
+      }
+      if (window.innerWidth <= 860) toggleSidebar(false);
+    }
+
+    async function switchConversation(convId) {
+      if (!convId) return;
+      currentConversationId = convId;
+      sessionStorage.setItem('mirag_desktop_conv', convId);
+      document.querySelectorAll('.conversation-item').forEach(el => {
+        el.classList.toggle('active', el.id === `conv-item-${convId}`);
+      });
+
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.html && parsed.html.trim().length > 10) {
-            document.getElementById('chat-box').innerHTML = parsed.html;
-            conversationTurns = parsed.turns || [];
-            document.getElementById('chat-box').scrollTop = document.getElementById('chat-box').scrollHeight;
-            return true;
+        const res = await fetch(`/api/conversations/${convId}`);
+        if (!res.ok) throw new Error("Conversation not found");
+        const conv = await res.json();
+        renderConversationMessages(conv.messages || []);
+      } catch (e) {
+        console.warn("Failed to switch conversation:", e);
+      }
+      if (window.innerWidth <= 860) toggleSidebar(false);
+    }
+
+    function renderConversationMessages(messages) {
+      const chatBox = document.getElementById('chat-box');
+      if (!chatBox) return;
+      chatBox.innerHTML = '';
+      conversationTurns = [];
+
+      if (!messages || messages.length === 0) {
+        chatBox.innerHTML = defaultGreetingHtml;
+        return;
+      }
+
+      messages.forEach(msg => {
+        if (msg.role === 'user') {
+          conversationTurns.push({ role: 'user', content: msg.content });
+          let userBubbleHtml = '';
+          if (msg.image_url) {
+            userBubbleHtml += `<div style="margin-bottom:0.5rem;"><img src="${msg.image_url}" style="max-width:180px; max-height:140px; border-radius:6px; border:1.5px solid #000; display:block;" onclick="openImageModal('${msg.image_url}', 'Attached Image')"></div>`;
+          }
+          userBubbleHtml += `<div>${formatMarkdown(msg.content)}</div>`;
+
+          const userRow = document.createElement('div');
+          userRow.className = 'msg-row user-row';
+          userRow.id = msg.id || ('user-' + Date.now());
+          userRow.innerHTML = `<div class="user-bubble">${userBubbleHtml}</div>`;
+          chatBox.appendChild(userRow);
+        } else if (msg.role === 'assistant') {
+          conversationTurns.push({ role: 'assistant', content: msg.content });
+          const botMsgId = msg.id || ('bot-' + Date.now());
+          const citations = msg.grounding_metadata || [];
+          botMessageMap[botMsgId] = {
+            query: '',
+            answer: msg.content,
+            model: 'Local Assistant',
+            citations: citations
+          };
+
+          const botRow = document.createElement('div');
+          botRow.className = 'msg-row bot-row';
+          botRow.id = botMsgId;
+          botRow.innerHTML = `
+            <div class="bot-body">
+              <div class="grounded-badge">Fact-Checked & Grounded</div>
+              <div class="msg-content">${formatMarkdown(msg.content)}</div>
+            </div>
+          `;
+          chatBox.appendChild(botRow);
+          if (window.renderMathInElement) {
+            renderMathInElement(botRow, { delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}] });
           }
         }
-      } catch (e) {
-        console.warn("Storage restore note:", e);
+      });
+
+      const scrollArea = document.getElementById('chat-scroll-area');
+      if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
+    }
+
+    async function deleteConversationItem(e, convId) {
+      if (e) e.stopPropagation();
+      if (!confirm("Are you sure you want to delete this chat?")) return;
+      try {
+        await fetch(`/api/conversations/${convId}`, { method: 'DELETE' });
+      } catch (err) {
+        console.warn("Delete note:", err);
       }
-      return false;
+      if (currentConversationId === convId) {
+        currentConversationId = null;
+        sessionStorage.removeItem('mirag_desktop_conv');
+      }
+      await loadConversations(true);
     }
 
     async function clearMemory() {
-      if (!confirm("Are you sure you want to reset conversation memory?")) return;
-      try {
-        await fetch('/api/clear_memory', { method: 'POST' });
-      } catch (err) {
-        console.warn("Memory clearance note:", err);
+      if (!confirm("Clear current chat messages?")) return;
+      if (currentConversationId) {
+        try {
+          await fetch(`/api/conversations/${currentConversationId}`, { method: 'DELETE' });
+        } catch (err) {
+          console.warn("Memory clearance note:", err);
+        }
       }
-      localStorage.removeItem(STORAGE_KEY);
-      conversationTurns = [];
-      document.getElementById('chat-box').innerHTML = defaultGreetingHtml;
-      if (window.innerWidth <= 860) toggleSidebar(false);
+      startNewChat();
+      await loadConversations(false);
     }
 
     async function quitServer() {
@@ -1724,7 +2014,7 @@
       document.body.innerHTML = `
         <div style="height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#090c15; color:#fff; font-family:'Space Grotesk',sans-serif; text-align:center; padding:2rem;">
           <div style="background:#ff2d87; color:#fff; font-size:1.5rem; font-weight:900; padding:0.6rem 1.5rem; border:2.5px solid #000; box-shadow:4px 4px 0px #000; border-radius:8px; margin-bottom:1.5rem;">ASSISTANT CLOSED</div>
-          <p style="font-size:1.1rem; color:#94a3b8; max-width:500px; line-height:1.6;">The offline engine has stopped safely.<br>All chat history has been preserved.<br>You can now safely close this window.</p>
+          <p style="font-size:1.1rem; color:#94a3b8; max-width:500px; line-height:1.6;">The offline engine has stopped safely.<br>All chat history has been preserved in local database.<br>You can now safely close this window.</p>
         </div>
       `;
       setTimeout(() => window.close(), 1200);
@@ -1754,11 +2044,8 @@
         console.warn("Server info fetch note:", e);
       }
 
-      // Restore chat history if exists
-      const restored = restoreChatFromStorage();
-      if (!restored) {
-        document.getElementById('chat-box').innerHTML = defaultGreetingHtml;
-      }
+      // Hydrate conversations from local SQLite database
+      await loadConversations(true);
     }
 
     // Quoted Reply Dock
@@ -1928,6 +2215,73 @@
       }
     });
 
+    // Human Conversational Thinking Phrases Engine
+    const thinkingPhrases = [
+      "Wait a little...",
+      "A little more...",
+      "Maybe more...",
+      "Just getting to it...",
+      "We should not eat hot food immediately...",
+      "Hold on a sec...",
+      "Reading through it right now...",
+      "Almost there...",
+      "Still on it...",
+      "Let me double check...",
+      "Just a couple seconds...",
+      "Thinking this through...",
+      "Hang tight...",
+      "Getting there...",
+      "One moment..."
+    ];
+
+    let thinkingPhraseTimer = null;
+
+    function startThinkingPhrases(containerEl) {
+      stopThinkingPhrases();
+      if (!containerEl) return;
+
+      let idx = 0;
+      containerEl.innerHTML = `
+        <div class="thinking-scene-container">
+          <span class="thinking-scene-text anim-in">${thinkingPhrases[idx]}</span>
+        </div>
+      `;
+
+      const textSpan = containerEl.querySelector('.thinking-scene-text');
+      thinkingPhraseTimer = setInterval(() => {
+        if (!textSpan || !document.body.contains(textSpan)) {
+          stopThinkingPhrases();
+          return;
+        }
+
+        // Smooth fade & glide out
+        textSpan.classList.remove('anim-in');
+        textSpan.classList.add('anim-out');
+
+        setTimeout(() => {
+          if (!textSpan || !document.body.contains(textSpan)) return;
+          idx = (idx + 1) % thinkingPhrases.length;
+          textSpan.textContent = thinkingPhrases[idx];
+
+          // Position slightly below, then glide up
+          textSpan.style.transition = 'none';
+          textSpan.style.transform = 'translateY(4px)';
+          void textSpan.offsetWidth; // force reflow
+          textSpan.style.transition = '';
+          textSpan.classList.remove('anim-out');
+          textSpan.classList.add('anim-in');
+          textSpan.style.transform = '';
+        }, 400);
+      }, 2600);
+    }
+
+    function stopThinkingPhrases() {
+      if (thinkingPhraseTimer) {
+        clearInterval(thinkingPhraseTimer);
+        thinkingPhraseTimer = null;
+      }
+    }
+
     // Chat Submission
     chatForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -1967,17 +2321,22 @@
       clearQueryImage();
       chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
 
-      // Temporary bot waiting row
+      // Temporary bot waiting row with animated thinking phrases
       const botMsgId = 'bot-' + Date.now();
       chatBox.innerHTML += `
         <div class="msg-row bot-row" id="${botMsgId}">
           <div class="bot-body">
             <div class="grounded-badge" style="background:var(--yellow); color:#000;">Searching Knowledge Base...</div>
-            <div class="msg-content" style="color:#94a3b8;">Searching and analyzing with verified grounding...</div>
+            <div class="msg-content"></div>
           </div>
         </div>
       `;
       chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
+
+      const botElement = document.getElementById(botMsgId);
+      const msgContent = botElement ? botElement.querySelector('.msg-content') : null;
+      startThinkingPhrases(msgContent);
+
       if (sendBtn) sendBtn.disabled = true;
 
       try {
@@ -1992,6 +2351,7 @@ ${query}` : query;
           fd.append('top_k', 6);
           fd.append('image', attachedFileToSend);
           fd.append('history', JSON.stringify(recentHistory));
+          if (currentConversationId) fd.append('conversation_id', currentConversationId);
           res = await fetch('/api/chat', {
             method: 'POST',
             body: fd
@@ -2003,17 +2363,33 @@ ${query}` : query;
             body: JSON.stringify({
               message: effectiveMessage,
               top_k: 6,
-              history: recentHistory
+              history: recentHistory,
+              conversation_id: currentConversationId || ""
             })
           });
         }
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        stopThinkingPhrases();
+
+        if (data.conversation_id) {
+          currentConversationId = data.conversation_id;
+          sessionStorage.setItem('mirag_desktop_conv', currentConversationId);
+          loadConversations(false);
+        }
+
+        const botAnswer = data.answer || data.response || "";
 
         // Build grounded sources pills
         let sourcesHtml = '';
-        if (data.grounded_sources && data.grounded_sources.length > 0) {
+        if (data.citations && data.citations.length > 0) {
+          sourcesHtml = '<div class="sources-container"><div class="sources-title">Verified Sources:</div><div class="sources-list">';
+          data.citations.forEach(src => {
+            sourcesHtml += `<div class="source-pill" title="${escapeHtml(src.text || '')}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>${escapeHtml(src.source_file || 'Document')} (Relevance: ${Math.round((src.relevance || 90))}%)</div>`;
+          });
+          sourcesHtml += '</div></div>';
+        } else if (data.grounded_sources && data.grounded_sources.length > 0) {
           sourcesHtml = '<div class="sources-container"><div class="sources-title">Verified Sources:</div><div class="sources-list">';
           data.grounded_sources.forEach(src => {
             sourcesHtml += `<div class="source-pill" title="${escapeHtml(src.content || '')}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>${escapeHtml(src.file || 'Document')} (Relevance: ${Math.round((src.score || 0.9) * 100)}%)</div>`;
@@ -2023,17 +2399,18 @@ ${query}` : query;
 
         // Build inline diagram card
         let diagHtml = '';
-        if (data.matched_images && data.matched_images.length > 0) {
-          const firstImg = data.matched_images[0];
+        const imgList = data.images || data.matched_images || [];
+        if (imgList.length > 0) {
+          const firstImg = imgList[0];
           const imgUrl = firstImg.url.startsWith('http') ? firstImg.url : firstImg.url;
           diagHtml = `
-            <div class="inline-diag-card" onclick="openImageModal('${imgUrl}', '${escapeHtml(firstImg.caption || 'Referenced Figure')}')">
+            <div class="inline-diag-card" onclick="openImageModal('${imgUrl}', '${escapeHtml(firstImg.caption || firstImg.filename || 'Referenced Figure')}')">
               <div class="inline-diag-body">
-                <img src="${imgUrl}" alt="${escapeHtml(firstImg.caption || 'Diagram')}">
+                <img src="${imgUrl}" alt="${escapeHtml(firstImg.caption || firstImg.filename || 'Diagram')}">
                 <div class="inline-diag-zoom-btn">⤢</div>
               </div>
               <div class="inline-diag-caption">
-                <div class="diag-title">${escapeHtml(firstImg.caption || 'Referenced Diagram')}</div>
+                <div class="diag-title">${escapeHtml(firstImg.caption || firstImg.filename || 'Referenced Diagram')}</div>
               </div>
             </div>
           `;
@@ -2043,7 +2420,7 @@ ${query}` : query;
           <div class="bot-body">
             <div class="grounded-badge">Fact-Checked & Grounded</div>
             ${diagHtml}
-            <div class="msg-content">${formatMarkdown(data.response)}</div>
+            <div class="msg-content">${formatMarkdown(botAnswer)}</div>
             ${sourcesHtml}
           </div>
         `;
@@ -2060,7 +2437,7 @@ ${query}` : query;
         });
         conversationTurns.push({
           role: 'assistant',
-          content: data.response
+          content: botAnswer
         });
 
         // Render math equations if KaTeX is present
@@ -2076,8 +2453,6 @@ ${query}` : query;
             });
           }
         }
-
-        saveChatToStorage();
       } catch (err) {
         console.error(err);
         const botMsgRow = document.getElementById(botMsgId);
@@ -2092,6 +2467,7 @@ ${query}` : query;
           `;
         }
       } finally {
+        stopThinkingPhrases();
         if (sendBtn) sendBtn.disabled = false;
         chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
       }

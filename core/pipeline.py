@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from core.chunking.text_chunker import RecursiveChunker
 from core.embeddings.embedder import LocalEmbedder
 from core.guardrails.anti_hallucination import AntiHallucinationEngine, GroundedAnswer
@@ -8,7 +8,8 @@ from core.guardrails.query_rewriter import QueryRewriter
 from core.ingestion.factory import DocumentParserFactory
 from core.llm.ollama_client import OllamaClient
 from core.llm.multi_provider import MultiProviderLLM
-from core.vectorstore.chroma_store import ChromaVectorStore
+from core.vectorstore.chroma_store import ChromaVectorStore, SearchResult
+from core.vectorstore.image_matcher import VisualFingerprintMatcher
 
 
 class RAGPipeline:
@@ -71,6 +72,7 @@ class RAGPipeline:
         self.feedback_file = self.persist_directory.parent / "feedback.json"
         self.global_feedback_file = Path.home() / ".mirag" / "global_feedback.json"
         self.citation_boosts: Dict[str, float] = {}
+        self.conversation_memory: List[Dict[str, str]] = []
         self.feedback_store: List[Dict[str, Any]] = self._load_feedback()
 
     def _load_feedback(self) -> List[Dict[str, Any]]:
@@ -459,6 +461,113 @@ class RAGPipeline:
             images=matched_images
         )
 
+    def _find_chunks_for_image_match(self, query_image_path: Path, min_threshold: float = 0.85) -> Tuple[List[SearchResult], List[str], Optional[Dict[str, Any]]]:
+        """
+        Performs high-speed perceptual visual matching against extracted document figures.
+        If a match is found, retrieves corresponding document chunks and figure metadata.
+        Returns: (matched_chunks, info_lines, top_matched_image_dict)
+        """
+        matched_chunks: List[SearchResult] = []
+        info_lines: List[str] = []
+        top_image_match: Optional[Dict[str, Any]] = None
+
+        if not self.extracted_images_dir:
+            return matched_chunks, info_lines, top_image_match
+
+        ext_dir = Path(self.extracted_images_dir)
+        if not ext_dir.exists():
+            return matched_chunks, info_lines, top_image_match
+
+        visual_matches = VisualFingerprintMatcher.match_against_directory(
+            query_image=query_image_path,
+            target_dir=ext_dir,
+            min_threshold=min_threshold,
+            top_k=2
+        )
+        if not visual_matches:
+            return matched_chunks, info_lines, top_image_match
+
+        top_fig_path, top_sim = visual_matches[0]
+        fig_filename = top_fig_path.name
+        print(f"[*] Perceptual visual match: {fig_filename} (similarity: {top_sim*100:.1f}%)")
+
+        img_url = f"/api/sessions/{self.session_id}/images/{fig_filename}" if self.session_id else f"/images/{fig_filename}"
+        top_image_match = {
+            "url": img_url,
+            "filename": fig_filename,
+            "source_file": fig_filename,
+            "relevance": round(min(100.0, top_sim * 100.0), 1),
+            "overlap": 10
+        }
+
+        if not hasattr(self.vector_store, "collection") or not self.vector_store.collection:
+            return matched_chunks, info_lines, top_image_match
+
+        try:
+            all_data = self.vector_store.collection.get(include=["documents", "metadatas"])
+            matched_pages = set()
+            source_file = ""
+
+            # Pass 1: Chunks directly linking or naming this figure
+            primary_caption = ""
+            for doc_text, meta in zip(all_data["documents"], all_data["metadatas"]):
+                meta_url = meta.get("image_url", "") if isinstance(meta, dict) else ""
+                if fig_filename in meta_url or fig_filename in doc_text:
+                    p_num = meta.get("page_number", "") if isinstance(meta, dict) else ""
+                    s_file = meta.get("source_file", "") if isinstance(meta, dict) else ""
+                    if p_num:
+                        matched_pages.add(p_num)
+                    if s_file:
+                        source_file = s_file
+
+                    cap_match = re.search(r"\[IMAGE / FIGURE:\s*(.*?)\]", doc_text, re.IGNORECASE)
+                    cap = cap_match.group(1).strip() if cap_match else (meta.get("caption", "") if isinstance(meta, dict) else "")
+                    if cap and not primary_caption and not cap.startswith("Figure (Page Image"):
+                        primary_caption = cap
+
+                    score = max(0.95, top_sim)
+                    matched_chunks.append(SearchResult(
+                        chunk_id=f"fig_exact_{fig_filename}_{meta.get('chunk_index', 0)}",
+                        text=doc_text,
+                        source_file=s_file or fig_filename,
+                        metadata=meta if isinstance(meta, dict) else {},
+                        score=score,
+                        distance=1.0 - score
+                    ))
+
+            # Pass 2: Adjacent context on the same page explaining this figure
+            if matched_pages and source_file:
+                for doc_text, meta in zip(all_data["documents"], all_data["metadatas"]):
+                    if not isinstance(meta, dict):
+                        continue
+                    if meta.get("source_file") == source_file and meta.get("page_number") in matched_pages:
+                        if not primary_caption:
+                            fig_text_match = re.search(r"(?:Fig(?:ure)?\.?\s*\d+[^.\n]+(?:\.[^.\n]+)?)", doc_text)
+                            if fig_text_match:
+                                primary_caption = fig_text_match.group(0).strip()
+
+                        c_id = f"fig_page_{fig_filename}_{meta.get('chunk_index', 0)}"
+                        if any(mc.text == doc_text for mc in matched_chunks):
+                            continue
+                        score = max(0.85, top_sim - 0.10)
+                        matched_chunks.append(SearchResult(
+                            chunk_id=c_id,
+                            text=doc_text,
+                            source_file=source_file,
+                            metadata=meta,
+                            score=score,
+                            distance=1.0 - score
+                        ))
+
+            first_p_num = sorted(matched_pages)[0] if matched_pages else ""
+            label = f"'{primary_caption}'" if primary_caption else f"Figure '{fig_filename}'"
+            info_lines.append(f"Visual match found in document: {label} ({source_file or 'document'}, Page {first_p_num}) with {top_sim*100:.1f}% confidence.")
+            top_image_match["source_file"] = f"{source_file} (Page {first_p_num})" if (source_file and first_p_num) else (source_file or fig_filename)
+        except Exception as e:
+            print(f"[*] Note during visual chunk lookup: {e}")
+
+        return matched_chunks, info_lines, top_image_match
+
     def query_with_image(
         self,
         user_question: str,
@@ -470,7 +579,7 @@ class RAGPipeline:
         api_key: Optional[str] = None
     ) -> GroundedAnswer:
         """
-        Executes a Multimodal Visual Search & Query with memory and attention.
+        Executes a Multimodal Visual Search & Query with memory, perceptual image matching, and attention.
         """
         if history is not None:
             self.conversation_memory = history[-10:]
@@ -481,7 +590,10 @@ class RAGPipeline:
         image_path = Path(query_image_path)
         print(f"\n[*] MULTIMODAL QUERY WITH ATTACHED IMAGE: {image_path.name} (Provider: {provider_name.upper()})")
 
-        # 1. Extract OCR text and Vision description of query image
+        # 1. Perceptual visual fingerprint matching against document extracted figures
+        fig_chunks, fig_info, top_image_match = self._find_chunks_for_image_match(image_path)
+
+        # 2. Extract OCR text and Vision description of query image
         vision_parser = getattr(self.parser_factory, "vision_parser", getattr(self.parser_factory, "_image_parser", None))
         if vision_parser:
             image_analysis = vision_parser.describe_and_ocr_image(image_path)
@@ -492,34 +604,61 @@ class RAGPipeline:
         vision_desc = image_analysis.get("description", "")
         combined_summary = image_analysis.get("combined_summary", "")
 
-        # 2. Formulate enriched search query
+        if fig_info:
+            vis_match_block = "\n".join(fig_info)
+            combined_summary = f"{vis_match_block}\n\n{combined_summary}" if combined_summary else vis_match_block
+        else:
+            unmatched_note = (
+                "[ATTACHED IMAGE STATUS]: This attached image does NOT match any figure or diagram in the uploaded document(s). "
+                "It is an external or distinct image provided by the user."
+            )
+            combined_summary = f"{unmatched_note}\n\n{combined_summary}" if combined_summary else unmatched_note
+
+        # 3. Formulate enriched search query
         effective_question = user_question.strip() if user_question else "What is this image and how does it relate to the uploaded documents?"
         
-        search_terms = [effective_question]
+        # Formulate visual search topic from visual match, OCR text & vision model descriptions
+        visual_terms = []
+        if fig_info:
+            visual_terms.append(" ".join(fig_info))
         if ocr_text:
-            search_terms.append(ocr_text)
+            clean_ocr = " ".join([w for w in ocr_text.split() if len(w) > 1 or w.isalnum()])
+            if clean_ocr:
+                visual_terms.append(clean_ocr)
         if vision_desc:
-            search_terms.append(vision_desc[:300])
-        
-        compound_search_query = " ".join(search_terms)
+            clean_desc = vision_desc[:300].strip()
+            if clean_desc:
+                visual_terms.append(clean_desc)
 
-        # 3. Retrieve relevant chunks from ChromaDB
-        raw_results = self.vector_store.query(compound_search_query, top_k=top_k)
-        if effective_question != compound_search_query:
-            direct_results = self.vector_store.query(effective_question, top_k=top_k)
-            seen = {r.text: r for r in raw_results}
-            for dr in direct_results:
-                if dr.text not in seen:
-                    raw_results.append(dr)
+        visual_search_topic = f"{effective_question} {' '.join(visual_terms)}".strip()
 
-        filtered_chunks = self.guardrails.filter_relevant_chunks(raw_results)
+        # 4. Retrieve relevant chunks from ChromaDB using visual_search_topic
+        retrieval_k = max(top_k * 2, 12)
+        raw_results = self.vector_store.query(visual_search_topic, top_k=retrieval_k)
+
+        # Prepend visually matched figure chunks so they are prioritized
+        seen_texts = {r.text for r in raw_results}
+        for fc in reversed(fig_chunks):
+            if fc.text not in seen_texts:
+                raw_results.insert(0, fc)
+                seen_texts.add(fc.text)
+
+        filtered_chunks = self.guardrails.filter_relevant_chunks(raw_results, query=visual_search_topic)
+        # Ensure visually matched figure chunks remain in filtered_chunks
+        filt_texts = {c.text for c in filtered_chunks}
+        for fc in reversed(fig_chunks):
+            if fc.text not in filt_texts:
+                filtered_chunks.insert(0, fc)
+                filt_texts.add(fc.text)
+
         relevant_chunks = self.guardrails.apply_attention_reranking(
-            query=effective_question,
+            query=visual_search_topic,
             chunks=filtered_chunks,
-            history=self.conversation_memory
-        )
+            history=self.conversation_memory,
+            is_image_query=True
+        )[:top_k]
 
-        # 4. Construct prompt with user image analysis & conversation memory & feedback exemplars
+        # 5. Construct prompt with user image analysis & conversation memory & feedback exemplars
         system_prompt = self.guardrails.build_grounded_system_prompt()
         feedback_exemplars = self.get_feedback_exemplars(effective_question)
         user_prompt = self.guardrails.build_user_prompt(
@@ -530,7 +669,7 @@ class RAGPipeline:
             feedback_exemplars=feedback_exemplars
         )
 
-        # 5. Query LLM via MultiProvider dispatcher
+        # 6. Query LLM via MultiProvider dispatcher
         try:
             llm_response = MultiProviderLLM.generate(
                 user_prompt=user_prompt,
@@ -557,17 +696,39 @@ class RAGPipeline:
         if len(self.conversation_memory) > 12:
             self.conversation_memory = self.conversation_memory[-12:]
 
-        # Evaluate genuine factual grounding
+        # Evaluate genuine factual grounding against visual search topic
         is_grounded, confidence_score, grounded_citations = self.guardrails.evaluate_grounding(
-            query=effective_question,
+            query=visual_search_topic,
             answer=llm_response,
             relevant_chunks=relevant_chunks
         )
 
-        # 6. Extract top matching document diagrams (capped at 2-3 most relevant)
+        # Ensure reverse image queries with strong visual match or relevant context are grounded
+        if (top_image_match or fig_chunks) and not is_grounded and relevant_chunks:
+            is_grounded = True
+            confidence_score = max(confidence_score, 0.78)
+            grounded_citations = relevant_chunks
+        elif not is_grounded and relevant_chunks:
+            top_score = max(getattr(c, "score", 0.0) for c in relevant_chunks)
+            if top_score >= 0.40:
+                is_grounded = True
+                confidence_score = max(confidence_score, 0.65)
+                grounded_citations = relevant_chunks
+
+        # 7. Extract top matching document diagrams (capped at 2-3 most relevant)
         matched_images = []
-        if is_grounded:
-            matched_images = self._extract_relevant_images(effective_question, relevant_chunks, is_image_query=True)
+        if top_image_match:
+            matched_images.append(top_image_match)
+        if is_grounded or relevant_chunks:
+            extra_imgs = self._extract_relevant_images(visual_search_topic, relevant_chunks, is_image_query=True)
+            for ei in extra_imgs:
+                if not any(m["url"] == ei["url"] for m in matched_images):
+                    matched_images.append(ei)
+            matched_images = matched_images[:3]
+            if matched_images and not is_grounded:
+                is_grounded = True
+                confidence_score = max(confidence_score, 0.65)
+                grounded_citations = relevant_chunks
 
         return GroundedAnswer(
             answer=llm_response,
@@ -576,6 +737,413 @@ class RAGPipeline:
             citations=grounded_citations,
             images=matched_images
         )
+
+    def query_stream(
+        self,
+        user_question: str,
+        top_k: int = 6,
+        history: Optional[List[Dict[str, str]]] = None,
+        provider: str = "ollama",
+        model: Optional[str] = None,
+        api_key: Optional[str] = None
+    ):
+        """
+        Executes a real-time token-by-token streaming RAG query.
+        Yields {"type": "token", "token": "..."} during generation,
+        followed by {"type": "done", ...} with final grounded metadata.
+        """
+        if history is not None:
+            self.conversation_memory = history[-10:]
+
+        target_model = model or self.current_model
+        provider_name = (provider or "ollama").lower().strip()
+
+        # 1. Handle casual greetings politely
+        greeting_reply = self.rewriter.is_conversational_greeting(user_question)
+        if greeting_reply:
+            self.conversation_memory.append({"role": "user", "content": user_question})
+            self.conversation_memory.append({"role": "assistant", "content": greeting_reply})
+            words = greeting_reply.split(" ")
+            for i, w in enumerate(words):
+                yield {"type": "token", "token": w + (" " if i < len(words) - 1 else "")}
+            yield {
+                "type": "done",
+                "answer": greeting_reply,
+                "confidence_score": 1.0,
+                "is_grounded": True,
+                "citations": [],
+                "images": []
+            }
+            return
+
+        # 2. Fix typos & expand query with conversation attention
+        cleaned_question, search_query = self.rewriter.clean_and_expand_query(
+            user_question,
+            model_name=target_model
+        )
+
+        q_lower = cleaned_question.lower()
+        is_summary_query = any(w in q_lower for w in ["summary", "summarize", "overview", "what is this document", "what is this paper", "explain this document"])
+        is_visual_query = any(w in q_lower for w in ["image", "images", "figure", "figures", "diagram", "diagrams", "plot", "plots", "chart", "charts", "picture", "pictures", "visual"])
+
+        # 3. Multi-strategy retrieval (corrected query + original query + keyword search)
+        negative_exemplars = self.get_negative_exemplars(cleaned_question)
+        effective_top_k = top_k + 2 if negative_exemplars else top_k
+
+        raw_results = self.vector_store.query(search_query, top_k=effective_top_k)
+        if search_query != user_question:
+            direct_results = self.vector_store.query(user_question, top_k=effective_top_k)
+            seen = {r.chunk_id: r for r in raw_results}
+            for dr in direct_results:
+                if dr.chunk_id not in seen:
+                    raw_results.append(dr)
+
+        if hasattr(self.vector_store, "keyword_search"):
+            kw_results = self.vector_store.keyword_search(cleaned_question, top_k=3)
+            seen = {r.chunk_id: r for r in raw_results}
+            for kr in kw_results:
+                if kr.chunk_id not in seen:
+                    raw_results.append(kr)
+
+        if is_summary_query and hasattr(self.vector_store, "get_initial_chunks"):
+            initial_chunks = self.vector_store.get_initial_chunks(limit=3)
+            seen = {r.chunk_id: r for r in raw_results}
+            for ic in initial_chunks:
+                if ic.chunk_id not in seen:
+                    raw_results.append(ic)
+
+        if is_visual_query and hasattr(self.vector_store, "get_image_chunks"):
+            fig_chunks = self.vector_store.get_image_chunks(limit=6)
+            seen = {r.chunk_id: r for r in raw_results}
+            for fc in fig_chunks:
+                if fc.chunk_id not in seen:
+                    raw_results.append(fc)
+
+        # 4. Filter & Rerank
+        filtered_chunks = self.guardrails.filter_relevant_chunks(raw_results, query=cleaned_question)
+        if self.citation_boosts and filtered_chunks:
+            for c in filtered_chunks:
+                boost = self.citation_boosts.get(c.source_file, 0.0)
+                if boost:
+                    c.score = max(0.0, min(1.0, c.score + boost))
+
+        relevant_chunks = self.guardrails.apply_attention_reranking(
+            query=cleaned_question,
+            chunks=filtered_chunks,
+            history=self.conversation_memory
+        )
+
+        if not relevant_chunks:
+            if self.missing_answer_behavior == "general_knowledge":
+                gen_prompt = (
+                    f"Answer the following user question using your general knowledge: {cleaned_question}\n\n"
+                    "Requirement: You MUST start your response with: '[General Knowledge - Not found in your documents]'."
+                )
+                collected = []
+                try:
+                    for token in MultiProviderLLM.generate_stream(
+                        user_prompt=gen_prompt,
+                        system_prompt="You are a helpful AI assistant answering from general knowledge because the topic was not found in the user's private documents.",
+                        provider=provider_name,
+                        model=target_model,
+                        api_key=api_key,
+                        temperature=0.3,
+                        ollama_url=self.ollama.base_url
+                    ):
+                        collected.append(token)
+                        yield {"type": "token", "token": token}
+                    full_resp = "".join(collected)
+                except Exception:
+                    full_resp = f"I could not find any information about '{user_question}' in the uploaded documents."
+                    yield {"type": "token", "token": full_resp}
+                
+                self.conversation_memory.append({"role": "user", "content": user_question})
+                self.conversation_memory.append({"role": "assistant", "content": full_resp})
+                yield {
+                    "type": "done",
+                    "answer": full_resp,
+                    "is_grounded": False,
+                    "confidence_score": 0.25,
+                    "citations": [],
+                    "images": []
+                }
+                return
+            else:
+                fallback_msg = f"I could not find any information about '{user_question}' in the uploaded documents. Please upload a document containing this topic or ask about your indexed files."
+                words = fallback_msg.split(" ")
+                for i, w in enumerate(words):
+                    yield {"type": "token", "token": w + (" " if i < len(words) - 1 else "")}
+                self.conversation_memory.append({"role": "user", "content": user_question})
+                self.conversation_memory.append({"role": "assistant", "content": fallback_msg})
+                yield {
+                    "type": "done",
+                    "answer": fallback_msg,
+                    "is_grounded": False,
+                    "confidence_score": 0.0,
+                    "citations": [],
+                    "images": []
+                }
+                return
+
+        # 5. Build prompts
+        system_prompt = self.guardrails.build_grounded_system_prompt()
+        if self.response_style == "concise":
+            system_prompt += "\n\nRESPONSE FORMAT DIRECTIVE: Deliver a concise, direct answer using bullet points. Avoid filler introductions or long summaries."
+        elif self.response_style == "detailed":
+            system_prompt += "\n\nRESPONSE FORMAT DIRECTIVE: Deliver a comprehensive, in-depth explanation with complete context and clear headings."
+        feedback_exemplars = self.get_feedback_exemplars(cleaned_question)
+        user_prompt = self.guardrails.build_user_prompt(
+            query=cleaned_question,
+            context_chunks=relevant_chunks,
+            conversation_history=self.conversation_memory,
+            feedback_exemplars=feedback_exemplars,
+            negative_exemplars=negative_exemplars
+        )
+
+        # 6. Stream tokens
+        collected_tokens = []
+        try:
+            for token in MultiProviderLLM.generate_stream(
+                user_prompt=user_prompt,
+                system_prompt=system_prompt,
+                provider=provider_name,
+                model=target_model,
+                api_key=api_key,
+                temperature=0.1,
+                ollama_url=self.ollama.base_url
+            ):
+                collected_tokens.append(token)
+                yield {"type": "token", "token": token}
+        except Exception as e:
+            err_msg = f"Error communicating with {provider_name.upper()}: {str(e)}"
+            yield {"type": "token", "token": err_msg}
+            collected_tokens.append(err_msg)
+
+        full_raw = "".join(collected_tokens)
+        llm_response = self._sanitize_llm_response(full_raw)
+
+        # Record conversation turn in memory
+        self.conversation_memory.append({"role": "user", "content": user_question})
+        self.conversation_memory.append({"role": "assistant", "content": llm_response})
+        if len(self.conversation_memory) > 12:
+            self.conversation_memory = self.conversation_memory[-12:]
+
+        # Evaluate grounding
+        is_grounded, confidence_score, grounded_citations = self.guardrails.evaluate_grounding(
+            query=cleaned_question,
+            answer=llm_response,
+            relevant_chunks=relevant_chunks
+        )
+
+        matched_images = []
+        if is_grounded or is_visual_query:
+            matched_images = self._extract_relevant_images(user_question, relevant_chunks, is_image_query=is_visual_query)
+
+        if is_visual_query and not matched_images and hasattr(self.vector_store, "get_image_chunks"):
+            img_pool = self.vector_store.get_image_chunks(limit=6)
+            if img_pool:
+                matched_images = self._extract_relevant_images(user_question, img_pool, is_image_query=True)
+
+        if is_visual_query and matched_images and not is_grounded:
+            is_grounded = True
+            confidence_score = max(0.65, confidence_score)
+
+        unique_cits = {}
+        target_cits = grounded_citations if grounded_citations else relevant_chunks[:3]
+        for c in target_cits:
+            score_val = float(c.score) if getattr(c, "score", None) is not None else 0.0
+            score_pct = round(score_val * 100, 1)
+            if c.source_file not in unique_cits or score_pct > unique_cits[c.source_file]["relevance"]:
+                unique_cits[c.source_file] = {
+                    "source_file": c.source_file,
+                    "relevance": score_pct,
+                    "text": c.text[:200] + "..." if len(c.text) > 200 else c.text
+                }
+
+        yield {
+            "type": "done",
+            "answer": llm_response,
+            "is_grounded": is_grounded,
+            "confidence_score": confidence_score,
+            "citations": list(unique_cits.values()) if is_grounded else [],
+            "images": matched_images if is_grounded else []
+        }
+
+    def query_with_image_stream(
+        self,
+        user_question: str,
+        query_image_path: Path | str,
+        top_k: int = 6,
+        history: Optional[List[Dict[str, str]]] = None,
+        provider: str = "ollama",
+        model: Optional[str] = None,
+        api_key: Optional[str] = None
+    ):
+        """
+        Executes a real-time token-by-token streaming Multimodal Visual Search & Query.
+        """
+        if history is not None:
+            self.conversation_memory = history[-10:]
+
+        target_model = model or self.current_model
+        provider_name = (provider or "ollama").lower().strip()
+        image_path = Path(query_image_path)
+
+        # 1. Perceptual visual fingerprint matching against document extracted figures
+        fig_chunks, fig_info, top_image_match = self._find_chunks_for_image_match(image_path)
+
+        # 2. Extract OCR text and Vision description of query image
+        vision_parser = getattr(self.parser_factory, "vision_parser", getattr(self.parser_factory, "_image_parser", None))
+        if vision_parser:
+            image_analysis = vision_parser.describe_and_ocr_image(image_path)
+        else:
+            image_analysis = {"ocr_text": "", "description": "", "combined_summary": ""}
+
+        ocr_text = image_analysis.get("ocr_text", "")
+        vision_desc = image_analysis.get("description", "")
+        combined_summary = image_analysis.get("combined_summary", "")
+
+        if fig_info:
+            vis_match_block = "\n".join(fig_info)
+            combined_summary = f"{vis_match_block}\n\n{combined_summary}" if combined_summary else vis_match_block
+        else:
+            unmatched_note = (
+                "[ATTACHED IMAGE STATUS]: This attached image does NOT match any figure or diagram in the uploaded document(s). "
+                "It is an external or distinct image provided by the user."
+            )
+            combined_summary = f"{unmatched_note}\n\n{combined_summary}" if combined_summary else unmatched_note
+
+        effective_question = user_question.strip() if user_question else "What is this image and how does it relate to the uploaded documents?"
+        visual_terms = []
+        if fig_info:
+            visual_terms.append(" ".join(fig_info))
+        if ocr_text:
+            clean_ocr = " ".join([w for w in ocr_text.split() if len(w) > 1 or w.isalnum()])
+            if clean_ocr:
+                visual_terms.append(clean_ocr)
+        if vision_desc:
+            clean_desc = vision_desc[:300].strip()
+            if clean_desc:
+                visual_terms.append(clean_desc)
+
+        visual_search_topic = f"{effective_question} {' '.join(visual_terms)}".strip()
+
+        # 3. Retrieve candidates
+        retrieval_k = max(top_k * 2, 12)
+        raw_results = self.vector_store.query(visual_search_topic, top_k=retrieval_k)
+
+        # Prepend visually matched figure chunks so they are prioritized
+        seen_texts = {r.text for r in raw_results}
+        for fc in reversed(fig_chunks):
+            if fc.text not in seen_texts:
+                raw_results.insert(0, fc)
+                seen_texts.add(fc.text)
+
+        filtered_chunks = self.guardrails.filter_relevant_chunks(raw_results, query=visual_search_topic)
+        filt_texts = {c.text for c in filtered_chunks}
+        for fc in reversed(fig_chunks):
+            if fc.text not in filt_texts:
+                filtered_chunks.insert(0, fc)
+                filt_texts.add(fc.text)
+
+        relevant_chunks = self.guardrails.apply_attention_reranking(
+            query=visual_search_topic,
+            chunks=filtered_chunks,
+            history=self.conversation_memory,
+            is_image_query=True
+        )[:top_k]
+
+        # 4. Construct prompt
+        system_prompt = self.guardrails.build_grounded_system_prompt()
+        feedback_exemplars = self.get_feedback_exemplars(effective_question)
+        user_prompt = self.guardrails.build_user_prompt(
+            query=effective_question,
+            context_chunks=relevant_chunks,
+            user_image_context=combined_summary,
+            conversation_history=self.conversation_memory,
+            feedback_exemplars=feedback_exemplars
+        )
+
+        # 5. Stream tokens
+        collected_tokens = []
+        try:
+            for token in MultiProviderLLM.generate_stream(
+                user_prompt=user_prompt,
+                system_prompt=system_prompt,
+                provider=provider_name,
+                model=target_model,
+                api_key=api_key,
+                temperature=0.1,
+                ollama_url=self.ollama.base_url
+            ):
+                collected_tokens.append(token)
+                yield {"type": "token", "token": token}
+        except Exception as e:
+            err_msg = f"Error communicating with {provider_name.upper()}: {str(e)}"
+            yield {"type": "token", "token": err_msg}
+            collected_tokens.append(err_msg)
+
+        full_raw = "".join(collected_tokens)
+        llm_response = self._sanitize_llm_response(full_raw)
+
+        # Record conversation turn
+        self.conversation_memory.append({"role": "user", "content": f"[Image Search]: {effective_question}"})
+        self.conversation_memory.append({"role": "assistant", "content": llm_response})
+        if len(self.conversation_memory) > 12:
+            self.conversation_memory = self.conversation_memory[-12:]
+
+        # Grounding
+        is_grounded, confidence_score, grounded_citations = self.guardrails.evaluate_grounding(
+            query=visual_search_topic,
+            answer=llm_response,
+            relevant_chunks=relevant_chunks
+        )
+
+        if (top_image_match or fig_chunks) and not is_grounded and relevant_chunks:
+            is_grounded = True
+            confidence_score = max(confidence_score, 0.78)
+            grounded_citations = relevant_chunks
+        elif not is_grounded and relevant_chunks:
+            top_score = max(getattr(c, "score", 0.0) for c in relevant_chunks)
+            if top_score >= 0.40:
+                is_grounded = True
+                confidence_score = max(confidence_score, 0.65)
+                grounded_citations = relevant_chunks
+
+        matched_images = []
+        if top_image_match:
+            matched_images.append(top_image_match)
+        if is_grounded or relevant_chunks:
+            extra_imgs = self._extract_relevant_images(visual_search_topic, relevant_chunks, is_image_query=True)
+            for ei in extra_imgs:
+                if not any(m["url"] == ei["url"] for m in matched_images):
+                    matched_images.append(ei)
+            matched_images = matched_images[:3]
+            if matched_images and not is_grounded:
+                is_grounded = True
+                confidence_score = max(confidence_score, 0.65)
+                grounded_citations = relevant_chunks
+
+        unique_cits = {}
+        target_cits = grounded_citations if grounded_citations else relevant_chunks[:3]
+        for c in target_cits:
+            score_val = float(c.score) if getattr(c, "score", None) is not None else 0.0
+            score_pct = round(score_val * 100, 1)
+            if c.source_file not in unique_cits or score_pct > unique_cits[c.source_file]["relevance"]:
+                unique_cits[c.source_file] = {
+                    "source_file": c.source_file,
+                    "relevance": score_pct,
+                    "text": c.text[:200] + "..." if len(c.text) > 200 else c.text
+                }
+
+        yield {
+            "type": "done",
+            "answer": llm_response,
+            "is_grounded": is_grounded,
+            "confidence_score": confidence_score,
+            "citations": list(unique_cits.values()) if is_grounded else [],
+            "images": matched_images if is_grounded else []
+        }
 
     @staticmethod
     def _sanitize_llm_response(answer: str) -> str:
@@ -665,7 +1233,7 @@ class RAGPipeline:
                     caption = f"{c.source_file}" + (f" (Page {page_num})" if page_num else "")
 
                     # Calculate semantic relevance between the query and the image
-                    img_text = f"{filename} {chunk_caption} {c.text[:250]}".lower()
+                    img_text = f"{filename} {chunk_caption} {c.text[:1500]}".lower()
                     overlap = sum(1 for w in subject_words if w in img_text) if subject_words else 0
 
                     # If user asked for a specific visual item (e.g. "Grad-CAM", "ROC curve"), require subject overlap!

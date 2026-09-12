@@ -60,7 +60,7 @@ def _preflight_torch_and_runtimes():
             try:
                 subprocess.run(
                     [sys.executable, "-m", "pip", "install", "--force-reinstall", "--no-cache-dir",
-                     "torch", "torchvision", "--index-url", "https://download.pytorch.org/whl/cpu"],
+                     "torch", "--index-url", "https://download.pytorch.org/whl/cpu"],
                     check=True
                 )
                 print(" [OK] Environment repaired successfully! Resuming launch...")
@@ -115,7 +115,7 @@ def main():
 
     # 2. Run Uvicorn directly on the main thread for maximum network responsiveness and signal handling
     try:
-        uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
+        uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
     except KeyboardInterrupt:
         print("\n [*] Stopping Local Server...")
 

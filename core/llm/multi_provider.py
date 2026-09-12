@@ -336,6 +336,120 @@ class MultiProviderLLM:
             return {"valid": False, "message": f"Connection error: {str(e)}"}
 
     @classmethod
+    def generate_stream(
+        cls,
+        user_prompt: str,
+        system_prompt: Optional[str] = None,
+        provider: str = "ollama",
+        model: Optional[str] = None,
+        api_key: Optional[str] = None,
+        temperature: float = 0.1,
+        ollama_url: str = "http://localhost:11434",
+        timeout: float = 90.0
+    ):
+        """Streams grounded chat completion tokens across the selected provider."""
+        import re
+        provider = (provider or "ollama").lower().strip()
+        model_name = model or cls.DEFAULT_MODELS.get(provider, "qwen3.8-flash-next")
+        model_name = re.sub(r"^(local:|cloud:|ollama:)", "", model_name.strip())
+
+        # 1. Local Ollama Fallback / Default
+        if provider == "ollama" or not api_key:
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": user_prompt})
+
+            payload = {
+                "model": model_name,
+                "messages": messages,
+                "stream": True,
+                "options": {"temperature": temperature}
+            }
+
+            try:
+                with httpx.Client(timeout=timeout) as client:
+                    with client.stream("POST", f"{ollama_url}/api/chat", json=payload) as response:
+                        response.raise_for_status()
+                        for line in response.iter_lines():
+                            if not line:
+                                continue
+                            try:
+                                chunk = json.loads(line)
+                                token = chunk.get("message", {}).get("content", "")
+                                if token:
+                                    yield token
+                            except Exception:
+                                continue
+                return
+            except Exception as err:
+                print(f"[!] Ollama streaming error ({err}), falling back to non-streaming...")
+                full = cls.generate(user_prompt, system_prompt, provider, model, api_key, temperature, ollama_url, timeout)
+                yield full
+                return
+
+        # 2. OpenAI / Grok / Groq / OpenRouter (OpenAI-compatible streaming)
+        if provider in ["openai", "openrouter", "grok", "groq"]:
+            url_map = {
+                "openai": "https://api.openai.com/v1/chat/completions",
+                "openrouter": "https://openrouter.ai/api/v1/chat/completions",
+                "grok": "https://api.x.ai/v1/chat/completions",
+                "groq": "https://api.groq.com/openai/v1/chat/completions"
+            }
+            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            if provider == "openrouter":
+                headers["HTTP-Referer"] = "https://mirag.me"
+                headers["X-Title"] = "Mi:RAG Multimodal"
+
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": user_prompt})
+
+            payload = {
+                "model": model_name,
+                "messages": messages,
+                "temperature": temperature,
+                "stream": True
+            }
+
+            try:
+                with httpx.Client(timeout=timeout) as client:
+                    with client.stream("POST", url_map[provider], headers=headers, json=payload) as response:
+                        response.raise_for_status()
+                        for line in response.iter_lines():
+                            if not line or not line.startswith("data: "):
+                                continue
+                            data_str = line[6:].strip()
+                            if data_str == "[DONE]":
+                                break
+                            try:
+                                chunk = json.loads(data_str)
+                                choices = chunk.get("choices", [])
+                                if choices:
+                                    delta = choices[0].get("delta", {}).get("content", "")
+                                    if delta:
+                                        yield delta
+                            except Exception:
+                                continue
+                return
+            except Exception as err:
+                print(f"[!] {provider} streaming error ({err}), falling back to non-streaming...")
+                full = cls.generate(user_prompt, system_prompt, provider, model, api_key, temperature, ollama_url, timeout)
+                yield full
+                return
+
+        # 3. Gemini / Anthropic Fallback to generate()
+        try:
+            full = cls.generate(user_prompt, system_prompt, provider, model, api_key, temperature, ollama_url, timeout)
+            # Yield in natural token chunks for smooth typewriter feel
+            words = full.split(" ")
+            for i, word in enumerate(words):
+                yield word + (" " if i < len(words) - 1 else "")
+        except Exception as e:
+            raise e
+
+    @classmethod
     def generate(
         cls,
         user_prompt: str,
@@ -350,6 +464,8 @@ class MultiProviderLLM:
         """Executes grounded chat completion across the selected provider."""
         provider = (provider or "ollama").lower().strip()
         model_name = model or cls.DEFAULT_MODELS.get(provider, "qwen3.8-flash-next")
+        import re
+        model_name = re.sub(r"^(local:|cloud:|ollama:)", "", model_name.strip())
 
         # 1. Local Ollama Fallback / Default
         if provider == "ollama" or not api_key:

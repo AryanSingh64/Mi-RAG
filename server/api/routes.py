@@ -5,12 +5,13 @@ import math
 import shutil
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 import httpx
 from pydantic import BaseModel
 
+from core.chat_store import ChatStore
 from core.llm.model_hub import ModelHub
 from core.llm.ollama_client import OllamaClient
 from core.system.hardware_detector import HardwareDetector
@@ -21,6 +22,11 @@ router = APIRouter()
 session_manager = SessionManager(base_storage_dir="./data/sessions", default_ttl_hours=3.0)
 packager = RAGPackager(export_output_dir="./data/exports")
 ollama_client = OllamaClient()
+
+
+def get_session_chat_store(session) -> ChatStore:
+    db_path = session.session_dir / "chat_history.db"
+    return ChatStore(db_path)
 
 
 # Request/Response Schemas
@@ -451,7 +457,6 @@ async def chat_with_rag(session_id: str, request: Request):
         hist_raw = form.get("history")
         if hist_raw:
             try:
-                import json
                 history = json.loads(hist_raw)
             except Exception:
                 pass
@@ -518,6 +523,213 @@ async def chat_with_rag(session_id: str, request: Request):
         "images": answer.images if answer.is_grounded else [],
         "query_image_url": query_image_url
     }
+
+
+class CreateConversationRequest(BaseModel):
+    title: Optional[str] = "New Chat"
+
+
+@router.get("/sessions/{session_id}/conversations")
+def list_session_conversations(session_id: str):
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session expired or not found.")
+    store = get_session_chat_store(session)
+    return {"conversations": store.list_conversations(session_id)}
+
+
+@router.post("/sessions/{session_id}/conversations")
+def create_session_conversation(session_id: str, body: Optional[CreateConversationRequest] = None):
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session expired or not found.")
+    store = get_session_chat_store(session)
+    title = body.title if body and body.title else "New Chat"
+    conv = store.create_conversation(session_id, title=title)
+    return conv
+
+
+@router.get("/sessions/{session_id}/conversations/{conv_id}")
+def get_session_conversation(session_id: str, conv_id: str):
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session expired or not found.")
+    store = get_session_chat_store(session)
+    conv = store.get_conversation(conv_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+    return conv
+
+
+@router.delete("/sessions/{session_id}/conversations/{conv_id}")
+def delete_session_conversation(session_id: str, conv_id: str):
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session expired or not found.")
+    store = get_session_chat_store(session)
+    success = store.delete_conversation(conv_id)
+    return {"success": success}
+
+
+@router.post("/sessions/{session_id}/chat/stream")
+async def chat_stream_with_rag(session_id: str, request: Request):
+    """
+    Executes a real-time token-by-token streaming grounded query against the session's private knowledge base.
+    Returns an SSE event stream with live tokens and final factual grounding metadata.
+    Durably records all conversation turns into the session's SQLite chat history database.
+    """
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session expired or not found.")
+
+    store = get_session_chat_store(session)
+    content_type = request.headers.get("content-type", "")
+    query_image_path = None
+    query_image_url = None
+    user_message = ""
+    history = None
+    top_k = 6
+    provider = "ollama"
+    model = None
+    api_key = None
+    conversation_id = None
+
+    if "application/json" in content_type:
+        try:
+            data = await request.json()
+            user_message = data.get("message", "")
+            top_k = int(data.get("top_k", 6))
+            history = data.get("history", None)
+            provider = str(data.get("provider", "ollama")).strip()
+            model = data.get("model", None)
+            api_key = data.get("api_key", None)
+            conversation_id = data.get("conversation_id", None)
+        except Exception:
+            pass
+    else:
+        form = await request.form()
+        user_message = str(form.get("message", "")).strip()
+        provider = str(form.get("provider", "ollama")).strip()
+        model = form.get("model", None)
+        api_key = form.get("api_key", None)
+        conversation_id = form.get("conversation_id", None)
+        try:
+            top_k = int(form.get("top_k", 6))
+        except Exception:
+            top_k = 6
+
+        hist_raw = form.get("history")
+        if hist_raw:
+            try:
+                history = json.loads(hist_raw)
+            except Exception:
+                pass
+
+        uploaded_image = form.get("image")
+        if uploaded_image and hasattr(uploaded_image, "filename") and uploaded_image.filename:
+            clean_fname = f"query_{uuid.uuid4().hex[:8]}_{uploaded_image.filename}"
+            query_image_path = session.uploads_dir / clean_fname
+            with open(query_image_path, "wb") as buffer:
+                shutil.copyfileobj(uploaded_image.file, buffer)
+            query_image_url = f"/api/sessions/{session_id}/images/{clean_fname}"
+
+    # Determine or initialize conversation thread in SQLite
+    active_conv = None
+    if conversation_id:
+        active_conv = store.get_conversation(str(conversation_id).strip())
+    if not active_conv:
+        smart_title = store.generate_smart_title(user_message or "Visual Query")
+        active_conv = store.create_conversation(session_id, title=smart_title)
+        conversation_id = active_conv["id"]
+    else:
+        if (active_conv.get("message_count", 0) == 0 or active_conv.get("title") == "New Chat") and user_message:
+            smart_title = store.generate_smart_title(user_message)
+            store.update_conversation_title(conversation_id, smart_title)
+
+    # Durably record user turn
+    store.add_message(
+        conv_id=conversation_id,
+        role="user",
+        content=user_message,
+        image_url=query_image_url
+    )
+
+    import queue
+    import threading
+
+    async def event_generator():
+        q = queue.Queue()
+        sentinel = object()
+
+        def stream_worker():
+            try:
+                if query_image_path and query_image_path.exists():
+                    gen = session.pipeline.query_with_image_stream(
+                        user_question=user_message,
+                        query_image_path=query_image_path,
+                        top_k=top_k,
+                        history=history,
+                        provider=provider,
+                        model=model,
+                        api_key=api_key
+                    )
+                else:
+                    gen = session.pipeline.query_stream(
+                        user_question=user_message,
+                        top_k=top_k,
+                        history=history,
+                        provider=provider,
+                        model=model,
+                        api_key=api_key
+                    )
+                for item in gen:
+                    if isinstance(item, dict) and item.get("type") == "done":
+                        if query_image_url:
+                            item["query_image_url"] = query_image_url
+                        ans = item.get("answer", "")
+                        cits = item.get("citations", [])
+                        store.add_message(
+                            conv_id=conversation_id,
+                            role="assistant",
+                            content=ans,
+                            grounding_metadata=cits
+                        )
+                        cur_conv = store.get_conversation(conversation_id)
+                        item["conversation_id"] = conversation_id
+                        item["conversation_title"] = cur_conv.get("title", "Chat") if cur_conv else "Chat"
+
+                    q.put(item)
+            except Exception as e:
+                q.put({"type": "error", "error": str(e)})
+            finally:
+                q.put(sentinel)
+
+        worker_thread = threading.Thread(target=stream_worker, daemon=True)
+        worker_thread.start()
+
+        while True:
+            if await request.is_disconnected():
+                break
+            try:
+                item = await asyncio.to_thread(q.get, timeout=0.1)
+                if item is sentinel:
+                    yield "data: [DONE]\n\n"
+                    break
+                yield f"data: {json.dumps(item)}\n\n"
+            except queue.Empty:
+                await asyncio.sleep(0.01)
+                continue
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
 
 
 class FeedbackRequest(BaseModel):
@@ -608,7 +820,7 @@ def get_session_image(session_id: str, filename: str):
 
 @router.get("/sessions/{session_id}/export")
 def export_package(session_id: str):
-    """Creates and downloads the standalone turnkey Windows Setup (.exe) package."""
+    """Creates and downloads the standalone turnkey ZIP package."""
     session = session_manager.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session expired or not found.")
@@ -621,12 +833,8 @@ def export_package(session_id: str):
     if not pkg_path or not Path(pkg_path).exists():
         raise HTTPException(status_code=500, detail="Export packaging failed to create package file.")
 
-    is_exe = Path(pkg_path).suffix.lower() == ".exe"
-    media_type = "application/vnd.microsoft.portable-executable" if is_exe else "application/zip"
-    filename = f"Mi-RAG_Setup_{session.session_id[:8]}.exe" if is_exe else f"rag_deployment_{session.session_id}.zip"
-
     return FileResponse(
         path=str(pkg_path),
-        filename=filename,
-        media_type=media_type
+        filename=f"rag_deployment_{session.session_id[:8]}.zip",
+        media_type="application/zip"
     )

@@ -469,11 +469,11 @@ if ($hasDeps -eq "OK" -and $torchHealthy -eq "OK") {
         Write-Host " [*] Installing CUDA-accelerated PyTorch ($cudaTag)..." -ForegroundColor Cyan
         $cudaInstalled = $false
         if ($uvInstalled) {
-            & "$venvDir\Scripts\uv.exe" pip install --upgrade torch torchvision --index-url $cudaIndex
+            & "$venvDir\Scripts\uv.exe" pip install --upgrade torch --index-url $cudaIndex
             if ($LASTEXITCODE -eq 0) { $cudaInstalled = $true }
         }
         if (-not $cudaInstalled) {
-            & $venvPython -m pip install --retries 5 --timeout 60 --upgrade --progress-bar on torch torchvision --index-url $cudaIndex
+            & $venvPython -m pip install --retries 5 --timeout 60 --upgrade --progress-bar on torch --index-url $cudaIndex
         }
     }
     
@@ -510,9 +510,9 @@ if ($hasDeps -eq "OK" -and $torchHealthy -eq "OK") {
             # 3. If GPU/CUDA DLL initialization failed (incompatible driver), fallback to universal stable CPU PyTorch
             Write-Host " [*] GPU/CUDA driver mismatch detected. Switching to universal stable CPU PyTorch..." -ForegroundColor Cyan
             if ($uvInstalled) {
-                & "$venvDir\Scripts\uv.exe" pip install --force-reinstall --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+                & "$venvDir\Scripts\uv.exe" pip install --force-reinstall --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
             } else {
-                & $venvPython -m pip install --force-reinstall --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+                & $venvPython -m pip install --force-reinstall --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
             }
             if (Test-Path $vcSourceDir -and (Test-Path $torchLibDir)) {
                 Copy-Item -Path "$vcSourceDir\*.dll" -Destination $torchLibDir -Force -ErrorAction SilentlyContinue

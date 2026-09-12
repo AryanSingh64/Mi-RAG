@@ -303,12 +303,12 @@ if [ "$HAS_DEPS" != "OK" ] || { [ "$INSTALL_CUDA" = true ] && [ "$HAS_TORCH_CUDA
         echo -e " ${CYAN}[*] Installing CUDA-accelerated PyTorch ($CUDA_TAG)...${NC}"
         CUDA_INSTALLED=false
         if [ "$UV_INSTALLED" = true ]; then
-            if "$VENV_DIR/bin/uv" pip install --upgrade torch torchvision --index-url "$CUDA_INDEX"; then
+            if "$VENV_DIR/bin/uv" pip install --upgrade torch --index-url "$CUDA_INDEX"; then
                 CUDA_INSTALLED=true
             fi
         fi
         if [ "$CUDA_INSTALLED" = false ]; then
-            "$VENV_PYTHON" -m pip install --retries 5 --timeout 60 --upgrade torch torchvision --index-url "$CUDA_INDEX"
+            "$VENV_PYTHON" -m pip install --retries 5 --timeout 60 --upgrade torch --index-url "$CUDA_INDEX"
         fi
     fi
 
